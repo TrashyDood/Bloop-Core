@@ -13,7 +13,6 @@ namespace
     {
         GLint position;
         GLint scale;
-        GLint rotation;
         GLint color;
     };
 
@@ -106,19 +105,18 @@ namespace
         return program;
     }
 
-    void DrawTriangle(const Uniforms &uniforms, float x, float y, float width, float height, float rotation, Color color)
+    void DrawTriangle(const Uniforms &uniforms, float x, float y, float width, float height, Color color)
     {
         glUniform2f(uniforms.position, x, y);
         glUniform2f(uniforms.scale, width, height);
-        glUniform1f(uniforms.rotation, rotation);
         glUniform3f(uniforms.color, color.r, color.g, color.b);
         glDrawArrays(GL_TRIANGLES, 0, 3);
     }
 
     void DrawRectangle(const Uniforms &uniforms, float x, float y, float width, float height, Color color)
     {
-        DrawTriangle(uniforms, x, y, width, height, 0.0f, color);
-        DrawTriangle(uniforms, x + width, y + height, -width, -height, 0.0f, color);
+        DrawTriangle(uniforms, x, y, width, height, color);
+        DrawTriangle(uniforms, x + width, y + height, -width, -height, color);
     }
 
     void DrawHouse(const Uniforms &uniforms)
@@ -130,22 +128,19 @@ namespace
         constexpr Color window{0.35f, 0.75f, 0.88f};
 
         DrawRectangle(uniforms, -0.55f, -0.75f, 1.10f, 0.87f, wall);
-        DrawTriangle(uniforms, -0.70f, 0.08f, 0.70f, 0.68f, 0.0f,
+        DrawTriangle(uniforms, -0.70f, 0.08f, 0.70f, 0.68f,
                      roof_color_changed ? changed_roof : roof);
-        DrawTriangle(uniforms, 0.70f, 0.08f, -0.70f, 0.68f, 0.0f,
+        DrawTriangle(uniforms, 0.70f, 0.08f, -0.70f, 0.68f,
                      roof_color_changed ? changed_roof : roof);
         DrawRectangle(uniforms, -0.14f, -0.75f, 0.28f, 0.47f, door);
         DrawRectangle(uniforms, -0.46f, -0.14f, 0.21f, 0.18f, window);
         DrawRectangle(uniforms, 0.25f, -0.14f, 0.21f, 0.18f, window);
     }
 
-    void KeyCallback(GLFWwindow *window, int key, int, int action, int)
+    void KeyCallback(GLFWwindow *, int key, int, int action, int)
     {
         if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
             roof_color_changed = !roof_color_changed;
-
-        if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-            glfwSetWindowShouldClose(window, GLFW_TRUE);
     }
 
     void FramebufferSizeCallback(GLFWwindow *, int width, int height)
@@ -162,9 +157,6 @@ namespace
 
 int main()
 {
-    glfwSetErrorCallback([](int error, const char *description)
-                         { std::fprintf(stderr, "GLFW error %d: %s\n", error, description); });
-
     if (glfwInit() != GLFW_TRUE)
         return EXIT_FAILURE;
 
@@ -207,7 +199,6 @@ int main()
     const Uniforms uniforms = {
         glGetUniformLocation(program, "position"),
         glGetUniformLocation(program, "scale"),
-        glGetUniformLocation(program, "rotation"),
         glGetUniformLocation(program, "color")};
 
     constexpr float triangle[] = {

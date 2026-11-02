@@ -2,9 +2,8 @@
 
 This project opens a GLFW window with an OpenGL 3.3 Core context and renders a
 colored 2D house by repeatedly drawing one immutable triangle buffer. Press
-Space to change the roof color; press Escape to close the window. The vertex
-and fragment shaders are separate files in `shaders/` and are copied beside
-the executable during configuration.
+Space to change the roof color. The vertex and fragment shaders are separate
+files in `shaders/` and are copied beside the executable during configuration.
 
 ## Build on this PC
 
