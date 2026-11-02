@@ -16,11 +16,10 @@ then fully close and reopen VS Code. For example, if MSYS2 is installed at
 it is not stored in the repository. Open **Terminal → New Terminal** and
 select **MSYS2 UCRT64**. Your usual terminal remains the default.
 
-If the tools or GLFW are missing, install them once:
-
-```sh
-pacman -S --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-pkgconf mingw-w64-ucrt-x86_64-glfw
-```
+For a new MSYS2 installation, first choose **Terminal → Run Task… → Update
+MSYS2**. If the update asks you to close the terminal, reopen VS Code and run
+the task again. Then choose **Terminal → Run Task… → Install Build
+Dependencies** to install GCC, CMake, Ninja, pkg-config, and GLFW.
 
 To build in VS Code, choose **Terminal → Run Build Task** (or press
 **Ctrl+Shift+B**) and select **Build Engine**. The task configures the CMake
@@ -49,8 +48,9 @@ flags or extra arguments are needed. CMake writes generated build files under
 
 ## Where the libraries come from
 
-- **MSYS2** provides the compiler, CMake, Ninja, and GLFW. The `pacman` command
-  above installs GLFW from MSYS2's UCRT64 package repository.
+- **MSYS2** provides the compiler, CMake, Ninja, and GLFW. The **Update MSYS2**
+  and **Install Build Dependencies** tasks manage them from its UCRT64 package
+  repository.
 - **GLAD** is already included under `third_party/glad`. Its OpenGL 3.3 loader
   was generated from Khronos specifications and is built with the project;
   you do not need to download or install GLAD separately.

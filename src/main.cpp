@@ -74,9 +74,7 @@ namespace
         std::string fragment_source;
         if (!LoadShaderSource("vertex.glsl", vertex_source) ||
             !LoadShaderSource("fragment.glsl", fragment_source))
-        {
             return 0;
-        }
 
         const GLuint vertex_shader = CompileShader(GL_VERTEX_SHADER, vertex_source.c_str());
         const GLuint fragment_shader = CompileShader(GL_FRAGMENT_SHADER, fragment_source.c_str());
@@ -144,14 +142,10 @@ namespace
     void KeyCallback(GLFWwindow *window, int key, int, int action, int)
     {
         if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
-        {
             roof_color_changed = !roof_color_changed;
-        }
 
         if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-        {
             glfwSetWindowShouldClose(window, GLFW_TRUE);
-        }
     }
 
     void FramebufferSizeCallback(GLFWwindow *, int width, int height)
@@ -162,9 +156,7 @@ namespace
     void CheckOpenGLErrors()
     {
         for (GLenum error = glGetError(); error != GL_NO_ERROR; error = glGetError())
-        {
             std::fprintf(stderr, "OpenGL error: 0x%X\n", error);
-        }
     }
 }
 
