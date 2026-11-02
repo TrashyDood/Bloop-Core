@@ -1,0 +1,78 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "CMake: Configure",
+      "type": "process",
+      "command": "cmake",
+      "args": [
+        "--preset",
+        "default"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "MSYSTEM": "UCRT64",
+          "CHERE_INVOKING": "1",
+          "MSYS2_PATH_TYPE": "inherit",
+          "PATH": "${env:MSYS2_ROOT}\\ucrt64\\bin;${env:MSYS2_ROOT}\\usr\\bin;${env:PATH}"
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "close": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Build Engine",
+      "type": "process",
+      "command": "${env:MSYS2_ROOT}\\usr\\bin\\bash.exe",
+      "args": [
+        "--login",
+        "-c",
+        "cmake --preset default && cmake --build --preset default"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "MSYSTEM": "UCRT64",
+          "CHERE_INVOKING": "1",
+          "MSYS2_PATH_TYPE": "inherit",
+          "PATH": "${env:MSYS2_ROOT}\\ucrt64\\bin;${env:MSYS2_ROOT}\\usr\\bin;${env:PATH}"
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "close": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Run Engine",
+      "type": "process",
+      "command": "${workspaceFolder}\\build\\Engine.exe",
+      "dependsOn": "Build Engine",
+      "dependsOrder": "sequence",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "MSYSTEM": "UCRT64",
+          "PATH": "${env:MSYS2_ROOT}\\ucrt64\\bin;${env:MSYS2_ROOT}\\usr\\bin;${env:PATH}"
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "close": false
+      },
+      "problemMatcher": []
+    }
+  ]
+}

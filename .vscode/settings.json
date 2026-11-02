@@ -1,0 +1,20 @@
+{
+  "cmake.configurePreset": "default",
+  "cmake.buildPreset": "default",
+  "cmake.configureOnOpen": true,
+  "terminal.integrated.profiles.windows": {
+    "MSYS2 UCRT64": {
+      "path": "${env:MSYS2_ROOT}\\usr\\bin\\bash.exe",
+      "args": [
+        "--login",
+        "-i"
+      ],
+      "env": {
+        "MSYSTEM": "UCRT64",
+        "CHERE_INVOKING": "1",
+        "MSYS2_PATH_TYPE": "inherit",
+        "PATH": "${env:MSYS2_ROOT}\\ucrt64\\bin;${env:MSYS2_ROOT}\\usr\\bin;${env:PATH}"
+      }
+    }
+  }
+}
