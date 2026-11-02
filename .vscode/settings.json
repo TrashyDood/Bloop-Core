@@ -4,16 +4,16 @@
   "cmake.configureOnOpen": true,
   "terminal.integrated.profiles.windows": {
     "MSYS2 UCRT64": {
-      "path": "cmd.exe",
+      "path": "powershell.exe",
       "args": [
-        "/d",
-        "/c",
-        "msys2_shell.cmd",
-        "-ucrt64",
-        "-defterm",
-        "-no-start",
-        "-here",
-        "-i"
+        "-NoLogo",
+        "-NoProfile",
+        "-NoExit",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}\\.vscode\\msys2-shell.ps1",
+        "-Interactive"
       ]
     }
   }

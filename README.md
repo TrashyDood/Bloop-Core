@@ -8,16 +8,15 @@ files in `shaders/` and are copied beside the executable during configuration.
 ## Build on this PC
 
 The repository includes an optional **MSYS2 UCRT64** terminal profile in VS
-Code. Add the MSYS2 installation directory (the directory containing
-`msys2_shell.cmd`) to your Windows `PATH`; for example, add `C:\msys2`.
-Then fully close and reopen VS Code so it picks up the updated environment.
-Open **Terminal → New Terminal** and select **MSYS2 UCRT64**. Your usual
-terminal remains the default.
+Code. Add the MSYS2 UCRT64 `bin` directory (for example, `C:\msys64\ucrt64\bin`)
+to your Windows `PATH`, then fully restart VS Code. This lets CMake Tools find
+GCC, CMake, and Ninja. Open **Terminal → New Terminal** and select
+**MSYS2 UCRT64** to start a shell with the UCRT64 environment.
 
-For a new MSYS2 installation, first choose **Terminal → Run Task… → Update
-MSYS2**. If the update asks you to close the terminal, reopen VS Code and run
-the task again. Then choose **Terminal → Run Task… → Install Build
-Dependencies** to install GCC, CMake, Ninja, pkg-config, and GLFW.
+For a new MSYS2 installation, choose **Terminal → Run Task… → Update MSYS2**.
+If the update asks you to close the terminal, restart VS Code and run the task
+again. Then choose **Terminal → Run Task… → Install Build Dependencies** to
+install GCC, CMake, Ninja, pkg-config, and GLFW.
 
 To build in VS Code, choose **Terminal → Run Build Task** (or press
 **Ctrl+Shift+B**) and select **Build Engine**. The task configures the CMake
@@ -39,8 +38,10 @@ your personal `keybindings.json`:
 Keyboard shortcuts are stored in your VS Code user settings, not in this
 workspace, so this shortcut is personal and is not shared with other clones.
 
-The terminal profile and tasks resolve the MSYS2 launcher from `PATH` and use
-the `default` preset in `CMakePresets.json`. The preset selects GCC and Ninja;
+The terminal profile and tasks derive the MSYS2 root from the `ucrt64\bin`
+entry on `PATH` to launch `msys2_shell.cmd`; you do not need to add the root
+separately. This also lets the install-dependencies task work before GCC is
+installed. The `default` preset in `CMakePresets.json` selects GCC and Ninja;
 no compiler flags or extra arguments are needed. CMake writes generated build
 files under `build/`.
 

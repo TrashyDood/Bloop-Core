@@ -4,16 +4,14 @@
     {
       "label": "Update MSYS2",
       "type": "process",
-      "command": "cmd.exe",
+      "command": "powershell.exe",
       "args": [
-        "/d",
-        "/c",
-        "msys2_shell.cmd",
-        "-ucrt64",
-        "-defterm",
-        "-no-start",
-        "-here",
-        "-c",
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}\\.vscode\\msys2-shell.ps1",
+        "-Command",
         "pacman -Syu"
       ],
       "options": {
@@ -29,16 +27,14 @@
     {
       "label": "Install Build Dependencies",
       "type": "process",
-      "command": "cmd.exe",
+      "command": "powershell.exe",
       "args": [
-        "/d",
-        "/c",
-        "msys2_shell.cmd",
-        "-ucrt64",
-        "-defterm",
-        "-no-start",
-        "-here",
-        "-c",
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}\\.vscode\\msys2-shell.ps1",
+        "-Command",
         "pacman -S --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-pkgconf mingw-w64-ucrt-x86_64-glfw"
       ],
       "options": {
@@ -54,16 +50,14 @@
     {
       "label": "CMake: Configure",
       "type": "process",
-      "command": "cmd.exe",
+      "command": "powershell.exe",
       "args": [
-        "/d",
-        "/c",
-        "msys2_shell.cmd",
-        "-ucrt64",
-        "-defterm",
-        "-no-start",
-        "-here",
-        "-c",
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}\\.vscode\\msys2-shell.ps1",
+        "-Command",
         "cmake --preset default"
       ],
       "options": {
@@ -79,16 +73,14 @@
     {
       "label": "Build Engine",
       "type": "process",
-      "command": "cmd.exe",
+      "command": "powershell.exe",
       "args": [
-        "/d",
-        "/c",
-        "msys2_shell.cmd",
-        "-ucrt64",
-        "-defterm",
-        "-no-start",
-        "-here",
-        "-c",
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}\\.vscode\\msys2-shell.ps1",
+        "-Command",
         "cmake --preset default && cmake --build --preset default"
       ],
       "group": {
@@ -108,16 +100,14 @@
     {
       "label": "Run Engine",
       "type": "process",
-      "command": "cmd.exe",
+      "command": "powershell.exe",
       "args": [
-        "/d",
-        "/c",
-        "msys2_shell.cmd",
-        "-ucrt64",
-        "-defterm",
-        "-no-start",
-        "-here",
-        "-c",
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}\\.vscode\\msys2-shell.ps1",
+        "-Command",
         "./build/Engine.exe"
       ],
       "dependsOn": "Build Engine",
