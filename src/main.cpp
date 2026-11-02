@@ -108,8 +108,7 @@ namespace
         return program;
     }
 
-    void DrawTriangle(const Uniforms &uniforms, float x, float y, float width, float height,
-                      float rotation, Color color)
+    void DrawTriangle(const Uniforms &uniforms, float x, float y, float width, float height, float rotation, Color color)
     {
         glUniform2f(uniforms.position, x, y);
         glUniform2f(uniforms.scale, width, height);
@@ -118,8 +117,7 @@ namespace
         glDrawArrays(GL_TRIANGLES, 0, 3);
     }
 
-    void DrawRectangle(const Uniforms &uniforms, float x, float y, float width, float height,
-                       Color color)
+    void DrawRectangle(const Uniforms &uniforms, float x, float y, float width, float height, Color color)
     {
         DrawTriangle(uniforms, x, y, width, height, 0.0f, color);
         DrawTriangle(uniforms, x + width, y + height, -width, -height, 0.0f, color);
@@ -139,8 +137,8 @@ namespace
         DrawTriangle(uniforms, 0.70f, 0.08f, -0.70f, 0.68f, 0.0f,
                      roof_color_changed ? changed_roof : roof);
         DrawRectangle(uniforms, -0.14f, -0.75f, 0.28f, 0.47f, door);
-        DrawRectangle(uniforms, -0.46f, -0.02f, 0.21f, 0.18f, window);
-        DrawRectangle(uniforms, 0.25f, -0.02f, 0.21f, 0.18f, window);
+        DrawRectangle(uniforms, -0.46f, -0.14f, 0.21f, 0.18f, window);
+        DrawRectangle(uniforms, 0.25f, -0.14f, 0.21f, 0.18f, window);
     }
 
     void KeyCallback(GLFWwindow *window, int key, int, int action, int)
