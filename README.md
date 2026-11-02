@@ -8,12 +8,11 @@ files in `shaders/` and are copied beside the executable during configuration.
 ## Build on this PC
 
 The repository includes an optional **MSYS2 UCRT64** terminal profile in VS
-Code. To use it, set the Windows user environment variable `MSYS2_ROOT` to
-your MSYS2 installation directory (the directory containing `usr\bin\bash.exe`),
-then fully close and reopen VS Code. For example, if MSYS2 is installed at
-`C:\msys64`, set `MSYS2_ROOT` to `C:\msys64`. The path is your local setting;
-it is not stored in the repository. Open **Terminal → New Terminal** and
-select **MSYS2 UCRT64**. Your usual terminal remains the default.
+Code. Add the MSYS2 installation directory (the directory containing
+`msys2_shell.cmd`) to your Windows `PATH`; for example, add `C:\msys2`.
+Then fully close and reopen VS Code so it picks up the updated environment.
+Open **Terminal → New Terminal** and select **MSYS2 UCRT64**. Your usual
+terminal remains the default.
 
 For a new MSYS2 installation, first choose **Terminal → Run Task… → Update
 MSYS2**. If the update asks you to close the terminal, reopen VS Code and run
@@ -40,10 +39,10 @@ your personal `keybindings.json`:
 Keyboard shortcuts are stored in your VS Code user settings, not in this
 workspace, so this shortcut is personal and is not shared with other clones.
 
-The tasks use the `MSYS2_ROOT` user environment variable and the `default`
-preset in `CMakePresets.json`. The preset selects GCC and Ninja; no compiler
-flags or extra arguments are needed. CMake writes generated build files under
-`build/`.
+The terminal profile and tasks resolve the MSYS2 launcher from `PATH` and use
+the `default` preset in `CMakePresets.json`. The preset selects GCC and Ninja;
+no compiler flags or extra arguments are needed. CMake writes generated build
+files under `build/`.
 
 ## Where the libraries come from
 

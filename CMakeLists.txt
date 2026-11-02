@@ -18,6 +18,7 @@ endif()
 add_executable(Engine
     src/main.cpp
     third_party/glad/src/gl.c
+    House2D/src/House2D.cpp
 )
 
 set(SHADER_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/shaders")
@@ -27,6 +28,7 @@ configure_file(shaders/fragment.glsl "${SHADER_OUTPUT_DIR}/fragment.glsl" COPYON
 
 target_include_directories(Engine PRIVATE
     third_party/glad/include
+    House2D/include
 )
 
 target_compile_definitions(Engine PRIVATE

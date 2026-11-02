@@ -1,6 +1,8 @@
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
 
+#include "House2D.h"
+
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
@@ -9,22 +11,7 @@
 
 namespace
 {
-    struct Uniforms
-    {
-        GLint position;
-        GLint scale;
-        GLint color;
-    };
-
-    struct Color
-    {
-        float r;
-        float g;
-        float b;
-    };
-
-    bool roof_color_changed = false;
-
+    // Load shader source code from a file into a string.
     bool LoadShaderSource(const char *filename, std::string &source)
     {
         const std::string path = std::string(ENGINE_SHADER_DIR) + "/" + filename;
@@ -47,6 +34,7 @@ namespace
         return true;
     }
 
+    // Compile a shader of the given type (vertex or fragment) from source code.
     GLuint CompileShader(GLenum type, const char *source)
     {
         const GLuint shader = glCreateShader(type);
@@ -67,6 +55,7 @@ namespace
         return shader;
     }
 
+    // Create a shader program by compiling and linking vertex and fragment shaders.
     GLuint CreateShaderProgram()
     {
         std::string vertex_source;
@@ -84,65 +73,35 @@ namespace
             return 0;
         }
 
-        const GLuint program = glCreateProgram();
-        glAttachShader(program, vertex_shader);
-        glAttachShader(program, fragment_shader);
-        glLinkProgram(program);
+        const GLuint shaderProgram = glCreateProgram();
+        glAttachShader(shaderProgram, vertex_shader);
+        glAttachShader(shaderProgram, fragment_shader);
+        glLinkProgram(shaderProgram);
         glDeleteShader(vertex_shader);
         glDeleteShader(fragment_shader);
 
         GLint success = GL_FALSE;
-        glGetProgramiv(program, GL_LINK_STATUS, &success);
+        glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
         if (success == GL_FALSE)
         {
             char log[512]{};
-            glGetProgramInfoLog(program, sizeof(log), nullptr, log);
+            glGetProgramInfoLog(shaderProgram, sizeof(log), nullptr, log);
             std::fprintf(stderr, "Shader link failed: %s\n", log);
-            glDeleteProgram(program);
+            glDeleteProgram(shaderProgram);
             return 0;
         }
 
-        return program;
+        return shaderProgram;
     }
 
-    void DrawTriangle(const Uniforms &uniforms, float x, float y, float width, float height, Color color)
+    void KeyCallback(GLFWwindow *window, int key, int, int action, int)
     {
-        glUniform2f(uniforms.position, x, y);
-        glUniform2f(uniforms.scale, width, height);
-        glUniform3f(uniforms.color, color.r, color.g, color.b);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        auto *house = static_cast<House2D *>(glfwGetWindowUserPointer(window));
+        if (house != nullptr)
+            house->HandleKey(key, action);
     }
 
-    void DrawRectangle(const Uniforms &uniforms, float x, float y, float width, float height, Color color)
-    {
-        DrawTriangle(uniforms, x, y, width, height, color);
-        DrawTriangle(uniforms, x + width, y + height, -width, -height, color);
-    }
-
-    void DrawHouse(const Uniforms &uniforms)
-    {
-        constexpr Color wall{0.82f, 0.55f, 0.30f};
-        constexpr Color roof{0.75f, 0.28f, 0.20f};
-        constexpr Color changed_roof{0.20f, 0.45f, 0.85f};
-        constexpr Color door{0.35f, 0.19f, 0.12f};
-        constexpr Color window{0.35f, 0.75f, 0.88f};
-
-        DrawRectangle(uniforms, -0.55f, -0.75f, 1.10f, 0.87f, wall);
-        DrawTriangle(uniforms, -0.70f, 0.08f, 0.70f, 0.68f,
-                     roof_color_changed ? changed_roof : roof);
-        DrawTriangle(uniforms, 0.70f, 0.08f, -0.70f, 0.68f,
-                     roof_color_changed ? changed_roof : roof);
-        DrawRectangle(uniforms, -0.14f, -0.75f, 0.28f, 0.47f, door);
-        DrawRectangle(uniforms, -0.46f, -0.14f, 0.21f, 0.18f, window);
-        DrawRectangle(uniforms, 0.25f, -0.14f, 0.21f, 0.18f, window);
-    }
-
-    void KeyCallback(GLFWwindow *, int key, int, int action, int)
-    {
-        if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
-            roof_color_changed = !roof_color_changed;
-    }
-
+    // Gets called when the window is resized and updates the OpenGL viewport accordingly.
     void FramebufferSizeCallback(GLFWwindow *, int width, int height)
     {
         glViewport(0, 0, width, height);
@@ -153,84 +112,94 @@ namespace
         for (GLenum error = glGetError(); error != GL_NO_ERROR; error = glGetError())
             std::fprintf(stderr, "OpenGL error: 0x%X\n", error);
     }
+
+    int SetupWindow(GLFWwindow *&outWindow)
+    {
+        if (glfwInit() != GLFW_TRUE)
+            return EXIT_FAILURE;
+
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+        outWindow = glfwCreateWindow(1280, 720, "Engine", nullptr, nullptr);
+        if (outWindow == nullptr)
+        {
+            glfwTerminate();
+            return EXIT_FAILURE;
+        }
+
+        glfwMakeContextCurrent(outWindow);
+        if (gladLoadGL(reinterpret_cast<GLADloadfunc>(glfwGetProcAddress)) == 0)
+        {
+            std::fputs("Failed to load OpenGL functions with GLAD.\n", stderr);
+            glfwDestroyWindow(outWindow);
+            glfwTerminate();
+            return EXIT_FAILURE;
+        }
+
+        int width = 0, height = 0;
+        glfwSetFramebufferSizeCallback(outWindow, FramebufferSizeCallback);
+        glfwGetFramebufferSize(outWindow, &width, &height);
+        FramebufferSizeCallback(outWindow, width, height);
+        glfwSwapInterval(1);
+        return EXIT_SUCCESS;
+    }
 }
 
 int main()
 {
-    if (glfwInit() != GLFW_TRUE)
+    GLFWwindow *window = nullptr;
+    if (SetupWindow(window) != EXIT_SUCCESS)
         return EXIT_FAILURE;
 
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-    GLFWwindow *window = glfwCreateWindow(1280, 720, "Engine", nullptr, nullptr);
-    if (window == nullptr)
+    const GLuint shaderProgram = CreateShaderProgram();
+    if (shaderProgram == 0)
     {
-        glfwTerminate();
-        return EXIT_FAILURE;
-    }
-
-    glfwMakeContextCurrent(window);
-    if (gladLoadGL(reinterpret_cast<GLADloadfunc>(glfwGetProcAddress)) == 0)
-    {
-        std::fputs("Failed to load OpenGL functions with GLAD.\n", stderr);
         glfwDestroyWindow(window);
         glfwTerminate();
         return EXIT_FAILURE;
     }
 
+    House2D house(shaderProgram);
+    glfwSetWindowUserPointer(window, &house);
     glfwSetKeyCallback(window, KeyCallback);
-    glfwSetFramebufferSizeCallback(window, FramebufferSizeCallback);
-    int width = 0;
-    int height = 0;
-    glfwGetFramebufferSize(window, &width, &height);
-    FramebufferSizeCallback(window, width, height);
-    glfwSwapInterval(1);
 
-    const GLuint program = CreateShaderProgram();
-    if (program == 0)
+    // Define the vertices of a triangle in normalized device coordinates.
+    constexpr float triangle[] =
     {
-        glfwDestroyWindow(window);
-        glfwTerminate();
-        return EXIT_FAILURE;
-    }
-
-    const Uniforms uniforms = {
-        glGetUniformLocation(program, "position"),
-        glGetUniformLocation(program, "scale"),
-        glGetUniformLocation(program, "color")};
-
-    constexpr float triangle[] = {
         0.0f, 0.0f,
         1.0f, 0.0f,
-        1.0f, 1.0f};
+        1.0f, 1.0f
+    };
 
-    GLuint vao = 0;
-    GLuint vbo = 0;
-    glGenVertexArrays(1, &vao);
-    glGenBuffers(1, &vbo);
-    glBindVertexArray(vao);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(triangle), triangle, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), nullptr);
-    glEnableVertexAttribArray(0);
+    GLuint vao = 0, vbo = 0;
+    glGenVertexArrays(1, &vao);                                                  // Create a VAO to store the vertex layout.
+    glGenBuffers(1, &vbo);                                                       // Create a VBO to hold the triangle's vertex data.
+    glBindVertexArray(vao);                                                      // Make this VAO active for setup.
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);                                          // Select the VBO as the vertex data buffer.
+    glBufferData(GL_ARRAY_BUFFER, sizeof(triangle), triangle, GL_STATIC_DRAW);   // Upload the vertices to the GPU.
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), nullptr); // Describe attribute 0 as 2 floats per vertex.
+    glEnableVertexAttribArray(0);                                                // Enable the vertex position attribute.
 
-    while (glfwWindowShouldClose(window) == GLFW_FALSE)
+    while (glfwWindowShouldClose(window) == GLFW_FALSE) // Run loop until the user closes the window.
     {
-        glClearColor(0.08f, 0.12f, 0.18f, 1.0f);
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
-        glUseProgram(program);
+        glUseProgram(shaderProgram);
         glBindVertexArray(vao);
-        DrawHouse(uniforms);
+
+        house.Draw();
+
         CheckOpenGLErrors();
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
+    // Cleanup resources before exiting.
     glDeleteBuffers(1, &vbo);
     glDeleteVertexArrays(1, &vao);
-    glDeleteProgram(program);
+    glDeleteProgram(shaderProgram);
     glfwDestroyWindow(window);
     glfwTerminate();
     return EXIT_SUCCESS;
