@@ -9,16 +9,16 @@ House2D::House2D(GLuint shader_program)
 
 void House2D::DrawTriangle(float x, float y, float width, float height, Color color) const
 {
-    glUniform2f(position_uniform_, x, y); // Set the position uniform for the triangle.
-    glUniform2f(scale_uniform_, width, height); // Set the scale uniform for the triangle.
+    glUniform2f(position_uniform_, x, y);                   // Set the position uniform for the triangle.
+    glUniform2f(scale_uniform_, width, height);             // Set the scale uniform for the triangle.
     glUniform3f(color_uniform_, color.r, color.g, color.b); // Set the color uniform for the triangle.
-    glDrawArrays(GL_TRIANGLES, 0, 3);
+    glDrawArrays(GL_TRIANGLES, 0, 3);                       // Draw the triangle using the current shader program and vertex data.
 }
 
 void House2D::DrawRectangle(float x, float y, float width, float height, Color color) const
 {
     DrawTriangle(x, y, width, height, color);
-    DrawTriangle(x + width, y + height, -width, -height, color);
+    DrawTriangle(x + width, y + height, -width, -height, color); // Draw an inverted triangle to complete the rectangle.
 }
 
 void House2D::Draw() const
