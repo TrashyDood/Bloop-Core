@@ -15,8 +15,12 @@ else()
     set(GLFW_TARGET PkgConfig::GLFW)
 endif()
 
+file(GLOB ENGINE_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+)
+
 add_executable(Engine
-    src/main.cpp
+    ${ENGINE_SOURCES}
     third_party/glad/src/gl.c
     House2D/src/House2D.cpp
 )
@@ -27,6 +31,7 @@ configure_file(shaders/vertex.glsl "${SHADER_OUTPUT_DIR}/vertex.glsl" COPYONLY)
 configure_file(shaders/fragment.glsl "${SHADER_OUTPUT_DIR}/fragment.glsl" COPYONLY)
 
 target_include_directories(Engine PRIVATE
+    include
     third_party/glad/include
     House2D/include
 )

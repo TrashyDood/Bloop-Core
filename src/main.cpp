@@ -2,6 +2,8 @@
 #include <GLFW/glfw3.h>
 
 #include "House2D.h"
+#include "ShaderUtils.h"
+#include "Utils.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -11,87 +13,15 @@
 
 namespace
 {
-    // Load shader source code from a file into a string.
-    bool LoadShaderSource(const char *filename, std::string &source)
+    bool TryCreateHouseShaderProgram(GLuint &outShaderProgram)
     {
-        const std::string sourcePath = std::string(ENGINE_SHADER_DIR) + "/" + filename;
-        std::ifstream file(sourcePath);
-        if (!file)
-        {
-            std::fprintf(stderr, "Failed to open shader file: %s\n", sourcePath.c_str());
-            return false;
-        }
+        using namespace ShaderUtils;
 
-        std::ostringstream contents;
-        contents << file.rdbuf();
-        if (file.bad())
-        {
-            std::fprintf(stderr, "Failed to read shader file: %s\n", sourcePath.c_str());
-            return false;
-        }
-
-        source = contents.str();
-        return true;
-    }
-
-    // Compile a shader of the given type (vertex or fragment) from source code.
-    GLuint CompileShader(GLenum type, const char *source)
-    {
-        const GLuint shader = glCreateShader(type);
-        glShaderSource(shader, 1, &source, nullptr);
-        glCompileShader(shader);
-
-        GLint success = GL_FALSE;
-        glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
-        if (success == GL_FALSE)
-        {
-            char log[512]{};
-            glGetShaderInfoLog(shader, sizeof(log), nullptr, log);
-            std::fprintf(stderr, "Shader compilation failed: %s\n", log);
-            glDeleteShader(shader);
-            return 0;
-        }
-
-        return shader;
-    }
-
-    // Create a shader program by compiling and linking vertex and fragment shaders.
-    GLuint CreateShaderProgram()
-    {
-        std::string vertex_source;
-        std::string fragment_source;
-        if (!LoadShaderSource("vertex.glsl", vertex_source) ||
-            !LoadShaderSource("fragment.glsl", fragment_source))
-            return 0;
-
-        const GLuint vertex_shader = CompileShader(GL_VERTEX_SHADER, vertex_source.c_str());
-        const GLuint fragment_shader = CompileShader(GL_FRAGMENT_SHADER, fragment_source.c_str());
-        if (vertex_shader == 0 || fragment_shader == 0)
-        {
-            glDeleteShader(vertex_shader);
-            glDeleteShader(fragment_shader);
-            return 0;
-        }
-
-        const GLuint shaderProgram = glCreateProgram();
-        glAttachShader(shaderProgram, vertex_shader);
-        glAttachShader(shaderProgram, fragment_shader);
-        glLinkProgram(shaderProgram);
-        glDeleteShader(vertex_shader);
-        glDeleteShader(fragment_shader);
-
-        GLint success = GL_FALSE;
-        glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-        if (success == GL_FALSE)
-        {
-            char log[512]{};
-            glGetProgramInfoLog(shaderProgram, sizeof(log), nullptr, log);
-            std::fprintf(stderr, "Shader link failed: %s\n", log);
-            glDeleteProgram(shaderProgram);
-            return 0;
-        }
-
-        return shaderProgram;
+        return ShaderUtils::TryCreateShaderProgram(
+            outShaderProgram,
+            ShaderSource{"vertex.glsl", ShaderType::Vertex, true},
+            ShaderSource{"fragment.glsl", ShaderType::Fragment, true})
+            == ShaderLoadReturnCode::Success;
     }
 
     template <typename T>
@@ -109,16 +39,7 @@ namespace
     }
 
     // Gets called when the window is resized and updates the OpenGL viewport accordingly.
-    void FramebufferSizeCallback(GLFWwindow *, int width, int height)
-    {
-        glViewport(0, 0, width, height);
-    }
-
-    void CheckOpenGLErrors()
-    {
-        for (GLenum error = glGetError(); error != GL_NO_ERROR; error = glGetError())
-            std::fprintf(stderr, "OpenGL error: 0x%X\n", error);
-    }
+    void FramebufferSizeCallback(GLFWwindow *, int width, int height) { glViewport(0, 0, width, height); }
 
     int SetupWindow(GLFWwindow *&outWindow)
     {
@@ -160,8 +81,8 @@ int main()
     if (SetupWindow(window) != EXIT_SUCCESS)
         return EXIT_FAILURE;
 
-    const GLuint shaderProgram = CreateShaderProgram();
-    if (shaderProgram == 0)
+    GLuint shaderProgram;
+    if (!TryCreateHouseShaderProgram(shaderProgram))
     {
         glfwDestroyWindow(window);
         glfwTerminate();
@@ -174,9 +95,9 @@ int main()
 
     // Define the vertices of a triangle in normalized device coordinates.
     constexpr float triangleShape[] = {
-            0.0f, 0.0f,
-            1.0f, 0.0f,
-            1.0f, 1.0f };
+        0.0f, 0.0f,
+        1.0f, 0.0f,
+        1.0f, 1.0f};
 
     GLuint vao = 0, vbo = 0;
     glGenVertexArrays(1, &vao);                                                          // Create a Vertex Array Object to store the vertex layout.
@@ -197,9 +118,9 @@ int main()
 
         house.Draw();
 
-        CheckOpenGLErrors();
-        glfwSwapBuffers(window); // Swap the front(read) and back(write) buffers to display the rendered image.
-        glfwPollEvents();        // Poll for events such as keyboard and mouse input.
+        Utils::CheckOpenGLErrors(); // Check for any OpenGL errors that may have occurred during rendering.
+        glfwSwapBuffers(window);    // Swap the front(read) and back(write) buffers to display the rendered image.
+        glfwPollEvents();           // Poll for events such as keyboard and mouse input.
     }
 
     // Cleanup resources before exiting.
