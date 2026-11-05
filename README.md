@@ -1,4 +1,4 @@
-# Engine
+# Bloop Core game engine
 
 A work-in-progress C++17 project using GLFW, OpenGL, GLAD, and GLM.
 
