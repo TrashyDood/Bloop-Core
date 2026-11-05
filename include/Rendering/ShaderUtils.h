@@ -1,6 +1,6 @@
 #pragma once
 
-#include <glad/gl.h>
+#include "Shared/Core.h"
 
 #include <cstdio>
 #include <cstddef>
@@ -47,12 +47,12 @@ namespace ShaderUtils
     };
 
     ShaderReturnCode LoadShaderSource(const char *filename, std::string &outSource);
-    ShaderReturnCode CompileShader(GLenum type, const char *source, GLuint &outShader);
-    ShaderReturnCode LinkShaders(GLuint &outShaderProgram, const GLuint *shaders, std::size_t shadersCount);
-    ShaderReturnCode CreateShaderProgram(GLuint &outShaderProgram, const ShaderSource *sources, std::size_t sourcesCount);
+    ShaderReturnCode CompileShader(GLenum type, const char *source, ResourceHandle &outShader);
+    ShaderReturnCode LinkShaders(ResourceHandle &outShaderProgram, const ResourceHandle *shaders, std::size_t shadersCount);
+    ShaderReturnCode CreateShaderProgram(ResourceHandle &outShaderProgram, const ShaderSource *sources, std::size_t sourcesCount);
 
     SHADER_SOURCES_TEMPLATE
-    ShaderReturnCode CreateShaderProgram(GLuint &outShaderProgram, const Sources &...sources)
+    ShaderReturnCode CreateShaderProgram(ResourceHandle &outShaderProgram, const Sources &...sources)
     {
         static_assert(sizeof...(sources) > 0, "At least one shader source is required.");
 

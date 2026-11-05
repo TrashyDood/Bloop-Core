@@ -1,5 +1,4 @@
 #include "Rendering/ShaderUtils.h"
-#include "Shared/Utils.h"
 
 #include <cstdio>
 #include <fstream>
@@ -31,7 +30,7 @@ ShaderUtils::ShaderReturnCode ShaderUtils::LoadShaderSource(const char *filename
     return None;
 }
 
-ShaderUtils::ShaderReturnCode ShaderUtils::CompileShader(GLenum type, const char *source, GLuint &outShader)
+ShaderUtils::ShaderReturnCode ShaderUtils::CompileShader(GLenum type, const char *source, ResourceHandle &outShader)
 {
     outShader = 0;
     if (source == nullptr)
@@ -59,7 +58,7 @@ ShaderUtils::ShaderReturnCode ShaderUtils::CompileShader(GLenum type, const char
     return None;
 }
 
-ShaderUtils::ShaderReturnCode ShaderUtils::LinkShaders(GLuint &shaderProgram, const GLuint *shaders, std::size_t shadersCount)
+ShaderUtils::ShaderReturnCode ShaderUtils::LinkShaders(ResourceHandle &shaderProgram, const ResourceHandle *shaders, std::size_t shadersCount)
 {
     if (shaders == nullptr || shadersCount == 0)
     {
@@ -105,7 +104,7 @@ ShaderUtils::ShaderReturnCode ShaderUtils::LinkShaders(GLuint &shaderProgram, co
     return None;
 }
 
-ShaderUtils::ShaderReturnCode ShaderUtils::CreateShaderProgram(GLuint &outShaderProgram, const ShaderSource *sources, std::size_t sourcesCount)
+ShaderUtils::ShaderReturnCode ShaderUtils::CreateShaderProgram(ResourceHandle &outShaderProgram, const ShaderSource *sources, std::size_t sourcesCount)
 {
     outShaderProgram = 0;
     if (sources == nullptr || sourcesCount == 0)
@@ -114,7 +113,7 @@ ShaderUtils::ShaderReturnCode ShaderUtils::CreateShaderProgram(GLuint &outShader
         return InvalidArgument;
     }
 
-    std::vector<GLuint> shaders(sourcesCount, 0);
+    std::vector<ResourceHandle> shaders(sourcesCount, 0);
     std::vector<std::string> loadedSources(sourcesCount);
     ShaderReturnCode error = None;
 
@@ -145,7 +144,7 @@ ShaderUtils::ShaderReturnCode ShaderUtils::CreateShaderProgram(GLuint &outShader
 
     const ShaderReturnCode linkError = LinkShaders(outShaderProgram, shaders.data(), shaders.size());
 
-    for (const GLuint shader : shaders)
+    for (const ResourceHandle shader : shaders)
         glDeleteShader(shader);
 
     return linkError;

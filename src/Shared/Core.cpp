@@ -1,17 +1,17 @@
-#include "Shared/Utils.h"
+#include "Shared/Core.h"
 
 #include <glad/gl.h>
 
 #include <cstdarg>
 #include <cstdio>
 
-void Utils::CheckOpenGLErrors()
+void Core::CheckOpenGLErrors()
 {
     for (GLenum error = glGetError(); error != GL_NO_ERROR; error = glGetError())
         std::fprintf(stderr, "OpenGL error: 0x%X\n", error);
 }
 
-void Utils::WriteError(const char *msg, ...)
+void Core::WriteError(const char *msg, ...)
 {
     va_list args;
     va_start(args, msg);
