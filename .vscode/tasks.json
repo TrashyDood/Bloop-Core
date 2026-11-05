@@ -2,22 +2,26 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Update MSYS2",
-      "type": "process",
-      "command": "powershell.exe",
-      "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "${workspaceFolder}\\.vscode\\msys2-shell.ps1",
-        "-Command",
-        "pacman -Syu"
+      "label": "MSYS2: Set Up Environment",
+      "dependsOn": [
+        "MSYS2: Update",
+        "MSYS2: Install Dependencies"
       ],
+      "dependsOrder": "sequence"
+    },
+    {
+      "label": "MSYS2: Update",
+      "type": "shell",
+      "command": "call \"${config:msys2.root}\\msys2_shell.cmd\" -ucrt64 -defterm -no-start -here -c \"pacman -Syu\"",
       "options": {
-        "cwd": "${workspaceFolder}"
+        "cwd": "${workspaceFolder}",
+        "shell": {
+          "executable": "cmd.exe",
+          "args": ["/d", "/c"]
+        }
       },
       "presentation": {
+        "group": "msys2",
         "reveal": "always",
         "panel": "dedicated",
         "close": false
@@ -25,22 +29,18 @@
       "problemMatcher": []
     },
     {
-      "label": "Install Build Dependencies",
-      "type": "process",
-      "command": "powershell.exe",
-      "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "${workspaceFolder}\\.vscode\\msys2-shell.ps1",
-        "-Command",
-        "pacman -S --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-pkgconf mingw-w64-ucrt-x86_64-glfw"
-      ],
+      "label": "MSYS2: Install Dependencies",
+      "type": "shell",
+      "command": "call \"${config:msys2.root}\\msys2_shell.cmd\" -ucrt64 -defterm -no-start -here -c \"pacman -S --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-pkgconf mingw-w64-ucrt-x86_64-glfw mingw-w64-ucrt-x86_64-glm mingw-w64-ucrt-x86_64-python-glad\"",
       "options": {
-        "cwd": "${workspaceFolder}"
+        "cwd": "${workspaceFolder}",
+        "shell": {
+          "executable": "cmd.exe",
+          "args": ["/d", "/c"]
+        }
       },
       "presentation": {
+        "group": "msys2",
         "reveal": "always",
         "panel": "dedicated",
         "close": false
@@ -48,22 +48,18 @@
       "problemMatcher": []
     },
     {
-      "label": "CMake: Configure",
-      "type": "process",
-      "command": "powershell.exe",
-      "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "${workspaceFolder}\\.vscode\\msys2-shell.ps1",
-        "-Command",
-        "cmake --preset default"
-      ],
+      "label": "MSYS2: Generate GLAD",
+      "type": "shell",
+      "command": "call \"${config:msys2.root}\\msys2_shell.cmd\" -ucrt64 -defterm -no-start -here -c \"glad --api gl:core=3.3 --out-path third_party/glad c --loader\"",
       "options": {
-        "cwd": "${workspaceFolder}"
+        "cwd": "${workspaceFolder}",
+        "shell": {
+          "executable": "cmd.exe",
+          "args": ["/d", "/c"]
+        }
       },
       "presentation": {
+        "group": "msys2",
         "reveal": "always",
         "panel": "dedicated",
         "close": false
@@ -71,26 +67,41 @@
       "problemMatcher": []
     },
     {
-      "label": "Build Engine",
-      "type": "process",
-      "command": "powershell.exe",
-      "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "${workspaceFolder}\\.vscode\\msys2-shell.ps1",
-        "-Command",
-        "cmake --preset default && cmake --build --preset default"
-      ],
+      "label": "MSYS2: CMake Configure",
+      "type": "shell",
+      "command": "call \"${config:msys2.root}\\msys2_shell.cmd\" -ucrt64 -defterm -no-start -here -c \"cmake --preset default\"",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "shell": {
+          "executable": "cmd.exe",
+          "args": ["/d", "/c"]
+        }
+      },
+      "presentation": {
+        "group": "msys2",
+        "reveal": "always",
+        "panel": "dedicated",
+        "close": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "MSYS2: Build Engine",
+      "type": "shell",
+      "command": "call \"${config:msys2.root}\\msys2_shell.cmd\" -ucrt64 -defterm -no-start -here -c \"cmake --preset default && cmake --build --preset default\"",
       "group": {
         "kind": "build",
         "isDefault": true
       },
       "options": {
-        "cwd": "${workspaceFolder}"
+        "cwd": "${workspaceFolder}",
+        "shell": {
+          "executable": "cmd.exe",
+          "args": ["/d", "/c"]
+        }
       },
       "presentation": {
+        "group": "msys2",
         "reveal": "always",
         "panel": "dedicated",
         "close": false
@@ -100,18 +111,7 @@
     {
       "label": "Run Engine",
       "type": "process",
-      "command": "powershell.exe",
-      "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "${workspaceFolder}\\.vscode\\msys2-shell.ps1",
-        "-Command",
-        "./build/Engine.exe"
-      ],
-      "dependsOn": "Build Engine",
-      "dependsOrder": "sequence",
+      "command": "${workspaceFolder}\\build\\Engine.exe",
       "options": {
         "cwd": "${workspaceFolder}"
       },

@@ -1,9 +1,8 @@
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
 
-#include "House2D.h"
-#include "ShaderUtils.h"
-#include "Utils.h"
+#include "Shared/Utils.h"
+#include "Rendering/ShaderUtils.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -17,11 +16,10 @@ namespace
     {
         using namespace ShaderUtils;
 
-        return ShaderUtils::TryCreateShaderProgram(
+        return ShaderUtils::CreateShaderProgram(
             outShaderProgram,
-            ShaderSource{"vertex.glsl", ShaderType::Vertex, true},
-            ShaderSource{"fragment.glsl", ShaderType::Fragment, true})
-            == ShaderLoadReturnCode::Success;
+            ShaderSource{"house_vertex.glsl", ShaderType::Vertex, true},
+            ShaderSource{"house_fragment.glsl", ShaderType::Fragment, true}) == ShaderReturnCode::None;
     }
 
     template <typename T>
@@ -33,9 +31,7 @@ namespace
 
     void KeyCallback(GLFWwindow *window, int key, int, int action, int)
     {
-        House2D *house = nullptr;
-        if (TryGetGLWindowUserPointer(window, house))
-            house->HandleKey(key, action);
+
     }
 
     // Gets called when the window is resized and updates the OpenGL viewport accordingly.
@@ -81,7 +77,7 @@ int main()
     if (SetupWindow(window) != EXIT_SUCCESS)
         return EXIT_FAILURE;
 
-    GLuint shaderProgram;
+    GLuint shaderProgram = 0;
     if (!TryCreateHouseShaderProgram(shaderProgram))
     {
         glfwDestroyWindow(window);
@@ -89,8 +85,7 @@ int main()
         return EXIT_FAILURE;
     }
 
-    House2D house(shaderProgram);
-    glfwSetWindowUserPointer(window, &house);
+    //glfwSetWindowUserPointer(window, &house);
     glfwSetKeyCallback(window, KeyCallback);
 
     // Define the vertices of a triangle in normalized device coordinates.
@@ -115,8 +110,6 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT);
         glUseProgram(shaderProgram);
         glBindVertexArray(vao);
-
-        house.Draw();
 
         Utils::CheckOpenGLErrors(); // Check for any OpenGL errors that may have occurred during rendering.
         glfwSwapBuffers(window);    // Swap the front(read) and back(write) buffers to display the rendered image.

@@ -1,20 +1,5 @@
 {
   "cmake.configurePreset": "default",
   "cmake.buildPreset": "default",
-  "cmake.configureOnOpen": true,
-  "terminal.integrated.profiles.windows": {
-    "MSYS2 UCRT64": {
-      "path": "powershell.exe",
-      "args": [
-        "-NoLogo",
-        "-NoProfile",
-        "-NoExit",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "${workspaceFolder}\\.vscode\\msys2-shell.ps1",
-        "-Interactive"
-      ]
-    }
-  }
+  "cmake.configureOnOpen": false
 }

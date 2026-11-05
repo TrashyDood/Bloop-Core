@@ -3,10 +3,7 @@
         {
             "name": "MSYS2 UCRT64",
             "compileCommands": "${workspaceFolder}/build/compile_commands.json",
-            "compilerPath": "g++",
-            "includePath": [
-                "${workspaceFolder}/third_party/glad/include"
-            ],
+            "compilerPath": "${config:msys2.root}/ucrt64/bin/g++.exe",
             "cStandard": "c17",
             "cppStandard": "c++17",
             "intelliSenseMode": "windows-gcc-x64"

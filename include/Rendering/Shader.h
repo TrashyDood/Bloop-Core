@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ShaderUtils.h"
+#include "Rendering/ShaderUtils.h"
 
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
@@ -27,14 +27,14 @@ public:
     void Use() const;
 
     SHADER_SOURCES_TEMPLATE
-    static ShaderUtils::ShaderLoadReturnCode TryCreateNewShader(Shader &outShader, const Sources &...sources)
+    static ShaderUtils::ShaderReturnCode TryCreateNewShader(Shader &outShader, const Sources &...sources)
     {
         GLuint shaderProgram = 0;
-        const ShaderUtils::ShaderLoadReturnCode error = ShaderUtils::TryCreateShaderProgram(shaderProgram, sources...);
-        if (error != ShaderUtils::Success)
+        const auto error = ShaderUtils::CreateShaderProgram(shaderProgram, sources...);
+        if (error != ShaderUtils::None)
             return error;
 
         outShader = Shader(shaderProgram);
-        return ShaderUtils::Success;
+        return ShaderUtils::None;
     }
 };
