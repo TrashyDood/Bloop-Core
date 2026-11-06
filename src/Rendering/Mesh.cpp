@@ -4,50 +4,50 @@
 #include <limits>
 #include <utility>
 
-Mesh::~Mesh()
-{
-    Release();
-}
+Rendering::Mesh::~Mesh() { ReleaseResources(); }
 
-Mesh::Mesh(Mesh &&other) noexcept
-    : vertices(std::move(other.vertices)),
-      indices(std::move(other.indices)),
-      vertexArrayHandle(std::exchange(other.vertexArrayHandle, 0)),
-      vertexBufferHandle(std::exchange(other.vertexBufferHandle, 0)),
-      indexBufferHandle(std::exchange(other.indexBufferHandle, 0)) { }
+Rendering::Mesh::Mesh(Mesh &&other) noexcept
+    : vertexArray(std::exchange(other.vertexArray, 0)),
+      vertexBuffer(std::exchange(other.vertexBuffer, 0)),
+      indexBuffer(std::exchange(other.indexBuffer, 0)),
+      vertices(std::move(other.vertices)),
+      indices(std::move(other.indices)) {}
 
-Mesh &Mesh::operator=(Mesh &&other) noexcept
+Rendering::Mesh &Rendering::Mesh::operator=(Mesh &&other) noexcept
 {
     if (this != &other)
     {
-        Release();
+        ReleaseResources();
         vertices = std::move(other.vertices);
         indices = std::move(other.indices);
-        vertexArrayHandle = std::exchange(other.vertexArrayHandle, 0);
-        vertexBufferHandle = std::exchange(other.vertexBufferHandle, 0);
-        indexBufferHandle = std::exchange(other.indexBufferHandle, 0);
+        vertexArray = std::exchange(other.vertexArray, 0);
+        vertexBuffer = std::exchange(other.vertexBuffer, 0);
+        indexBuffer = std::exchange(other.indexBuffer, 0);
     }
 
     return *this;
 }
 
-void Mesh::Release() noexcept
+void Rendering::Mesh::ReleaseResources() noexcept
 {
-    if (vertexArrayHandle != 0)
-        glDeleteVertexArrays(1, &vertexArrayHandle);
-    if (indexBufferHandle != 0)
-        glDeleteBuffers(1, &indexBufferHandle);
-    if (vertexBufferHandle != 0)
-        glDeleteBuffers(1, &vertexBufferHandle);
+    if (vertexArray != 0)
+        glDeleteVertexArrays(1, &vertexArray);
+    if (indexBuffer != 0)
+        glDeleteBuffers(1, &indexBuffer);
+    if (vertexBuffer != 0)
+        glDeleteBuffers(1, &vertexBuffer);
 
-    vertexArrayHandle = 0;
-    vertexBufferHandle = 0;
-    indexBufferHandle = 0;
+    vertexArray = 0;
+    vertexBuffer = 0;
+    indexBuffer = 0;
 }
 
-bool Mesh::Initialize()
+bool Rendering::Mesh::InitializeResources(bool reinitialize)
 {
-    if (vertexArrayHandle != 0 || vertexBufferHandle != 0 || indexBufferHandle != 0)
+    if (reinitialize)
+        ReleaseResources();
+
+    if (vertexArray != 0 || vertexBuffer != 0 || indexBuffer != 0)
     {
         LOG_ERROR("Cannot initialize mesh: OpenGL handles are already set.\n");
         return false;
@@ -59,8 +59,7 @@ bool Mesh::Initialize()
         return false;
     }
 
-    const std::size_t maxBufferSize =
-        static_cast<std::size_t>(std::numeric_limits<GLsizeiptr>::max());
+    const std::size_t maxBufferSize = static_cast<std::size_t>(std::numeric_limits<GLsizeiptr>::max());
     if (vertices.size() > maxBufferSize / sizeof(Vertex) ||
         indices.size() > maxBufferSize / sizeof(std::uint32_t) ||
         sizeof(Vertex) > static_cast<std::size_t>(std::numeric_limits<GLsizei>::max()))
@@ -70,49 +69,39 @@ bool Mesh::Initialize()
     }
 
     for (std::size_t i = 0; i < indices.size(); ++i)
-    {
         if (indices[i] >= vertices.size())
         {
-            LOG_ERROR("Cannot initialize mesh: index %u at position %zu is outside the vertex range.\n",
-                      indices[i], i);
+            LOG_ERROR("Cannot initialize mesh: index %u at position %zu is outside the vertex range.\n", indices[i], i);
             return false;
         }
-    }
 
-    ResourceHandle newVertexArrayHandle = 0;
-    ResourceHandle newVertexBufferHandle = 0;
-    ResourceHandle newIndexBufferHandle = 0;
-
-    glGenVertexArrays(1, &newVertexArrayHandle);
-    glGenBuffers(1, &newVertexBufferHandle);
+    glGenVertexArrays(1, &vertexArray);
+    glGenBuffers(1, &vertexBuffer);
     if (!indices.empty())
-        glGenBuffers(1, &newIndexBufferHandle);
+        glGenBuffers(1, &indexBuffer);
 
-    if (newVertexArrayHandle == 0 || newVertexBufferHandle == 0 ||
-        (!indices.empty() && newIndexBufferHandle == 0))
+    if (vertexArray == 0 || vertexBuffer == 0 || (!indices.empty() && indexBuffer == 0))
     {
         LOG_ERROR("Cannot initialize mesh: failed to create OpenGL buffers.\n");
-        if (newIndexBufferHandle != 0)
-            glDeleteBuffers(1, &newIndexBufferHandle);
-        if (newVertexBufferHandle != 0)
-            glDeleteBuffers(1, &newVertexBufferHandle);
-        if (newVertexArrayHandle != 0)
-            glDeleteVertexArrays(1, &newVertexArrayHandle);
+        ReleaseResources();
         return false;
     }
 
-    glBindVertexArray(newVertexArrayHandle);
+    glBindVertexArray(vertexArray);
 
-    glBindBuffer(GL_ARRAY_BUFFER, newVertexBufferHandle);
-    glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(vertices.size() * sizeof(Vertex)),
-                 vertices.data(), GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
+    glBufferData(GL_ARRAY_BUFFER,
+                 static_cast<GLsizeiptr>(vertices.size() * sizeof(Vertex)),
+                 vertices.data(),
+                 GL_STATIC_DRAW);
 
     if (!indices.empty())
     {
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, newIndexBufferHandle);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER,
                      static_cast<GLsizeiptr>(indices.size() * sizeof(std::uint32_t)),
-                     indices.data(), GL_STATIC_DRAW);
+                     indices.data(),
+                     GL_STATIC_DRAW);
     }
 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, static_cast<GLsizei>(sizeof(Vertex)),
@@ -131,8 +120,30 @@ bool Mesh::Initialize()
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-    vertexArrayHandle = newVertexArrayHandle;
-    vertexBufferHandle = newVertexBufferHandle;
-    indexBufferHandle = newIndexBufferHandle;
+    return true;
+}
+
+bool Rendering::Mesh::Draw() const
+{
+    if (!IsInitialized())
+    {
+        LOG_ERROR("Cannot draw mesh: it is not initialized.\n");
+        return false;
+    }
+
+    const std::size_t drawCount = indices.empty() ? vertices.size() : indices.size();
+    if (drawCount > static_cast<std::size_t>(std::numeric_limits<GLsizei>::max()))
+    {
+        LOG_ERROR("Cannot draw mesh: vertex or index count is too large.\n");
+        return false;
+    }
+
+    glBindVertexArray(vertexArray);
+    if (indices.empty())
+        glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(vertices.size()));
+    else
+        glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT, nullptr);
+    glBindVertexArray(0);
+
     return true;
 }

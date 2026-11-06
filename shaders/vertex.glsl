@@ -1,10 +1,11 @@
 #version 330 core
-layout (location = 0) in vec2 vertex_position;
-uniform vec2 position;
-uniform vec2 scale;
+layout (location = 0) in vec3 vertex_position;
+layout (location = 3) in vec4 vertex_color;
+
+out vec4 fragment_color;
 
 void main()
 {
-    vec2 point = vertex_position * scale;
-    gl_Position = vec4(point + position, 0.0, 1.0);
+    gl_Position = vec4(vertex_position, 1.0);
+    fragment_color = vertex_color;
 }

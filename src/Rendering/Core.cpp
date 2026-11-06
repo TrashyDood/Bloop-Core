@@ -1,21 +1,24 @@
-#include "Rendering/ShaderUtils.h"
+#include "Rendering/Core.h"
 
 #include <cstdio>
 #include <fstream>
 #include <sstream>
 #include <vector>
 
-ShaderUtils::ShaderReturnCode ShaderUtils::LoadShaderSource(const char *filename, std::string &outSource)
+bool Rendering::LoadShaderSource(const char *filename, std::string &outSource)
 {
     if (filename == nullptr)
-        return InvalidArgument;
+    {
+        LOG_ERROR("Cannot load shader source: filename is null.\n");
+        return false;
+    }
 
     const std::string sourcePath = std::string(ENGINE_SHADER_DIR) + "/" + filename;
     std::ifstream file(sourcePath);
     if (!file)
     {
         LOG_ERROR("Failed to open shader file: %s\n", sourcePath.c_str());
-        return FileNotFound;
+        return false;
     }
 
     std::ostringstream contents;
@@ -23,22 +26,28 @@ ShaderUtils::ShaderReturnCode ShaderUtils::LoadShaderSource(const char *filename
     if (file.bad())
     {
         LOG_ERROR("Failed to read shader file: %s\n", sourcePath.c_str());
-        return ReadError;
+        return false;
     }
 
     outSource = contents.str();
-    return None;
+    return true;
 }
 
-ShaderUtils::ShaderReturnCode ShaderUtils::CompileShader(GLenum type, const char *source, ResourceHandle &outShader)
+bool Rendering::CompileShader(GLenum type, const char *source, ResourceHandle &outShader)
 {
     outShader = 0;
     if (source == nullptr)
-        return InvalidArgument;
+    {
+        LOG_ERROR("Cannot compile shader: source is null.\n");
+        return false;
+    }
 
     outShader = glCreateShader(type);
     if (outShader == 0)
-        return CompileError;
+    {
+        LOG_ERROR("Failed to create shader.\n");
+        return false;
+    }
 
     glShaderSource(outShader, 1, &source, nullptr);
     glCompileShader(outShader);
@@ -52,32 +61,32 @@ ShaderUtils::ShaderReturnCode ShaderUtils::CompileShader(GLenum type, const char
         LOG_ERROR("Shader compilation failed: %s\n", log);
         glDeleteShader(outShader);
         outShader = 0;
-        return CompileError;
+        return false;
     }
 
-    return None;
+    return true;
 }
 
-ShaderUtils::ShaderReturnCode ShaderUtils::LinkShaders(ResourceHandle &shaderProgram, const ResourceHandle *shaders, std::size_t shadersCount)
+bool Rendering::LinkShaders(ResourceHandle &shaderProgram, const ResourceHandle *shaders, std::size_t shadersCount)
 {
     if (shaders == nullptr || shadersCount == 0)
     {
         LOG_ERROR("Cannot link shader program: no shader handles provided.\n");
-        return InvalidArgument;
+        return false;
     }
 
     for (std::size_t i = 0; i < shadersCount; ++i)
         if (shaders[i] == 0)
         {
             LOG_ERROR("Cannot link shader program: shader handle at index %zu is invalid.\n", i);
-            return InvalidArgument;
+            return false;
         }
 
     if (shaderProgram == 0) shaderProgram = glCreateProgram();
     if (shaderProgram == 0)
     {
         LOG_ERROR("Failed to create shader program.\n");
-        return LinkError;
+        return false;
     }
 
     for (std::size_t i = 0; i < shadersCount; ++i)
@@ -98,54 +107,54 @@ ShaderUtils::ShaderReturnCode ShaderUtils::LinkShaders(ResourceHandle &shaderPro
         LOG_ERROR("Shader link failed: %s\n", log);
         glDeleteProgram(shaderProgram);
         shaderProgram = 0;
-        return LinkError;
+        return false;
     }
 
-    return None;
+    return true;
 }
 
-ShaderUtils::ShaderReturnCode ShaderUtils::CreateShaderProgram(ResourceHandle &outShaderProgram, const ShaderSource *sources, std::size_t sourcesCount)
+bool Rendering::CreateShaderProgram(ResourceHandle &outShaderProgram, const ShaderSource *sources, std::size_t sourcesCount)
 {
     outShaderProgram = 0;
     if (sources == nullptr || sourcesCount == 0)
     {
         LOG_ERROR("Cannot create shader program: no shader sources provided.\n");
-        return InvalidArgument;
+        return false;
     }
 
     std::vector<ResourceHandle> shaders(sourcesCount, 0);
     std::vector<std::string> loadedSources(sourcesCount);
-    ShaderReturnCode error = None;
 
     for (std::size_t i = 0; i < sourcesCount; ++i)
     {
         const std::string *source = &sources[i].source;
         if (sources[i].isFile)
         {
-            const ShaderReturnCode loadError = LoadShaderSource(sources[i].source.c_str(), loadedSources[i]);
-            if (loadError != None)
+            if (!LoadShaderSource(sources[i].source.c_str(), loadedSources[i]))
             {
-                error |= loadError;
-                continue;
+                for (const ResourceHandle shader : shaders)
+                    if (shader != 0)
+                        glDeleteShader(shader);
+                return false;
             }
             source = &loadedSources[i];
         }
 
-        error |= CompileShader(sources[i].type, source->c_str(), shaders[i]);
+        if (!CompileShader(sources[i].type, source->c_str(), shaders[i]))
+        {
+            for (const ResourceHandle shader : shaders)
+            {
+                if (shader != 0)
+                    glDeleteShader(shader);
+            }
+            return false;
+        }
     }
 
-    if (error != None)
-    {
-        for (const GLuint shader : shaders)
-            if (shader != 0)
-                glDeleteShader(shader);
-        return error;
-    }
-
-    const ShaderReturnCode linkError = LinkShaders(outShaderProgram, shaders.data(), shaders.size());
+    const bool linkSucceeded = LinkShaders(outShaderProgram, shaders.data(), shaders.size());
 
     for (const ResourceHandle shader : shaders)
         glDeleteShader(shader);
 
-    return linkError;
+    return linkSucceeded;
 }

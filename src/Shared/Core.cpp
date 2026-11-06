@@ -5,13 +5,13 @@
 #include <cstdarg>
 #include <cstdio>
 
-void Core::CheckOpenGLErrors()
+void Utils::CheckOpenGLErrors()
 {
     for (GLenum error = glGetError(); error != GL_NO_ERROR; error = glGetError())
         std::fprintf(stderr, "OpenGL error: 0x%X\n", error);
 }
 
-void Core::WriteError(const char *msg, ...)
+void Utils::WriteError(const char *msg, ...)
 {
     va_list args;
     va_start(args, msg);

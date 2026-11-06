@@ -1,24 +1,12 @@
 #include "Shared/Core.h"
-#include "Rendering/ShaderUtils.h"
+#include "Rendering/Mesh.h"
+#include "Rendering/Shader.h"
 
 #include <cstdio>
 #include <cstdlib>
-#include <fstream>
-#include <sstream>
-#include <string>
 
 namespace
 {
-    bool TryCreateShaderProgram(ResourceHandle &outShaderProgram)
-    {
-        using namespace ShaderUtils;
-
-        return ShaderUtils::CreateShaderProgram(
-                   outShaderProgram,
-                   ShaderSource{"vertex.glsl", ShaderType::Vertex, true},
-                   ShaderSource{"fragment.glsl", ShaderType::Fragment, true}) == ShaderReturnCode::None;
-    }
-
     template <typename T>
     bool TryGetGLWindowUserPointer(GLFWwindow *window, T *&outPointer)
     {
@@ -73,32 +61,43 @@ int main()
     if (SetupWindow(window) != EXIT_SUCCESS)
         return EXIT_FAILURE;
 
-    ResourceHandle shaderProgram = 0;
-    if (!TryCreateShaderProgram(shaderProgram))
+    int result = EXIT_SUCCESS;
     {
-        glfwDestroyWindow(window);
-        glfwTerminate();
-        return EXIT_FAILURE;
+        Rendering::Shader shader({
+            {"vertex.glsl", Rendering::VertexShader, true},
+            {"fragment.glsl", Rendering::FragmentShader, true},
+        });
+        Rendering::Mesh mesh(
+            {
+                {{-0.5f, -0.5f, 0.0f}, {}, {}, Colors::Red},
+                {{0.5f, -0.5f, 0.0f}, {}, {}, Colors::Green},
+                {{0.0f, 0.5f, 0.0f}, {}, {}, Colors::Blue},
+            }, {0, 1, 2});
+
+        if (!shader.InitializeResources() || !mesh.InitializeResources())
+            result = EXIT_FAILURE;
+        else
+        {
+            // glfwSetWindowUserPointer(window, &house);
+            glfwSetKeyCallback(window, KeyCallback);
+
+            glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+
+            while (glfwWindowShouldClose(window) == GLFW_FALSE) // Run loop until the user closes the window.
+            {
+                glClear(GL_COLOR_BUFFER_BIT);
+                shader.Use();
+
+                mesh.Draw();
+
+                CHECK_GL_ERRORS();       // Check for any OpenGL errors that may have occurred during rendering.
+                glfwSwapBuffers(window); // Swap the front(read) and back(write) buffers to display the rendered image.
+                glfwPollEvents();        // Poll for events such as keyboard and mouse input.
+            }
+        }
     }
 
-    // glfwSetWindowUserPointer(window, &house);
-    glfwSetKeyCallback(window, KeyCallback);
-
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-
-    while (glfwWindowShouldClose(window) == GLFW_FALSE) // Run loop until the user closes the window.
-    {
-        glClear(GL_COLOR_BUFFER_BIT);
-        glUseProgram(shaderProgram);
-
-        CHECK_GL_ERRORS();       // Check for any OpenGL errors that may have occurred during rendering.
-        glfwSwapBuffers(window); // Swap the front(read) and back(write) buffers to display the rendered image.
-        glfwPollEvents();        // Poll for events such as keyboard and mouse input.
-    }
-
-    // Cleanup resources before exiting.
-    glDeleteProgram(shaderProgram);
     glfwDestroyWindow(window);
     glfwTerminate();
-    return EXIT_SUCCESS;
+    return result;
 }

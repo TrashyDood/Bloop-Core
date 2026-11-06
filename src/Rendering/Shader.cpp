@@ -1,41 +1,55 @@
 #include "Rendering/Shader.h"
 
-Shader::~Shader()
+#include <utility>
+
+Rendering::Shader::~Shader()
 {
-    if (IsValid())
-        glDeleteProgram(shaderProgramHandle);
+    ReleaseResources();
 }
 
-Shader::Shader(Shader &&other) noexcept
-    : shaderProgramHandle(other.shaderProgramHandle)
-{
-    other.shaderProgramHandle = 0;
-}
+Rendering::Shader::Shader(Shader &&other) noexcept
+    : shaderProgram(std::exchange(other.shaderProgram, 0)), sources(std::move(other.sources)) { }
 
-Shader &Shader::operator=(Shader &&other) noexcept
+Rendering::Shader &Rendering::Shader::operator=(Shader &&other) noexcept
 {
     if (this != &other)
     {
-        if (IsValid())
-            glDeleteProgram(shaderProgramHandle);
-
-        shaderProgramHandle = other.shaderProgramHandle;
-        other.shaderProgramHandle = 0;
+        ReleaseResources();
+        sources = std::move(other.sources);
+        shaderProgram = std::exchange(other.shaderProgram, 0);
     }
 
     return *this;
 }
 
-Shader &Shader::operator=(GLuint shaderProgramHandle) noexcept
+void Rendering::Shader::ReleaseResources() noexcept
 {
-    if (IsValid())
-        glDeleteProgram(shaderProgramHandle);
-
-    this->shaderProgramHandle = shaderProgramHandle;
-    return *this;
+    if (shaderProgram != 0)
+        glDeleteProgram(shaderProgram);
+    shaderProgram = 0;
 }
 
-void Shader::Use() const
+bool Rendering::Shader::InitializeResources(bool reinitialize)
 {
-    glUseProgram(shaderProgramHandle);
+    if (reinitialize)
+        ReleaseResources();
+
+    if (IsInitialized())
+    {
+        LOG_ERROR("Cannot initialize shader: program handle is already set.\n");
+        return false;
+    }
+
+    if (sources.empty())
+    {
+        LOG_ERROR("Cannot initialize shader: no shader sources provided.\n");
+        return false;
+    }
+
+    return CreateShaderProgram(shaderProgram, sources.data(), sources.size());
+}
+
+void Rendering::Shader::Use() const
+{
+    glUseProgram(shaderProgram);
 }

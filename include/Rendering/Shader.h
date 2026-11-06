@@ -1,38 +1,41 @@
 #pragma once
 
-#include "Rendering/ShaderUtils.h"
+#include "Rendering/Core.h"
 #include "Shared/Core.h"
 
-class Shader
+#include <utility>
+#include <vector>
+
+namespace Rendering
 {
-    ResourceHandle shaderProgramHandle = 0;
-
-public:
-    Shader() = default;
-    ~Shader();
-    explicit Shader(ResourceHandle shaderProgramHandle) noexcept
-        : shaderProgramHandle(shaderProgramHandle) {}
-
-    Shader(const Shader &) = delete;
-    Shader &operator=(const Shader &) = delete;
-
-    Shader(Shader &&other) noexcept;
-    Shader &operator=(Shader &&other) noexcept;
-    Shader &operator=(ResourceHandle shaderProgramHandle) noexcept;
-
-    bool IsValid() const noexcept { return shaderProgramHandle != 0; }
-    ResourceHandle GetShaderHandle() const noexcept { return shaderProgramHandle; }
-    void Use() const;
-
-    SHADER_SOURCES_TEMPLATE
-    static ShaderUtils::ShaderReturnCode TryCreateNewShader(Shader &outShader, const Sources &...sources)
+    class Shader
     {
         ResourceHandle shaderProgram = 0;
-        const auto error = ShaderUtils::CreateShaderProgram(shaderProgram, sources...);
-        if (error != ShaderUtils::None)
-            return error;
+        std::vector<ShaderSource> sources;
 
-        outShader = Shader(shaderProgram);
-        return ShaderUtils::None;
-    }
-};
+    public:
+        [[nodiscard]] ResourceHandle GetProgramHandle() const { return shaderProgram; }
+        [[nodiscard]] std::size_t GetSourceCount() const { return sources.size(); }
+        [[nodiscard]] const ShaderSource &GetSource(std::size_t index) const { return sources.at(index); }
+        [[nodiscard]] const std::vector<ShaderSource> &GetSources() const { return sources; }
+        [[nodiscard]] bool IsInitialized() const { return shaderProgram != 0; }
+        [[nodiscard]] bool HasSources() const { return !sources.empty(); }
+
+        Shader() = default;
+        explicit Shader(std::vector<ShaderSource> sources) : sources(std::move(sources)) {}
+
+        ~Shader();
+
+        Shader(const Shader &) = delete;
+        Shader &operator=(const Shader &) = delete;
+
+        Shader(Shader &&other) noexcept;
+        Shader &operator=(Shader &&other) noexcept;
+
+        bool InitializeResources(bool reinitialize = false);
+        void Use() const;
+
+    private:
+        void ReleaseResources() noexcept;
+    };
+}
