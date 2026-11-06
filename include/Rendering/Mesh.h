@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Shared/Core.h"
+#include "Rendering/IResourceOwner.h"
 
 #include <glad/gl.h>
 #include <glm/glm.hpp>
@@ -8,7 +9,6 @@
 #include <cstdint>
 #include <utility>
 #include <vector>
-#include <tuple>
 
 namespace Rendering
 {
@@ -24,7 +24,7 @@ namespace Rendering
             : position(position), normal(normal), textureCoordinates(textureCoordinates), color(color) {}
     };
 
-    class Mesh
+    class Mesh : public IResourceOwner
     {
         ResourceHandle vertexArray = 0;
         ResourceHandle vertexBuffer = 0;
@@ -55,10 +55,10 @@ namespace Rendering
         Mesh(Mesh &&other) noexcept;
         Mesh &operator=(Mesh &&other) noexcept;
 
-        bool InitializeResources(bool reinitialize = false);
+        virtual bool InitializeResources(bool reinitialize = false) override;
         bool Draw() const;
 
     private:
-        void ReleaseResources() noexcept;
+        virtual void ReleaseResources() noexcept override;
     };
 }

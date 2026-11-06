@@ -18,9 +18,9 @@ namespace Rendering
 
     struct ShaderSource
     {
-        std::string source;
-        GLenum type;
-        bool isFile = false;
+        const std::string source;
+        const GLenum type;
+        const bool isFile = false;
     };
 
     bool LoadShaderSource(const char *filename, std::string &outSource);

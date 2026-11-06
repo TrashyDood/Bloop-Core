@@ -48,8 +48,3 @@ bool Rendering::Shader::InitializeResources(bool reinitialize)
 
     return CreateShaderProgram(shaderProgram, sources.data(), sources.size());
 }
-
-void Rendering::Shader::Use() const
-{
-    glUseProgram(shaderProgram);
-}

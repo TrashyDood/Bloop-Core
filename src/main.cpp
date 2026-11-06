@@ -40,7 +40,7 @@ namespace
         glfwMakeContextCurrent(outWindow);
         if (gladLoadGL(reinterpret_cast<GLADloadfunc>(glfwGetProcAddress)) == 0)
         {
-            std::fputs("Failed to load OpenGL functions with GLAD.\n", stderr);
+            LOG_ERROR("Failed to load OpenGL functions with GLAD. Make sure that your graphics drivers are up to date and support OpenGL 3.3 or higher.\n");
             glfwDestroyWindow(outWindow);
             glfwTerminate();
             return EXIT_FAILURE;

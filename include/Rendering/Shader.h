@@ -2,13 +2,14 @@
 
 #include "Rendering/Core.h"
 #include "Shared/Core.h"
+#include "Rendering/IResourceOwner.h"
 
 #include <utility>
 #include <vector>
 
 namespace Rendering
 {
-    class Shader
+    class Shader : public IResourceOwner
     {
         ResourceHandle shaderProgram = 0;
         std::vector<ShaderSource> sources;
@@ -32,10 +33,10 @@ namespace Rendering
         Shader(Shader &&other) noexcept;
         Shader &operator=(Shader &&other) noexcept;
 
-        bool InitializeResources(bool reinitialize = false);
-        void Use() const;
+        void Use() const { glUseProgram(shaderProgram); }
+        virtual bool InitializeResources(bool reinitialize = false) override;
 
     private:
-        void ReleaseResources() noexcept;
+        virtual void ReleaseResources() noexcept override;
     };
 }
