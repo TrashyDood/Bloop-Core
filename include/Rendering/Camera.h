@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Shared/Shared.h"
+#include "Rendering/Rendering.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -13,7 +13,6 @@ namespace Rendering
         Vector3f position{0.0f, 0.0f, 3.0f};
         float yaw = -90.0f;
         float pitch = 0.0f;
-        float mouseSensitivity = 0.1f;
         float distance = 3.0f;
         float fieldOfView = 45.0f;
         float nearPlane = 0.1f;
@@ -49,15 +48,29 @@ namespace Rendering
             return glm::lookAt(position, target, upDirection);
         }
 
-        [[nodiscard]] Matrix4f GetProjectionMatrix(float aspectRatio = 16.0f / 9.0f) const
+        [[nodiscard]] Matrix4f GetProjectionMatrix(float aspectRatio = DEFAULT_ASPECT_RATIO) const
         {
             return glm::perspective(glm::radians(fieldOfView), aspectRatio, nearPlane, farPlane);
         }
 
-        void ProcessMouseMovement(float xOffset, float yOffset)
+        void Rotate(float yawOffset, float pitchOffset)
         {
-            yaw += xOffset * mouseSensitivity;
-            pitch = glm::clamp(pitch + yOffset * mouseSensitivity, -89.0f, 89.0f);
+            yaw += yawOffset;
+            pitch = glm::clamp(pitch + pitchOffset, -89.0f, 89.0f);
+            UpdateCameraPosition();
+        }
+
+        void Zoom(float amount)
+        {
+            SetDistance(distance - amount);
+        }
+
+        void Move(float forwardDistance, float rightDistance)
+        {
+            const Vector3f front = glm::normalize(target - position);
+            const Vector3f right = glm::normalize(glm::cross(front, worldUp));
+            const Vector3f movement = front * forwardDistance + right * rightDistance;
+            target += movement;
             UpdateCameraPosition();
         }
 

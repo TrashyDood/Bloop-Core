@@ -28,6 +28,7 @@ file(GLOB ENGINE_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Rendering/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Shared/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Engine/*.cpp"
 )
 
 add_executable(Engine

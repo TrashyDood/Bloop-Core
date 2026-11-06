@@ -7,8 +7,12 @@
 #include <string>
 #include <type_traits>
 
+#define DEFAULT_ASPECT_RATIO Rendering::DefaultAspectRatio
+
 namespace Rendering
 {
+    inline constexpr float DefaultAspectRatio = 16.0f / 9.0f;
+
     enum ShaderType : GLenum
     {
         VertexShader = GL_VERTEX_SHADER,
