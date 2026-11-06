@@ -11,7 +11,7 @@ public:
     IResourceOwner(const IResourceOwner &) = delete;
     IResourceOwner &operator=(const IResourceOwner &) = delete;
 
-    virtual ~IResourceOwner() = default;
     virtual void ReleaseResources() noexcept = 0;
     virtual bool InitializeResources(bool reinitialize = false) = 0;
+    virtual ~IResourceOwner() = default;
 };
