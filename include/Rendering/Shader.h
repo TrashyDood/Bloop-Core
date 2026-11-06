@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Rendering/Core.h"
-#include "Shared/Core.h"
+#include "Rendering/Rendering.h"
+#include "Shared/Shared.h"
 #include "Rendering/IResourceOwner.h"
 
 #include <utility>
@@ -22,6 +22,11 @@ namespace Rendering
         [[nodiscard]] bool IsInitialized() const { return shaderProgram != 0; }
         [[nodiscard]] bool HasSources() const { return !sources.empty(); }
 
+        [[nodiscard]]
+        GLint GetUniformLocation(const std::string &name) const { return glGetUniformLocation(shaderProgram, name.c_str()); }
+        [[nodiscard]]
+        GLint GetAttributeLocation(const std::string &name) const { return glGetAttribLocation(shaderProgram, name.c_str()); }
+
         Shader() = default;
         explicit Shader(std::vector<ShaderSource> sources) : sources(std::move(sources)) {}
 
@@ -34,7 +39,7 @@ namespace Rendering
         Shader &operator=(Shader &&other) noexcept;
 
         void Use() const { glUseProgram(shaderProgram); }
-        virtual bool InitializeResources(bool reinitialize = false) override;
+        virtual bool InitializeResources() override;
 
     private:
         virtual void ReleaseResources() noexcept override;

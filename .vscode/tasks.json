@@ -2,10 +2,25 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "Run Engine",
+      "type": "process",
+      "command": "${workspaceFolder}\\build\\Engine.exe",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "close": false
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "MSYS2: Set Up Environment",
       "dependsOn": [
         "MSYS2: Update",
-        "MSYS2: Install Dependencies"
+        "MSYS2: Install UCRT64 Dependencies",
+        "MSYS2: Install OpenGL Dependencies"
       ],
       "dependsOrder": "sequence"
     },
@@ -17,7 +32,10 @@
         "cwd": "${workspaceFolder}",
         "shell": {
           "executable": "cmd.exe",
-          "args": ["/d", "/c"]
+          "args": [
+            "/d",
+            "/c"
+          ]
         }
       },
       "presentation": {
@@ -29,14 +47,39 @@
       "problemMatcher": []
     },
     {
-      "label": "MSYS2: Install Dependencies",
+      "label": "MSYS2: Install UCRT64 Dependencies",
       "type": "shell",
-      "command": "call \"${config:msys2.root}\\msys2_shell.cmd\" -ucrt64 -defterm -no-start -here -c \"pacman -S --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-pkgconf mingw-w64-ucrt-x86_64-glfw mingw-w64-ucrt-x86_64-glm mingw-w64-ucrt-x86_64-python-glad\"",
+      "command": "call \"${config:msys2.root}\\msys2_shell.cmd\" -ucrt64 -defterm -no-start -here -c \"pacman -S --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-pkgconf\"",
       "options": {
         "cwd": "${workspaceFolder}",
         "shell": {
           "executable": "cmd.exe",
-          "args": ["/d", "/c"]
+          "args": [
+            "/d",
+            "/c"
+          ]
+        }
+      },
+      "presentation": {
+        "group": "msys2",
+        "reveal": "always",
+        "panel": "dedicated",
+        "close": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "MSYS2: Install OpenGL Dependencies",
+      "type": "shell",
+      "command": "call \"${config:msys2.root}\\msys2_shell.cmd\" -ucrt64 -defterm -no-start -here -c \"pacman -S --needed mingw-w64-ucrt-x86_64-glfw mingw-w64-ucrt-x86_64-glm mingw-w64-ucrt-x86_64-python-glad mingw-w64-x86_64-glslang\"",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "shell": {
+          "executable": "cmd.exe",
+          "args": [
+            "/d",
+            "/c"
+          ]
         }
       },
       "presentation": {
@@ -55,7 +98,10 @@
         "cwd": "${workspaceFolder}",
         "shell": {
           "executable": "cmd.exe",
-          "args": ["/d", "/c"]
+          "args": [
+            "/d",
+            "/c"
+          ]
         }
       },
       "presentation": {
@@ -74,7 +120,10 @@
         "cwd": "${workspaceFolder}",
         "shell": {
           "executable": "cmd.exe",
-          "args": ["/d", "/c"]
+          "args": [
+            "/d",
+            "/c"
+          ]
         }
       },
       "presentation": {
@@ -97,25 +146,14 @@
         "cwd": "${workspaceFolder}",
         "shell": {
           "executable": "cmd.exe",
-          "args": ["/d", "/c"]
+          "args": [
+            "/d",
+            "/c"
+          ]
         }
       },
       "presentation": {
         "group": "msys2",
-        "reveal": "always",
-        "panel": "dedicated",
-        "close": false
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Run Engine",
-      "type": "process",
-      "command": "${workspaceFolder}\\build\\Engine.exe",
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
-      "presentation": {
         "reveal": "always",
         "panel": "dedicated",
         "close": false

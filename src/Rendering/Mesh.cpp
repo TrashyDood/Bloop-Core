@@ -42,10 +42,10 @@ void Rendering::Mesh::ReleaseResources() noexcept
     indexBuffer = 0;
 }
 
-bool Rendering::Mesh::InitializeResources(bool reinitialize)
+bool Rendering::Mesh::InitializeResources()
 {
-    if (reinitialize)
-        ReleaseResources();
+    if (!IResourceOwner::InitializeResources())
+        return false;
 
     if (vertexArray != 0 || vertexBuffer != 0 || indexBuffer != 0)
     {

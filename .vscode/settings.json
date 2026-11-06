@@ -1,5 +1,6 @@
 {
   "cmake.configurePreset": "default",
   "cmake.buildPreset": "default",
-  "cmake.configureOnOpen": false
+  "cmake.configureOnOpen": false,
+  "glslLsp.diagnostics.glslang.targetEnv": "opengl"
 }

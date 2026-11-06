@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Shared/Core.h"
+#include "Shared/Shared.h"
 
 #include <cstdio>
 #include <cstddef>

@@ -1,7 +1,8 @@
 #pragma once
 
-#include "Shared/Core.h"
+#include "Shared/Shared.h"
 #include "Rendering/IResourceOwner.h"
+#include "Rendering/IDrawable.h"
 
 #include <glad/gl.h>
 #include <glm/glm.hpp>
@@ -24,7 +25,7 @@ namespace Rendering
             : position(position), normal(normal), textureCoordinates(textureCoordinates), color(color) {}
     };
 
-    class Mesh : public IResourceOwner
+    class Mesh : public IResourceOwner, public IDrawable
     {
         ResourceHandle vertexArray = 0;
         ResourceHandle vertexBuffer = 0;
@@ -55,8 +56,8 @@ namespace Rendering
         Mesh(Mesh &&other) noexcept;
         Mesh &operator=(Mesh &&other) noexcept;
 
-        virtual bool InitializeResources(bool reinitialize = false) override;
-        bool Draw() const;
+        virtual bool InitializeResources() override;
+        virtual bool Draw() const override;
 
     private:
         virtual void ReleaseResources() noexcept override;

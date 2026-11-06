@@ -1,17 +1,27 @@
 #pragma once
 
-class IResourceOwner
+#include <cstddef>
+#include <vector>
+
+namespace Rendering
 {
-protected:
-    IResourceOwner() = default;
-    IResourceOwner(IResourceOwner &&) = default;
-    IResourceOwner &operator=(IResourceOwner &&) = default;
+    class IResourceOwner
+    {
+    protected:
+        IResourceOwner() = default;
+        IResourceOwner(IResourceOwner &&) = default;
+        IResourceOwner &operator=(IResourceOwner &&) = default;
 
-public:
-    IResourceOwner(const IResourceOwner &) = delete;
-    IResourceOwner &operator=(const IResourceOwner &) = delete;
+    public:
+        IResourceOwner(const IResourceOwner &) = delete;
+        IResourceOwner &operator=(const IResourceOwner &) = delete;
 
-    virtual void ReleaseResources() noexcept = 0;
-    virtual bool InitializeResources(bool reinitialize = false) = 0;
-    virtual ~IResourceOwner() = default;
-};
+        virtual ~IResourceOwner() = default;
+
+        virtual void ReleaseResources() noexcept = 0;
+        virtual bool InitializeResources() { ReleaseResources(); return true; }
+    };
+
+    bool InitializeResources(IResourceOwner *owners[], std::size_t count);
+    inline bool InitializeResources(std::vector<IResourceOwner *> owners) { return InitializeResources(owners.data(), owners.size()); }
+}

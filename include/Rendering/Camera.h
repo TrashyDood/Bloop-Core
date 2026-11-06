@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Shared/Core.h"
+#include "Shared/Shared.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -9,7 +9,8 @@ namespace Rendering
     class Camera
     {
         Vector3f target{0.0f, 0.0f, 0.0f};
-        Vector3f up{0.0f, 1.0f, 0.0f};
+        Vector3f worldUp{0.0f, 1.0f, 0.0f};
+        Vector3f position{0.0f, 0.0f, 3.0f};
         float yaw = -90.0f;
         float pitch = 0.0f;
         float mouseSensitivity = 0.1f;
@@ -18,20 +19,37 @@ namespace Rendering
         float nearPlane = 0.1f;
         float farPlane = 100.0f;
 
-    public:
-        [[nodiscard]] Matrix4f GetViewMatrix() const
+        void UpdateCameraPosition()
         {
             const float yawRadians = glm::radians(yaw);
             const float pitchRadians = glm::radians(pitch);
+
             const Vector3f direction{
                 glm::cos(yawRadians) * glm::cos(pitchRadians),
                 glm::sin(pitchRadians),
                 glm::sin(yawRadians) * glm::cos(pitchRadians),
             };
-            return glm::lookAt(target - direction * distance, target, up);
+
+            position = target + direction * distance;
         }
 
-        [[nodiscard]] Matrix4f GetProjectionMatrix(float aspectRatio) const
+    public:
+        Camera() { UpdateCameraPosition(); }
+
+        [[nodiscard]] Matrix4f GetViewMatrix() const
+        {
+            const Vector3f front = glm::normalize(target - position);
+            Vector3f right = glm::normalize(glm::cross(front, worldUp));
+            if (glm::dot(right, right) < 1e-6f)
+            {
+                right = glm::normalize(glm::cross(front, Vector3f{1.0f, 0.0f, 0.0f}));
+            }
+
+            const Vector3f upDirection = glm::cross(right, front);
+            return glm::lookAt(position, target, upDirection);
+        }
+
+        [[nodiscard]] Matrix4f GetProjectionMatrix(float aspectRatio = 16.0f / 9.0f) const
         {
             return glm::perspective(glm::radians(fieldOfView), aspectRatio, nearPlane, farPlane);
         }
@@ -40,6 +58,19 @@ namespace Rendering
         {
             yaw += xOffset * mouseSensitivity;
             pitch = glm::clamp(pitch + yOffset * mouseSensitivity, -89.0f, 89.0f);
+            UpdateCameraPosition();
+        }
+
+        void SetTarget(const Vector3f &newTarget)
+        {
+            target = newTarget;
+            UpdateCameraPosition();
+        }
+
+        void SetDistance(float newDistance)
+        {
+            distance = glm::max(newDistance, 0.1f);
+            UpdateCameraPosition();
         }
     };
 }

@@ -29,10 +29,10 @@ void Rendering::Shader::ReleaseResources() noexcept
     shaderProgram = 0;
 }
 
-bool Rendering::Shader::InitializeResources(bool reinitialize)
+bool Rendering::Shader::InitializeResources()
 {
-    if (reinitialize)
-        ReleaseResources();
+    if (!IResourceOwner::InitializeResources())
+        return false;
 
     if (IsInitialized())
     {
