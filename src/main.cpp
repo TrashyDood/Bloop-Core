@@ -2,6 +2,7 @@
 #include "Rendering/Camera.h"
 #include "Rendering/Mesh.h"
 #include "Rendering/Shader.h"
+#include "Engine/Scene.h"
 
 #include <glm/gtc/type_ptr.hpp>
 
@@ -66,9 +67,9 @@ namespace
         return static_cast<float>(width) / static_cast<float>(height);
     }
 
-    int SetupWindow(GLFWwindow *&outWindow, InputState &input)
+    int SetupWindow(GLFWwindow *&outWindow)
     {
-        if (!Rendering::SetupWindow(outWindow, 800, 600, "Engine Window", 1))
+        if (!Rendering::SetupWindow(outWindow, 800, 600, "Engine Window"))
             return EXIT_FAILURE;
 
         int width = 0, height = 0;
@@ -79,7 +80,6 @@ namespace
         glfwSetKeyCallback(outWindow, KeyCallback);
         glfwSetCursorPosCallback(outWindow, CursorPositionCallback);
         glfwSetScrollCallback(outWindow, ScrollCallback);
-        glfwSetWindowUserPointer(outWindow, &input);
 
         return EXIT_SUCCESS;
     }
@@ -103,42 +103,12 @@ namespace
                 {{-0.5f, 0.5f, -0.5f}, {}, {}, Colors::Purple},
             },
             {
-                0,
-                1,
-                2,
-                0,
-                2,
-                3,
-                5,
-                4,
-                7,
-                5,
-                7,
-                6,
-                1,
-                5,
-                6,
-                1,
-                6,
-                2,
-                4,
-                0,
-                3,
-                4,
-                3,
-                7,
-                3,
-                2,
-                6,
-                3,
-                6,
-                7,
-                4,
-                5,
-                1,
-                4,
-                1,
-                0,
+                0, 1, 2, 0, 2, 3,
+                5, 4, 7, 5, 7, 6,
+                1, 5, 6, 1, 6, 2,
+                4, 0, 3, 4, 3, 7,
+                3, 2, 6, 3, 6, 7,
+                4, 5, 1, 4, 1, 0,
             });
 
         if (!InitializeResources({&shader, &cubeMesh}))
@@ -197,18 +167,86 @@ namespace
     }
 }
 
+class CustomScene : public Scene
+{
+    Rendering::Camera camera;
+    Rendering::Shader shader;
+    Rendering::Mesh cubeMesh;
+
+public:
+    CustomScene(GLFWwindow &window) : Scene(window) {}
+
+protected:
+    int OnStart() override
+    {
+        using namespace Rendering;
+
+        shader = Shader({{"vertex.glsl", VertexShader, true},
+            {"fragment.glsl", FragmentShader, true}});
+
+        cubeMesh = Mesh(
+            {
+                {{-0.5f, -0.5f, 0.5f}, {}, {}, Colors::Red},
+                {{0.5f, -0.5f, 0.5f}, {}, {}, Colors::Green},
+                {{0.5f, 0.5f, 0.5f}, {}, {}, Colors::Blue},
+                {{-0.5f, 0.5f, 0.5f}, {}, {}, Colors::Yellow},
+                {{-0.5f, -0.5f, -0.5f}, {}, {}, Colors::Cyan},
+                {{0.5f, -0.5f, -0.5f}, {}, {}, Colors::Magenta},
+                {{0.5f, 0.5f, -0.5f}, {}, {}, Colors::Orange},
+                {{-0.5f, 0.5f, -0.5f}, {}, {}, Colors::Purple},
+            },
+            {
+                0, 1, 2, 0, 2, 3,
+                5, 4, 7, 5, 7, 6,
+                1, 5, 6, 1, 6, 2,
+                4, 0, 3, 4, 3, 7,
+                3, 2, 6, 3, 6, 7,
+                4, 5, 1, 4, 1, 0,
+            });
+
+        if (!InitializeResources({&shader, &cubeMesh}))
+        {
+            LOG_ERROR("Failed to initialize resources.\n");
+            return EXIT_FAILURE;
+        }
+
+        glfwSetKeyCallback(&GetWindow(), KeyCallback);
+        glfwSetCursorPosCallback(&GetWindow(), CursorPositionCallback);
+        glfwSetScrollCallback(&GetWindow(), ScrollCallback);
+
+        return EXIT_SUCCESS;
+    }
+
+    int OnUpdate(const float deltaTime, const float elapsedTime) override
+    {
+        return EXIT_SUCCESS;
+    }
+
+    int OnDraw(const float deltaTime, const float elapsedTime) override
+    {
+        return EXIT_SUCCESS;
+    }
+
+    void OnStop(const int exitCode) override
+    {
+
+    }
+};
+
 int main()
 {
     int result = EXIT_SUCCESS;
 
     Rendering::Camera camera;
-    InputState input{&camera};
     GLFWwindow *window = nullptr;
     if (result == EXIT_SUCCESS)
-        result = SetupWindow(window, input);
+        result = SetupWindow(window);
 
     if (result == EXIT_SUCCESS)
-        result = Draw(*window, camera);
+    {
+        CustomScene scene(*window);
+        result = scene.Start({0.016667s, true});
+    }
 
     if (window != nullptr)
         glfwDestroyWindow(window);

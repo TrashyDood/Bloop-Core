@@ -160,7 +160,7 @@ bool Rendering::CreateShaderProgram(ResourceHandle &outShaderProgram, const Shad
     return linkSucceeded;
 }
 
-int Rendering::SetupWindow(GLFWwindow *&outWindow, const int width, const int height, const char *title, const int swapInterval)
+int Rendering::SetupWindow(GLFWwindow *&outWindow, const int width, const int height, const char *title)
 {
     if (glfwInit() != GLFW_TRUE)
         return EXIT_FAILURE;
@@ -182,8 +182,6 @@ int Rendering::SetupWindow(GLFWwindow *&outWindow, const int width, const int he
         LOG_ERROR("Failed to load OpenGL functions with GLAD. Make sure that your graphics drivers are up to date and support OpenGL 3.3 or higher.\n");
         return EXIT_FAILURE;
     }
-
-    glfwSwapInterval(swapInterval);
 
     return EXIT_SUCCESS;
 }
