@@ -31,4 +31,6 @@ namespace Rendering
     bool CompileShader(GLenum type, const char *source, ResourceHandle &outShader);
     bool LinkShaders(ResourceHandle &outShaderProgram, const ResourceHandle *shaders, std::size_t shadersCount);
     bool CreateShaderProgram(ResourceHandle &outShaderProgram, const ShaderSource *sources, std::size_t sourcesCount);
+    
+    int SetupWindow(GLFWwindow *&outWindow, const int width = 800, const int height = 600, const char *title = "Engine Window", const int swapInterval = 1);
 }

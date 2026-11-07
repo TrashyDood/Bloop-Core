@@ -82,7 +82,8 @@ bool Rendering::LinkShaders(ResourceHandle &shaderProgram, const ResourceHandle 
             return false;
         }
 
-    if (shaderProgram == 0) shaderProgram = glCreateProgram();
+    if (shaderProgram == 0)
+        shaderProgram = glCreateProgram();
     if (shaderProgram == 0)
     {
         LOG_ERROR("Failed to create shader program.\n");
@@ -157,4 +158,32 @@ bool Rendering::CreateShaderProgram(ResourceHandle &outShaderProgram, const Shad
         glDeleteShader(shader);
 
     return linkSucceeded;
+}
+
+int Rendering::SetupWindow(GLFWwindow *&outWindow, const int width, const int height, const char *title, const int swapInterval)
+{
+    if (glfwInit() != GLFW_TRUE)
+        return EXIT_FAILURE;
+
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+    outWindow = glfwCreateWindow(width, height, title, nullptr, nullptr);
+    if (outWindow == nullptr)
+    {
+        LOG_ERROR("Failed to create GLFW window. Make sure that your graphics drivers are up to date and support OpenGL 3.3 or higher.\n");
+        return EXIT_FAILURE;
+    }
+
+    glfwMakeContextCurrent(outWindow);
+    if (gladLoadGL(reinterpret_cast<GLADloadfunc>(glfwGetProcAddress)) == 0)
+    {
+        LOG_ERROR("Failed to load OpenGL functions with GLAD. Make sure that your graphics drivers are up to date and support OpenGL 3.3 or higher.\n");
+        return EXIT_FAILURE;
+    }
+
+    glfwSwapInterval(swapInterval);
+
+    return EXIT_SUCCESS;
 }

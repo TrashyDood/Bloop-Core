@@ -68,39 +68,18 @@ namespace
 
     int SetupWindow(GLFWwindow *&outWindow, InputState &input)
     {
-        if (glfwInit() != GLFW_TRUE)
+        if (!Rendering::SetupWindow(outWindow, 800, 600, "Engine Window", 1))
             return EXIT_FAILURE;
-
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-        outWindow = glfwCreateWindow(1280, 720, "Engine", nullptr, nullptr);
-        if (outWindow == nullptr)
-        {
-            LOG_ERROR("Failed to create GLFW window. Make sure that your graphics drivers are up to date and support OpenGL 3.3 or higher.\n");
-            return EXIT_FAILURE;
-        }
-
-        glfwMakeContextCurrent(outWindow);
-        if (gladLoadGL(reinterpret_cast<GLADloadfunc>(glfwGetProcAddress)) == 0)
-        {
-            LOG_ERROR("Failed to load OpenGL functions with GLAD. Make sure that your graphics drivers are up to date and support OpenGL 3.3 or higher.\n");
-            return EXIT_FAILURE;
-        }
-
-        glfwSetKeyCallback(outWindow, KeyCallback);
-        glfwSetCursorPosCallback(outWindow, CursorPositionCallback);
-        glfwSetScrollCallback(outWindow, ScrollCallback);
-
-        glfwSetWindowUserPointer(outWindow, &input);
 
         int width = 0, height = 0;
         glfwGetFramebufferSize(outWindow, &width, &height);
         FramebufferSizeCallback(outWindow, width, height);
         glfwSetFramebufferSizeCallback(outWindow, FramebufferSizeCallback);
 
-        glfwSwapInterval(1);
+        glfwSetKeyCallback(outWindow, KeyCallback);
+        glfwSetCursorPosCallback(outWindow, CursorPositionCallback);
+        glfwSetScrollCallback(outWindow, ScrollCallback);
+        glfwSetWindowUserPointer(outWindow, &input);
 
         return EXIT_SUCCESS;
     }
@@ -124,12 +103,42 @@ namespace
                 {{-0.5f, 0.5f, -0.5f}, {}, {}, Colors::Purple},
             },
             {
-                0, 1, 2, 0, 2, 3,
-                5, 4, 7, 5, 7, 6,
-                1, 5, 6, 1, 6, 2,
-                4, 0, 3, 4, 3, 7,
-                3, 2, 6, 3, 6, 7,
-                4, 5, 1, 4, 1, 0,
+                0,
+                1,
+                2,
+                0,
+                2,
+                3,
+                5,
+                4,
+                7,
+                5,
+                7,
+                6,
+                1,
+                5,
+                6,
+                1,
+                6,
+                2,
+                4,
+                0,
+                3,
+                4,
+                3,
+                7,
+                3,
+                2,
+                6,
+                3,
+                6,
+                7,
+                4,
+                5,
+                1,
+                4,
+                1,
+                0,
             });
 
         if (!InitializeResources({&shader, &cubeMesh}))
@@ -190,13 +199,11 @@ namespace
 
 int main()
 {
-    using namespace Rendering;
-
-    Camera camera;
-    InputState input{&camera};
-    GLFWwindow *window = nullptr;
     int result = EXIT_SUCCESS;
 
+    Rendering::Camera camera;
+    InputState input{&camera};
+    GLFWwindow *window = nullptr;
     if (result == EXIT_SUCCESS)
         result = SetupWindow(window, input);
 
@@ -205,6 +212,7 @@ int main()
 
     if (window != nullptr)
         glfwDestroyWindow(window);
+
     glfwTerminate();
 
     return result;
