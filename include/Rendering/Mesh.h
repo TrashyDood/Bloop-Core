@@ -18,10 +18,10 @@ namespace Rendering
         Vector3f position{};
         Vector3f normal{};
         Vector2f textureCoordinates{};
-        Color4 color = Colors::White;
+        Color4f color = Colors::White;
 
         Vertex() = default;
-        Vertex(Vector3f position, Vector3f normal = {}, Vector2f textureCoordinates = {}, Color4 color = Colors::White)
+        Vertex(Vector3f position, Vector3f normal = {}, Vector2f textureCoordinates = {}, Color4f color = Colors::White)
             : position(position), normal(normal), textureCoordinates(textureCoordinates), color(color) {}
     };
 

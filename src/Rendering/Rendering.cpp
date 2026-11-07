@@ -185,3 +185,10 @@ int Rendering::SetupWindow(GLFWwindow *&outWindow, const int width, const int he
 
     return EXIT_SUCCESS;
 }
+
+float Rendering::GetWindowAspectRatio(GLFWwindow &window)
+{
+    int width = 0, height = 0;
+    glfwGetFramebufferSize(&window, &width, &height);
+    return static_cast<float>(glm::max(width, 1)) / static_cast<float>(glm::max(height, 1));
+}

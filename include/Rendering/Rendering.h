@@ -5,9 +5,9 @@
 #include <cstdio>
 #include <cstddef>
 #include <string>
-#include <type_traits>
 
 #define DEFAULT_ASPECT_RATIO Rendering::DefaultAspectRatio
+#define ASPECT_RATIO(window) Rendering::GetWindowAspectRatio(window)
 
 namespace Rendering
 {
@@ -31,7 +31,14 @@ namespace Rendering
     bool CompileShader(GLenum type, const char *source, ResourceHandle &outShader);
     bool LinkShaders(ResourceHandle &outShaderProgram, const ResourceHandle *shaders, std::size_t shadersCount);
     bool CreateShaderProgram(ResourceHandle &outShaderProgram, const ShaderSource *sources, std::size_t sourcesCount);
-    
-    int SetupWindow(GLFWwindow *&outWindow, const int width = 800, const int height = 600,
-        const char *title = "Engine Window");
+
+    [[nodiscard]] float GetWindowAspectRatio(GLFWwindow &window);
+    int SetupWindow(GLFWwindow *&outWindow, const int width = 800, const int height = 600, const char *title = "Engine Window");
+
+    template <typename T>
+    bool TryGetWindowUserPointer(GLFWwindow &window, T *&outPointer)
+    {
+        outPointer = static_cast<T *>(glfwGetWindowUserPointer(&window));
+        return outPointer != nullptr;
+    }
 }
