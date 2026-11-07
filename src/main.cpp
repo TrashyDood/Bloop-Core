@@ -1,4 +1,5 @@
 #include "Shared/Shared.h"
+#include "Shared/Transform.h"
 #include "Rendering/Camera.h"
 #include "Rendering/Mesh.h"
 #include "Rendering/Shader.h"
@@ -13,8 +14,9 @@ class CustomScene : public Scene
     Rendering::Camera camera;
     Rendering::Shader shader;
     Rendering::Mesh cubeMesh;
+    Shared::Transform cubeTransform;
 
-    GLint viewLocation, projectionLocation;
+    GLint modelLocation, viewLocation, projectionLocation;
     bool moveForward = false;
     bool moveBackward = false;
     bool moveLeft = false;
@@ -105,11 +107,12 @@ class CustomScene : public Scene
             return EXIT_FAILURE;
         }
 
+        modelLocation = shader.GetUniformLocation("model");
         viewLocation = shader.GetUniformLocation("view");
         projectionLocation = shader.GetUniformLocation("projection");
-        if (viewLocation < 0 || projectionLocation < 0)
+        if (modelLocation < 0 || viewLocation < 0 || projectionLocation < 0)
         {
-            LOG_ERROR("Camera uniforms are missing from the shader program.\n");
+            LOG_ERROR("Transform or camera uniforms are missing from the shader program.\n");
             return EXIT_FAILURE;
         }
 
@@ -144,7 +147,9 @@ protected:
 
         const Matrix4f view = camera.GetViewMatrix();
         const Matrix4f projection = camera.GetProjectionMatrix(ASPECT_RATIO(GetWindow()));
+        const Matrix4f model = cubeTransform.GetModelMatrix();
 
+        glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
         glUniformMatrix4fv(viewLocation, 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(projectionLocation, 1, GL_FALSE, glm::value_ptr(projection));
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Shared/Shared.h"
+#include "Shared/Transform.h"
 
 struct SceneConfig
 {
