@@ -10,3 +10,13 @@ This project uses CMake and is configured for MSYS2 UCRT64 on Windows.
 2. Run **MSYS2: Set Up Environment** to install the required tools and libraries.
 3. Run **MSYS2: Build Engine** to configure and build.
 4. Run **Run Engine** to launch.
+
+## Run unit tests
+
+Configure the project with the default preset, then build and run the test target:
+
+```sh
+cmake --preset default
+cmake --build --preset default --target EngineTests
+ctest --test-dir build --output-on-failure
+```

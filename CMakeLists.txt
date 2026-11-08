@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.25)
 
 project(Engine LANGUAGES C CXX)
 
+include(CTest)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -58,4 +60,20 @@ endif()
 
 if(MINGW)
     target_link_options(Engine PRIVATE -static -static-libgcc -static-libstdc++)
+endif()
+
+if(BUILD_TESTING)
+    add_executable(EngineTests
+        tests/UnitTests.cpp
+        src/Rendering/Camera.cpp
+        src/Shared/Transform.cpp
+    )
+    target_include_directories(EngineTests PRIVATE
+        include
+        third_party/glad/include
+        ${GLFW_INCLUDE_DIRS}
+    )
+    target_link_libraries(EngineTests PRIVATE glm::glm)
+
+    add_test(NAME EngineTests COMMAND EngineTests)
 endif()
