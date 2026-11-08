@@ -2,7 +2,6 @@
 
 #include "Shared/Shared.h"
 #include "Rendering/IResourceOwner.h"
-#include "Rendering/IDrawable.h"
 
 #include <glad/gl.h>
 #include <glm/glm.hpp>
@@ -13,6 +12,7 @@
 
 namespace Rendering
 {
+    // Represents a single vertex in a mesh, containing position, normal, texture coordinates, and color information.
     struct Vertex
     {
         Vector3f position{};
@@ -25,28 +25,35 @@ namespace Rendering
             : position(position), normal(normal), textureCoordinates(textureCoordinates), color(color) {}
     };
 
+    // Represents the geometry of a mesh, including its vertices and indices.
+    struct MeshGeometry
+    {
+        std::vector<Vertex> vertices{};
+        std::vector<std::uint32_t> indices{};
+    };
+
+    // Represents a mesh in OpenGL, managing its vertex array, vertex buffer, and index buffer.
     class Mesh : public IResourceOwner
     {
         ResourceHandle vertexArray = 0;
         ResourceHandle vertexBuffer = 0;
         ResourceHandle indexBuffer = 0;
 
-        std::vector<Vertex> vertices{};
-        std::vector<std::uint32_t> indices{};
+        MeshGeometry geometry{};
 
     public:
-        [[nodiscard]] const std::vector<Vertex> &GetVertices() const { return vertices; }
-        [[nodiscard]] const std::vector<std::uint32_t> &GetIndices() const { return indices; }
-        [[nodiscard]] std::size_t GetVertexCount() const { return vertices.size(); }
-        [[nodiscard]] std::size_t GetIndexCount() const { return indices.size(); }
+        [[nodiscard]] const MeshGeometry &GetGeometry() const { return geometry; }
+        [[nodiscard]] const std::vector<Vertex> &GetVertices() const { return geometry.vertices; }
+        [[nodiscard]] const std::vector<std::uint32_t> &GetIndices() const { return geometry.indices; }
+        [[nodiscard]] std::size_t GetVertexCount() const { return geometry.vertices.size(); }
+        [[nodiscard]] std::size_t GetIndexCount() const { return geometry.indices.size(); }
         [[nodiscard]] ResourceHandle GetVertexArray() const { return vertexArray; }
         [[nodiscard]] ResourceHandle GetVertexBuffer() const { return vertexBuffer; }
         [[nodiscard]] ResourceHandle GetIndexBuffer() const { return indexBuffer; }
-        [[nodiscard]] bool IsInitialized() const { return vertexArray != 0 && vertexBuffer != 0 && (indices.empty() || indexBuffer != 0); }
+        [[nodiscard]] bool IsInitialized() const { return vertexArray != 0 && vertexBuffer != 0 && (geometry.indices.empty() || indexBuffer != 0); }
 
         Mesh() = default;
-        explicit Mesh(std::vector<Vertex> vertices, std::vector<std::uint32_t> indices = {})
-            : vertices(std::move(vertices)), indices(std::move(indices)) {}
+        explicit Mesh(MeshGeometry geometry) : geometry(std::move(geometry)) {}
 
         ~Mesh();
 

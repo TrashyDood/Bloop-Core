@@ -9,7 +9,27 @@
 
 #include <cstdlib>
 
-class CustomScene : public Scene
+const Rendering::MeshGeometry CubeGeometry{
+    {
+        {{-0.5f, -0.5f, 0.5f}, {}, {}, Colors::Red},
+        {{0.5f, -0.5f, 0.5f}, {}, {}, Colors::Green},
+        {{0.5f, 0.5f, 0.5f}, {}, {}, Colors::Blue},
+        {{-0.5f, 0.5f, 0.5f}, {}, {}, Colors::Yellow},
+        {{-0.5f, -0.5f, -0.5f}, {}, {}, Colors::Cyan},
+        {{0.5f, -0.5f, -0.5f}, {}, {}, Colors::Magenta},
+        {{0.5f, 0.5f, -0.5f}, {}, {}, Colors::Orange},
+        {{-0.5f, 0.5f, -0.5f}, {}, {}, Colors::Purple},
+    },
+    {
+        0, 1, 2, 0, 2, 3,
+        5, 4, 7, 5, 7, 6,
+        1, 5, 6, 1, 6, 2,
+        4, 0, 3, 4, 3, 7,
+        3, 2, 6, 3, 6, 7,
+        4, 5, 1, 4, 1, 0,
+    }};
+
+class DemoScene : public Scene
 {
     Rendering::Camera camera;
     Rendering::Shader shader;
@@ -18,86 +38,19 @@ class CustomScene : public Scene
 
     GLint modelLocation, viewLocation, projectionLocation;
 
-    double lastCursorX = 0.0, lastCursorY = 0.0;
-    bool moveForward = false, moveBackward = false,
-    moveLeft = false, moveRight = false,
-    orbiting = false;
-
     static void HandleKey(GLFWwindow *window, int key, int, int action, int)
     {
-        CustomScene *scene = nullptr;
-        if (!Rendering::TryGetWindowUserPointer(*window, scene))
-            return;
-
-        const bool pressed = action != GLFW_RELEASE;
-        switch (key)
-        {
-        case GLFW_KEY_W: scene->moveForward = pressed; break;
-        case GLFW_KEY_S: scene->moveBackward = pressed; break;
-        case GLFW_KEY_A: scene->moveLeft = pressed; break;
-        case GLFW_KEY_D: scene->moveRight = pressed; break;
-        case GLFW_KEY_ESCAPE:
-            if (action == GLFW_PRESS)
-                glfwSetWindowShouldClose(window, GLFW_TRUE);
-            break;
-        }
-    }
-
-    static void HandleCursorPosition(GLFWwindow *window, double x, double y)
-    {
-        CustomScene *scene = nullptr;
-        if (!Rendering::TryGetWindowUserPointer(*window, scene))
-            return;
-
-        if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1) != GLFW_PRESS)
-        {
-            scene->orbiting = false;
-            return;
-        }
-
-        if (scene->orbiting)
-            scene->camera.Rotate(
-                static_cast<float>(x - scene->lastCursorX) * 0.1f,
-                static_cast<float>(y - scene->lastCursorY) * 0.1f);
-
-        scene->lastCursorX = x;
-        scene->lastCursorY = y;
-        scene->orbiting = true;
-    }
-
-    static void HandleScroll(GLFWwindow *window, double, double yOffset)
-    {
-        CustomScene *scene = nullptr;
-        if (Rendering::TryGetWindowUserPointer(*window, scene))
-            scene->camera.Zoom(static_cast<float>(yOffset));
+        if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+            glfwSetWindowShouldClose(window, GLFW_TRUE);
     }
 
     int InitializeShadersAndMeshes()
     {
         using namespace Rendering;
 
+        cubeMesh = Mesh(CubeGeometry);
         shader = Shader({{"vertex.glsl", VertexShader, true},
             {"fragment.glsl", FragmentShader, true}});
-
-        cubeMesh = Mesh(
-            {
-                {{-0.5f, -0.5f, 0.5f}, {}, {}, Colors::Red},
-                {{0.5f, -0.5f, 0.5f}, {}, {}, Colors::Green},
-                {{0.5f, 0.5f, 0.5f}, {}, {}, Colors::Blue},
-                {{-0.5f, 0.5f, 0.5f}, {}, {}, Colors::Yellow},
-                {{-0.5f, -0.5f, -0.5f}, {}, {}, Colors::Cyan},
-                {{0.5f, -0.5f, -0.5f}, {}, {}, Colors::Magenta},
-                {{0.5f, 0.5f, -0.5f}, {}, {}, Colors::Orange},
-                {{-0.5f, 0.5f, -0.5f}, {}, {}, Colors::Purple},
-            },
-            {
-                0, 1, 2, 0, 2, 3,
-                5, 4, 7, 5, 7, 6,
-                1, 5, 6, 1, 6, 2,
-                4, 0, 3, 4, 3, 7,
-                3, 2, 6, 3, 6, 7,
-                4, 5, 1, 4, 1, 0,
-            });
 
         if (!InitializeResources({&shader, &cubeMesh}))
         {
@@ -105,9 +58,9 @@ class CustomScene : public Scene
             return EXIT_FAILURE;
         }
 
-        if (!shader.TryGetUniformLocation("model", modelLocation) ||
-            !shader.TryGetUniformLocation("view", viewLocation) ||
-            !shader.TryGetUniformLocation("projection", projectionLocation))
+        if (!shader.TryGetUniformLocation("modelMatrix", modelLocation) ||
+            !shader.TryGetUniformLocation("viewMatrix", viewLocation) ||
+            !shader.TryGetUniformLocation("projectionMatrix", projectionLocation))
         {
             LOG_ERROR("Transform or camera uniforms are missing from the shader program.\n");
             return EXIT_FAILURE;
@@ -119,27 +72,18 @@ class CustomScene : public Scene
 protected:
     int OnStart() override
     {
-        using namespace Rendering;
-
         if (InitializeShadersAndMeshes() != EXIT_SUCCESS)
             return EXIT_FAILURE;
 
         glfwSetKeyCallback(&GetWindow(), HandleKey);
-        glfwSetCursorPosCallback(&GetWindow(), HandleCursorPosition);
-        glfwSetScrollCallback(&GetWindow(), HandleScroll);
 
         return EXIT_SUCCESS;
     }
 
-    int OnUpdate(const SceneTime &time) override { return EXIT_SUCCESS; }
+    int OnUpdate(const SceneTime &) override { return EXIT_SUCCESS; }
 
-    int OnDraw(const SceneTime &time) override
+    int OnDraw(const SceneTime &) override
     {
-        constexpr float cameraSpeed = 2.5f;
-        const float forward = static_cast<float>(moveForward) - static_cast<float>(moveBackward);
-        const float right = static_cast<float>(moveRight) - static_cast<float>(moveLeft);
-        camera.Move(forward * cameraSpeed * time.deltaTime, right * cameraSpeed * time.deltaTime);
-
         shader.Use();
 
         const Matrix4f view = camera.GetViewMatrix();
@@ -165,7 +109,7 @@ int main()
 
     if (result == EXIT_SUCCESS)
     {
-        CustomScene scene;
+        DemoScene scene;
         SceneConfig config;
         result = scene.Start(*window, config);
     }
