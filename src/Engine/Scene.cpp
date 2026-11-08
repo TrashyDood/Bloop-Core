@@ -1,34 +1,28 @@
 #include "Engine/Scene.h"
 
-#include "Rendering/Rendering.h"
 #include "Shared/TickLoop.h"
 #include "Shared/ThreadPool.h"
 
 int Scene::Start(GLFWwindow *window, SceneConfig *config)
 {
-    if (isRunning)
-        return EXIT_FAILURE;
-
     glfwSetWindowUserPointer(window, dynamic_cast<void *>(this));
     isRunning = true;
     int result = OnStart();
 
     if (result == EXIT_SUCCESS)
     {
-        glfwSetWindowUserPointer(&GetWindow(), dynamic_cast<void *>(this));
         glfwSwapInterval(config->enableVSync ? 1 : 0);
         glfwSetFramebufferSizeCallback(&GetWindow(), [](GLFWwindow *, int width, int height) { glViewport(0, 0, width, height); });
 
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glEnable(GL_DEPTH_TEST);
 
+        SceneTime sceneTime;
         TickLoop tickLoop;
         tickLoop.Run([&](float deltaTime, float elapsedTime)
         {
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
             glfwPollEvents();
 
-            SceneTime sceneTime;
             sceneTime.deltaTime = deltaTime;
             sceneTime.elapsedTime = elapsedTime;
 
@@ -40,7 +34,9 @@ int Scene::Start(GLFWwindow *window, SceneConfig *config)
             result = drawResult == EXIT_SUCCESS ? updateResult : drawResult;
 
             CHECK_GL_ERRORS();
+            
             glfwSwapBuffers(window);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             return !glfwWindowShouldClose(window) && isRunning && result == EXIT_SUCCESS;
         },

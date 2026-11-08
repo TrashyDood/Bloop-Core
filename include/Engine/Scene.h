@@ -3,6 +3,8 @@
 #include "Shared/Shared.h"
 #include "Shared/Transform.h"
 
+#include <GLFW/glfw3.h>
+
 struct SceneConfig
 {
     std::chrono::duration<float> targetTimeStep = 0.0000001s;
@@ -25,9 +27,9 @@ class Scene
 
 protected:
     virtual int OnStart() = 0;
-    virtual int OnUpdate(const SceneTime &time) = 0;
+    virtual int OnUpdate(const SceneTime &time) { return EXIT_SUCCESS; }
     virtual int OnDraw(const SceneTime &time) = 0;
-    virtual void OnStop(const int exitCode) = 0;
+    virtual void OnStop(const int exitCode) {}
 
 public:
     [[nodiscard]] GLFWwindow &GetWindow() const { return *window; }

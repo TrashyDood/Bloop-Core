@@ -2,29 +2,39 @@
 
 #include "Shared/Shared.h"
 
-#include <glm/gtc/matrix_transform.hpp>
-
 namespace Shared
 {
     class Transform
     {
-        Vector3f position{0.0f};
-        Vector3f eulerRotation{0.0f};
-        Vector3f scale{1.0f};
+        Vector3f position{0.0f}, scale{1.0f}, rotationEuler{0.0f};
+        Quaternionf rotation{1.0f, 0.0f, 0.0f, 0.0f};
+        Matrix4f rotationMatrix{1.0f};
 
     public:
-        [[nodiscard]] Matrix4f GetRotationMatrix() const;
+        [[nodiscard]] Matrix4f GetRotationMatrix() const { return rotationMatrix; }
         [[nodiscard]] Matrix4f GetModelMatrix() const;
-
         [[nodiscard]] const Vector3f &GetPosition() const { return position; }
-        [[nodiscard]] const Vector3f &GetEulerRotation() const { return eulerRotation; }
         [[nodiscard]] const Vector3f &GetScale() const { return scale; }
+        [[nodiscard]] const Quaternionf &GetRotation() const { return rotation; }
+        [[nodiscard]] const Vector3f &GetRotationEuler() const { return rotationEuler; }
+        [[nodiscard]] Vector3f GetRight() const;
+        [[nodiscard]] Vector3f GetUp() const;
+        [[nodiscard]] Vector3f GetForward() const;
 
         void SetPosition(const Vector3f &newPosition) { position = newPosition; }
-        void SetRotation(const Vector3f &newRotation) { eulerRotation = newRotation; }
         void SetScale(const Vector3f &newScale) { scale = newScale; }
+        void SetRotation(const Quaternionf &newRotation);
+        void SetRotationEuler(const Vector3f &newRotationEuler) { SetRotation(Quaternionf{newRotationEuler}); }
+        bool SetLookAt(const Vector3f &target, const Vector3f &up = Vectors::v3fUp);
 
-        void Translate(const Vector3f &offset) { position += offset; }
-        void Rotate(const Vector3f &angles) { eulerRotation += angles; }
+        void Translate(const Vector3f &offset) { SetPosition(position + offset); }
+        void TranslateLocal(const Vector3f &offset);
+
+        void ScaleBy(const Vector3f &factor) { SetScale(scale * factor); }
+        void ScaleBy(float factor) { SetScale(scale * factor); }
+
+        void Rotate(const Quaternionf &rotationOffset) { SetRotation(rotation * rotationOffset); }
+        void RotateEuler(const Vector3f &angles) { Rotate(Quaternionf{angles}); }
+        void RotateAxis(float angleRadians, const Vector3f &axis);
     };
 }

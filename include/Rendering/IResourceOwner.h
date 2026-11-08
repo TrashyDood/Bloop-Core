@@ -18,6 +18,7 @@ namespace Rendering
 
         virtual ~IResourceOwner() = default;
 
+        virtual bool IsInitialized() const = 0;
         virtual void ReleaseResources() noexcept = 0;
         virtual bool InitializeResources() { ReleaseResources(); return true; }
     };

@@ -50,7 +50,8 @@ namespace Rendering
         [[nodiscard]] ResourceHandle GetVertexArray() const { return vertexArray; }
         [[nodiscard]] ResourceHandle GetVertexBuffer() const { return vertexBuffer; }
         [[nodiscard]] ResourceHandle GetIndexBuffer() const { return indexBuffer; }
-        [[nodiscard]] bool IsInitialized() const { return vertexArray != 0 && vertexBuffer != 0 && (geometry.indices.empty() || indexBuffer != 0); }
+
+        [[nodiscard]] bool IsInitialized() const override { return vertexArray != 0 && vertexBuffer != 0 && (geometry.indices.empty() || indexBuffer != 0); }
 
         Mesh() = default;
         explicit Mesh(MeshGeometry geometry) : geometry(std::move(geometry)) {}
@@ -63,10 +64,10 @@ namespace Rendering
         Mesh(Mesh &&other) noexcept;
         Mesh &operator=(Mesh &&other) noexcept;
 
-        virtual bool InitializeResources() override;
+        bool InitializeResources() override;
         bool Draw() const;
 
     private:
-        virtual void ReleaseResources() noexcept override;
+        void ReleaseResources() noexcept override;
     };
 }

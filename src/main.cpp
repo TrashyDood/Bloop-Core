@@ -9,7 +9,7 @@
 
 #include <cstdlib>
 
-const Rendering::MeshGeometry CubeGeometry{
+const Rendering::MeshGeometry CubeGeometry {
     {
         {{-0.5f, -0.5f, 0.5f}, {}, {}, Colors::Red},
         {{0.5f, -0.5f, 0.5f}, {}, {}, Colors::Green},
@@ -31,36 +31,106 @@ const Rendering::MeshGeometry CubeGeometry{
 
 class DemoScene : public Scene
 {
-    Rendering::Camera camera;
+    Rendering::Mesh mesh;
     Rendering::Shader shader;
-    Rendering::Mesh cubeMesh;
-    Shared::Transform cubeTransform;
+    Rendering::FlyingCamera camera;
+    Shared::Transform meshTransform;
 
-    GLint modelLocation, viewLocation, projectionLocation;
+    GLint modelMatrixUniform,
+        viewMatrixUniform,
+        projectionMatrixUniform;
 
+    bool moveForward = false, moveBackward = false,
+        moveLeft = false, moveRight = false,
+        moveUp = false, moveDown = false,
+        orbiting = false;
+
+    double lastCursorX = 0.0, lastCursorY = 0.0;
+
+private:
     static void HandleKey(GLFWwindow *window, int key, int, int action, int)
     {
+        DemoScene *scene = nullptr;
+        if (!Shared::TryGetWindowUserPointer(*window, scene))
+            return;
+
+        const bool pressed = action != GLFW_RELEASE;
+        switch (key)
+        {
+            case GLFW_KEY_W: scene->moveForward = pressed; break;
+            case GLFW_KEY_S: scene->moveBackward = pressed; break;
+            case GLFW_KEY_A: scene->moveLeft = pressed; break;
+            case GLFW_KEY_D: scene->moveRight = pressed; break;
+            case GLFW_KEY_E: scene->moveUp = pressed; break;
+            case GLFW_KEY_Q: scene->moveDown = pressed; break;
+        }
+
         if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
             glfwSetWindowShouldClose(window, GLFW_TRUE);
+    }
+
+    static void HandleMouseButton(GLFWwindow *window, int button, int action, int)
+    {
+        if (button != GLFW_MOUSE_BUTTON_1)
+            return;
+
+        DemoScene *scene = nullptr;
+        if (!Shared::TryGetWindowUserPointer(*window, scene))
+            return;
+
+        scene->orbiting = action == GLFW_PRESS;
+        if (scene->orbiting)
+            glfwGetCursorPos(window, &scene->lastCursorX, &scene->lastCursorY);
+    }
+
+    static void HandleCursorPosition(GLFWwindow *window, double x, double y)
+    {
+        DemoScene *scene = nullptr;
+        if (!Shared::TryGetWindowUserPointer(*window, scene))
+            return;
+
+        if (!scene->orbiting || glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1) != GLFW_PRESS)
+        {
+            scene->orbiting = false;
+            return;
+        }
+
+        constexpr float sensitivity = 0.005f;
+        const float yawDelta = static_cast<float>(x - scene->lastCursorX) * sensitivity;
+        const float pitchDelta = static_cast<float>(scene->lastCursorY - y) * sensitivity;
+        scene->camera.Orbit(Vectors::v3fZero, yawDelta, pitchDelta);
+
+        scene->lastCursorX = x;
+        scene->lastCursorY = y;
+    }
+
+    static void HandleScroll(GLFWwindow *window, double, double yOffset)
+    {
+        DemoScene *scene = nullptr;
+        if (!Shared::TryGetWindowUserPointer(*window, scene))
+            return;
+
+        constexpr float zoomSensitivity = 0.5f;
+        scene->camera.Zoom(Vectors::v3fZero, static_cast<float>(yOffset) * zoomSensitivity);
     }
 
     int InitializeShadersAndMeshes()
     {
         using namespace Rendering;
 
-        cubeMesh = Mesh(CubeGeometry);
+        mesh = Mesh(CubeGeometry);
         shader = Shader({{"vertex.glsl", VertexShader, true},
-            {"fragment.glsl", FragmentShader, true}});
+                         {"fragment.glsl", FragmentShader, true}});
 
-        if (!InitializeResources({&shader, &cubeMesh}))
+        if (!InitializeResources({&shader, &mesh}))
         {
             LOG_ERROR("Failed to initialize resources.\n");
             return EXIT_FAILURE;
         }
 
-        if (!shader.TryGetUniformLocation("modelMatrix", modelLocation) ||
-            !shader.TryGetUniformLocation("viewMatrix", viewLocation) ||
-            !shader.TryGetUniformLocation("projectionMatrix", projectionLocation))
+        if (!shader.TryGetUniformLocation("modelMatrix", modelMatrixUniform) ||
+            !shader.TryGetUniformLocation("viewMatrix", viewMatrixUniform) ||
+            !shader.TryGetUniformLocation("projectionMatrix", projectionMatrixUniform))
         {
             LOG_ERROR("Transform or camera uniforms are missing from the shader program.\n");
             return EXIT_FAILURE;
@@ -69,43 +139,49 @@ class DemoScene : public Scene
         return EXIT_SUCCESS;
     }
 
-protected:
     int OnStart() override
     {
         if (InitializeShadersAndMeshes() != EXIT_SUCCESS)
             return EXIT_FAILURE;
 
         glfwSetKeyCallback(&GetWindow(), HandleKey);
+        glfwSetMouseButtonCallback(&GetWindow(), HandleMouseButton);
+        glfwSetCursorPosCallback(&GetWindow(), HandleCursorPosition);
+        glfwSetScrollCallback(&GetWindow(), HandleScroll);
+
+        camera.GetTransform().SetPosition({0.0f, 0.0f, 3.0f});
 
         return EXIT_SUCCESS;
     }
 
-    int OnUpdate(const SceneTime &) override { return EXIT_SUCCESS; }
-
-    int OnDraw(const SceneTime &) override
+    int OnDraw(const SceneTime &time) override
     {
+        camera.Move({
+            ((float)(moveRight) - (float)(moveLeft)),
+            ((float)(moveUp) - (float)(moveDown)),
+            ((float)(moveForward) - (float)(moveBackward)),
+        }, time.deltaTime);
+
         shader.Use();
 
-        const Matrix4f view = camera.GetViewMatrix();
-        const Matrix4f projection = camera.GetProjectionMatrix(ASPECT_RATIO(GetWindow()));
-        const Matrix4f model = cubeTransform.GetModelMatrix();
+        const Matrix4f viewMatrix = camera.GetViewMatrix();
+        const Matrix4f projectionMatrix = camera.GetProjectionMatrix(ASPECT_RATIO(GetWindow()));
+        const Matrix4f modelMatrix = meshTransform.GetModelMatrix();
 
-        glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
-        glUniformMatrix4fv(viewLocation, 1, GL_FALSE, glm::value_ptr(view));
-        glUniformMatrix4fv(projectionLocation, 1, GL_FALSE, glm::value_ptr(projection));
+        glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, glm::value_ptr(modelMatrix));
+        glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, glm::value_ptr(viewMatrix));
+        glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
 
-        cubeMesh.Draw();
+        mesh.Draw();
 
         return EXIT_SUCCESS;
     }
-
-    void OnStop(const int exitCode) override { }
 };
 
 int main()
 {
     GLFWwindow *window = nullptr;
-    int result = Rendering::SetupWindow(window, 800, 600, "Engine Window");
+    int result = Shared::SetupWindow(window, 800, 600, "Engine Window");
 
     if (result == EXIT_SUCCESS)
     {

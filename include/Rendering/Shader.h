@@ -19,7 +19,6 @@ namespace Rendering
         [[nodiscard]] std::size_t GetSourceCount() const { return sources.size(); }
         [[nodiscard]] const ShaderSource &GetSource(std::size_t index) const { return sources.at(index); }
         [[nodiscard]] const std::vector<ShaderSource> &GetSources() const { return sources; }
-        [[nodiscard]] bool IsInitialized() const { return shaderProgram != 0; }
         [[nodiscard]] bool HasSources() const { return !sources.empty(); }
 
         [[nodiscard]]
@@ -27,11 +26,13 @@ namespace Rendering
         [[nodiscard]]
         bool TryGetAttributeLocation(const std::string &name, GLint &location) const;
 
+        [[nodiscard]] bool IsInitialized() const override { return shaderProgram != 0; }
+
         Shader(const Shader &) = delete;
         Shader &operator=(const Shader &) = delete;
 
         Shader() = default;
-        
+
         explicit Shader(std::vector<ShaderSource> sources) : sources(std::move(sources)) {}
         ~Shader() { ReleaseResources(); }
 
@@ -40,9 +41,9 @@ namespace Rendering
         Shader &operator=(Shader &&other) noexcept;
 
         void Use() const { glUseProgram(shaderProgram); }
-        virtual bool InitializeResources() override;
+        bool InitializeResources() override;
 
     private:
-        virtual void ReleaseResources() noexcept override;
+        void ReleaseResources() noexcept override;
     };
 }

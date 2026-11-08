@@ -160,7 +160,7 @@ bool Rendering::CreateShaderProgram(ResourceHandle &outShaderProgram, const Shad
     return linkSucceeded;
 }
 
-int Rendering::SetupWindow(GLFWwindow *&outWindow, const int width, const int height, const char *title)
+int Shared::SetupWindow(GLFWwindow *&outWindow, const int width, const int height, const char *title)
 {
     if (glfwInit() != GLFW_TRUE)
         return EXIT_FAILURE;
@@ -186,7 +186,7 @@ int Rendering::SetupWindow(GLFWwindow *&outWindow, const int width, const int he
     return EXIT_SUCCESS;
 }
 
-float Rendering::GetWindowAspectRatio(GLFWwindow &window)
+float Shared::GetWindowAspectRatio(GLFWwindow &window)
 {
     int width = 0, height = 0;
     glfwGetFramebufferSize(&window, &width, &height);
