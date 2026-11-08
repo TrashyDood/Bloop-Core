@@ -17,9 +17,12 @@ namespace Shared
         [[nodiscard]] const Vector3f &GetScale() const { return scale; }
         [[nodiscard]] const Quaternionf &GetRotation() const { return rotation; }
         [[nodiscard]] const Vector3f &GetRotationEuler() const { return rotationEuler; }
-        [[nodiscard]] Vector3f GetRight() const;
-        [[nodiscard]] Vector3f GetUp() const;
-        [[nodiscard]] Vector3f GetForward() const;
+        [[nodiscard]] Vector3f GetRight() const { return TransformVector(Vectors::v3fRight, false); }
+        [[nodiscard]] Vector3f GetUp() const { return TransformVector(Vectors::v3fDown, false); }
+        [[nodiscard]] Vector3f GetForward() const { return TransformVector(Vectors::v3fForward, false); }
+
+        [[nodiscard]] Vector3f TransformVector(const Vector3f &vector, bool includeScale = true) const;
+        [[nodiscard]] Vector3f TransformPosition(const Vector3f &point, bool includeScale = true) const;
 
         void SetPosition(const Vector3f &newPosition) { position = newPosition; }
         void SetScale(const Vector3f &newScale) { scale = newScale; }
@@ -35,6 +38,5 @@ namespace Shared
 
         void Rotate(const Quaternionf &rotationOffset) { SetRotation(rotation * rotationOffset); }
         void RotateEuler(const Vector3f &angles) { Rotate(Quaternionf{angles}); }
-        void RotateAxis(float angleRadians, const Vector3f &axis);
     };
 }

@@ -4,10 +4,8 @@ Matrix4f Rendering::Camera::GetViewMatrix() const
 {
     const Matrix4f rotation = transform.GetRotationMatrix();
     const Vector3f &position = transform.GetPosition();
-    const Vector4f localForward{0.0f, 0.0f, -1.0f, 0.0f};
-    const Vector4f localUp{0.0f, 1.0f, 0.0f, 0.0f};
-    const Vector3f forward = glm::normalize(Vector3f{rotation * localForward});
-    const Vector3f up = glm::normalize(Vector3f{rotation * localUp});
+    const Vector3f forward = glm::normalize(Vector3f{rotation * Vectors::v4fForward});
+    const Vector3f up = glm::normalize(Vector3f{rotation * Vectors::v4fDown});
     return glm::lookAt(position, position + forward, up);
 }
 

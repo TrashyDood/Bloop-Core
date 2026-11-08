@@ -67,6 +67,18 @@ private:
 
         if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
             glfwSetWindowShouldClose(window, GLFW_TRUE);
+
+        if (key == GLFW_KEY_R && action == GLFW_PRESS)
+        {
+            scene->camera.ResetPosition();
+            scene->moveForward = false;
+            scene->moveBackward = false;
+            scene->moveLeft = false;
+            scene->moveRight = false;
+            scene->moveUp = false;
+            scene->moveDown = false;
+            scene->orbiting = false;
+        }
     }
 
     static void HandleMouseButton(GLFWwindow *window, int button, int action, int)
@@ -98,7 +110,7 @@ private:
         constexpr float sensitivity = 0.005f;
         const float yawDelta = static_cast<float>(x - scene->lastCursorX) * sensitivity;
         const float pitchDelta = static_cast<float>(scene->lastCursorY - y) * sensitivity;
-        scene->camera.Orbit(Vectors::v3fZero, yawDelta, pitchDelta);
+        scene->camera.Orbit(yawDelta, pitchDelta);
 
         scene->lastCursorX = x;
         scene->lastCursorY = y;
@@ -110,8 +122,8 @@ private:
         if (!Shared::TryGetWindowUserPointer(*window, scene))
             return;
 
-        constexpr float zoomSensitivity = 0.5f;
-        scene->camera.Zoom(Vectors::v3fZero, static_cast<float>(yOffset) * zoomSensitivity);
+        constexpr float zoomSensitivity = 0.1f;
+        scene->camera.Zoom(static_cast<float>(yOffset) * zoomSensitivity);
     }
 
     int InitializeShadersAndMeshes()
@@ -149,7 +161,7 @@ private:
         glfwSetCursorPosCallback(&GetWindow(), HandleCursorPosition);
         glfwSetScrollCallback(&GetWindow(), HandleScroll);
 
-        camera.GetTransform().SetPosition({0.0f, 0.0f, 3.0f});
+        camera.ResetPosition();
 
         return EXIT_SUCCESS;
     }

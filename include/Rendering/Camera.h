@@ -35,44 +35,71 @@ namespace Rendering
 
     class FlyingCamera : public Camera
     {
+        static constexpr Vector3f DefaultResetPosition{0.f, 0.f, 3.f},
+            DefaultLookAt = {0.f, 0.f, 0.f};
+        static constexpr float MovementSpeed = 5.f,
+            MinimumOrbitDistance = 0.1f,
+            OrbitFocusDistance = 3.f;
+
         Shared::Transform transform;
-        static constexpr float MovementSpeed = 5.f;
-        static constexpr float MinimumOrbitDistance = 0.1f;
+        Vector3f orbitTarget{0.f};
+        bool hasOrbitTarget = false;
+
+        [[nodiscard]] Vector3f &GetOrbitTarget()
+        {
+            if (!hasOrbitTarget)
+            {
+                orbitTarget = GetTransform().GetPosition() + GetTransform().GetForward() * OrbitFocusDistance;
+                hasOrbitTarget = true;
+            }
+            return orbitTarget;
+        }
 
     public:
         FlyingCamera(const float fieldOfView = 45.f, const float nearPlane = 0.1f, const float farPlane = 100.f)
             : Camera(transform, fieldOfView, nearPlane, farPlane) {}
+
+        void ResetPosition(Vector3f resetPosition = DefaultResetPosition, Vector3f lookAt = DefaultLookAt)
+        {
+            GetTransform().SetPosition(resetPosition);
+            GetTransform().SetLookAt(lookAt, Vectors::v3fUp);
+            hasOrbitTarget = false;
+        }
 
         void Move(const Vector3f &direction, float deltaTime)
         {
             const float length = glm::length(direction);
             const Vector3f normalizedDirection = length > 1.0f ? direction / length : direction;
             const float distance = MovementSpeed * deltaTime;
+            const Vector3f oldPosition = GetTransform().GetPosition();
             GetTransform().TranslateLocal({normalizedDirection.x * distance, 0.0f, normalizedDirection.z * distance});
             GetTransform().Translate(Vectors::v3fUp * normalizedDirection.y * MovementSpeed * deltaTime);
+            if (hasOrbitTarget)
+                orbitTarget += GetTransform().GetPosition() - oldPosition;
         }
 
-        bool Orbit(const Vector3f &target, float yawDeltaRadians, float pitchDeltaRadians)
+        bool Orbit(float yawDeltaRadians, float pitchDeltaRadians)
         {
+            const Vector3f target = GetOrbitTarget();
             const Vector3f offset = GetTransform().GetPosition() - target;
             const float distance = glm::length(offset);
             if (distance <= 1e-6f)
                 return false;
 
-            const float yaw = glm::atan(offset.x, offset.z) + yawDeltaRadians;
-            const float pitch = glm::clamp(
-                glm::asin(glm::clamp(offset.y / distance, -1.0f, 1.0f)) + pitchDeltaRadians,
-                glm::radians(-89.0f),
-                glm::radians(89.0f));
-            const float horizontalDistance = distance * glm::cos(pitch);
+            const float pitch = glm::asin(glm::clamp(
+                glm::dot(offset, Vectors::v3fUp) / distance, -1.0f, 1.0f));
+            const float clampedPitchDelta =
+                glm::clamp(pitch + pitchDeltaRadians,
+                           glm::radians(-89.0f), glm::radians(89.0f)) -
+                pitch;
+            const Quaternionf yawRotation = glm::angleAxis(yawDeltaRadians, Vectors::v3fUp);
+            const Vector3f yawedOffset = yawRotation * offset;
+            const Vector3f pitchAxis = yawRotation * Vectors::v3fRight;
+            const Quaternionf pitchRotation = glm::angleAxis(clampedPitchDelta, pitchAxis);
 
             Shared::Transform orbitTransform = GetTransform();
-            orbitTransform.SetPosition(target + Vector3f{
-                horizontalDistance * glm::sin(yaw),
-                distance * glm::sin(pitch),
-                horizontalDistance * glm::cos(yaw),
-            });
-            if (!orbitTransform.SetLookAt(target))
+            orbitTransform.SetPosition(target + pitchRotation * yawedOffset);
+            if (!orbitTransform.SetLookAt(target, Vectors::v3fUp))
                 return false;
 
             GetTransform().SetPosition(orbitTransform.GetPosition());
@@ -80,15 +107,15 @@ namespace Rendering
             return true;
         }
 
-        bool Zoom(const Vector3f &target, float distanceDelta)
+        bool Zoom(float distanceDelta)
         {
+            const Vector3f target = GetOrbitTarget();
             const Vector3f offset = GetTransform().GetPosition() - target;
             const float distance = glm::length(offset);
             if (distance <= 1e-6f)
                 return false;
 
-            const float newDistance =
-            glm::max(
+            const float newDistance = glm::max(
                 distance -(distanceDelta * glm::distance(GetTransform().GetPosition(), target)),
                 MinimumOrbitDistance);
 

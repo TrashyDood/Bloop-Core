@@ -1,5 +1,6 @@
 #include "Shared/Transform.h"
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
 
 void Shared::Transform::SetRotation(const Quaternionf &newRotation)
 {
@@ -12,25 +13,16 @@ void Shared::Transform::SetRotation(const Quaternionf &newRotation)
 bool Shared::Transform::SetLookAt(const Vector3f &target, const Vector3f &up)
 {
     const Vector3f direction = target - position;
-    const float directionLengthSquared = glm::dot(direction, direction);
-    const float upLengthSquared = glm::dot(up, up);
-    if (directionLengthSquared <= 1e-6f || upLengthSquared <= 1e-6f)
+    if (glm::dot(direction, direction) <= 1e-6f || glm::dot(up, up) <= 1e-6f)
         return false;
 
-    const Vector3f rightUnnormalized = glm::cross(direction, up);
-    const float rightLengthSquared = glm::dot(rightUnnormalized, rightUnnormalized);
-    if (rightLengthSquared <= 1e-6f * directionLengthSquared * upLengthSquared)
+    const Vector3f normalizedDirection = glm::normalize(direction);
+    const Vector3f normalizedUp = glm::normalize(up);
+    const Vector3f right = glm::cross(normalizedDirection, normalizedUp);
+    if (glm::dot(right, right) <= 1e-6f)
         return false;
 
-    const Vector3f forward = direction / glm::sqrt(directionLengthSquared);
-    const Vector3f right = rightUnnormalized / glm::sqrt(rightLengthSquared);
-    const Vector3f correctedUp = glm::cross(right, forward);
-
-    Matrix3f basis{1.0f};
-    basis[0] = right;
-    basis[1] = correctedUp;
-    basis[2] = -forward;
-    SetRotation(glm::quat_cast(basis));
+    SetRotation(glm::quatLookAtRH(normalizedDirection, normalizedUp));
     return true;
 }
 
@@ -39,31 +31,23 @@ Matrix4f Shared::Transform::GetModelMatrix() const
     return glm::scale(glm::translate(Matrix4f{1.0f}, position) * rotationMatrix, scale);
 }
 
-Vector3f Shared::Transform::GetRight() const
+Vector3f Shared::Transform::TransformVector(const Vector3f &vector, bool includeScale) const
 {
-    return glm::normalize(Vector3f{rotationMatrix * Vectors::v4fRight});
+    const Matrix4f transformMatrix = includeScale
+        ? GetModelMatrix()
+        : glm::translate(Matrix4f{1.0f}, position) * rotationMatrix;
+    return Vector3f{transformMatrix * Vector4f{vector, 0.0f}};
 }
 
-Vector3f Shared::Transform::GetUp() const
+Vector3f Shared::Transform::TransformPosition(const Vector3f &point, bool includeScale) const
 {
-    return glm::normalize(Vector3f{rotationMatrix * Vectors::v4fUp});
-}
-
-Vector3f Shared::Transform::GetForward() const
-{
-    return glm::normalize(Vector3f{rotationMatrix * Vectors::v4fForward});
+    const Matrix4f transformMatrix = includeScale
+        ? GetModelMatrix()
+        : glm::translate(Matrix4f{1.0f}, position) * rotationMatrix;
+    return Vector3f{transformMatrix * Vector4f{point, 1.0f}};
 }
 
 void Shared::Transform::TranslateLocal(const Vector3f &offset)
 {
     position += GetRight() * offset.x + GetUp() * offset.y + GetForward() * offset.z;
-}
-
-void Shared::Transform::RotateAxis(float angleRadians, const Vector3f &axis)
-{
-    const float axisLengthSquared = glm::dot(axis, axis);
-    if (axisLengthSquared <= 0.0f)
-        return;
-
-    Rotate(glm::angleAxis(angleRadians, axis / glm::sqrt(axisLengthSquared)));
 }
