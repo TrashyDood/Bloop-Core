@@ -2,14 +2,27 @@
 
 Matrix4f Rendering::Camera::GetViewMatrix() const
 {
-    const Matrix4f rotation = transform.GetRotationMatrix();
     const Vector3f &position = transform.GetPosition();
-    const Vector3f forward = glm::normalize(Vector3f{rotation * Vectors::v4fForward});
-    const Vector3f up = glm::normalize(Vector3f{rotation * Vectors::v4fDown});
-    return glm::lookAt(position, position + forward, up);
+    return glm::lookAt(position, position + transform.GetForward(), transform.GetUp());
 }
 
-Matrix4f Rendering::Camera::GetProjectionMatrix(float aspectRatio) const
+Matrix4f Rendering::Camera::GetOrthoProjectionMatrix(const float halfWidth, const float halfHeight) const
+{
+    return glm::ortho(-halfWidth, halfWidth, -halfHeight, halfHeight, nearPlane, farPlane);
+}
+
+Matrix4f Rendering::Camera::GetPerspProjectionMatrix(const float aspectRatio) const
 {
     return glm::perspective(glm::radians(fieldOfView), aspectRatio, nearPlane, farPlane);
+}
+
+Matrix4f Rendering::Camera::GetProjectionMatrix(const float aspectRatio) const
+{
+    if (isOrthographic)
+    {
+        const float halfHeight = orthographicSize * 0.5f;
+        const float halfWidth = halfHeight * aspectRatio;
+        return GetOrthoProjectionMatrix(halfWidth, halfHeight);
+    }
+    return GetPerspProjectionMatrix(aspectRatio);
 }

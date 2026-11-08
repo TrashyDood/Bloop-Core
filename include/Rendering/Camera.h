@@ -10,27 +10,32 @@ namespace Rendering
     class Camera
     {
         Shared::Transform &transform;
-        float fieldOfView, nearPlane, farPlane;
+        bool isOrthographic = true;
+        float fieldOfView = 90.f, nearPlane = 0.1f, farPlane = 100.f, orthographicSize = 5.f;
 
     public:
-        Camera(Shared::Transform &transform, const float fieldOfView = 45.f,
-               const float nearPlane = 0.1f, const float farPlane = 100.f)
-            : transform(transform), fieldOfView(fieldOfView),
-              nearPlane(nearPlane), farPlane(farPlane) {}
+        Camera(Shared::Transform &transform)
+            : transform(transform) {}
 
         [[nodiscard]] float GetFieldOfView() const { return fieldOfView; }
         [[nodiscard]] float GetNearPlane() const { return nearPlane; }
         [[nodiscard]] float GetFarPlane() const { return farPlane; }
+        [[nodiscard]] bool IsOrthographic() const { return isOrthographic; }
+        [[nodiscard]] float GetOrthographicSize() const { return orthographicSize; }
 
         [[nodiscard]] Shared::Transform &GetTransform() { return transform; }
         [[nodiscard]] const Shared::Transform &GetTransform() const { return transform; }
 
         [[nodiscard]] Matrix4f GetViewMatrix() const;
-        [[nodiscard]] Matrix4f GetProjectionMatrix(float aspectRatio = DEFAULT_ASPECT_RATIO) const;
+        [[nodiscard]] Matrix4f GetOrthoProjectionMatrix(const float halfWidth, const float halfHeight) const;
+        [[nodiscard]] Matrix4f GetPerspProjectionMatrix(const float aspectRatio) const;
+        [[nodiscard]] Matrix4f GetProjectionMatrix(const float aspectRatio = DEFAULT_ASPECT_RATIO) const;
 
         void SetFieldOfView(const float newFieldOfView) { fieldOfView = newFieldOfView; }
         void SetNearPlane(const float newNearPlane) { nearPlane = newNearPlane; }
         void SetFarPlane(const float newFarPlane) { farPlane = newFarPlane; }
+        void SetIsOrthographic(const bool newIsOrthographic) { isOrthographic = newIsOrthographic; }
+        void SetOrthographicSize(const float newOrthographicSize) { orthographicSize = newOrthographicSize; }
     };
 
     class FlyingCamera : public Camera
@@ -57,7 +62,7 @@ namespace Rendering
 
     public:
         FlyingCamera(const float fieldOfView = 45.f, const float nearPlane = 0.1f, const float farPlane = 100.f)
-            : Camera(transform, fieldOfView, nearPlane, farPlane) {}
+            : Camera(transform) {}
 
         void ResetPosition(Vector3f resetPosition = DefaultResetPosition, Vector3f lookAt = DefaultLookAt)
         {
@@ -68,12 +73,18 @@ namespace Rendering
 
         void Move(const Vector3f &direction, float deltaTime)
         {
-            const float length = glm::length(direction);
-            const Vector3f normalizedDirection = length > 1.0f ? direction / length : direction;
-            const float distance = MovementSpeed * deltaTime;
-            const Vector3f oldPosition = GetTransform().GetPosition();
-            GetTransform().TranslateLocal({normalizedDirection.x * distance, 0.0f, normalizedDirection.z * distance});
+            const float length = glm::length(direction),
+                distance = MovementSpeed * deltaTime;
+
+            const Vector3f normalizedDirection = length > 1.0f ? direction / length : direction,
+                oldPosition = GetTransform().GetPosition();
+
+            GetTransform().Translate(
+                GetTransform().GetRight() * normalizedDirection.x * distance +
+                GetTransform().GetForward() * normalizedDirection.z * distance);
+                
             GetTransform().Translate(Vectors::v3fUp * normalizedDirection.y * MovementSpeed * deltaTime);
+
             if (hasOrbitTarget)
                 orbitTarget += GetTransform().GetPosition() - oldPosition;
         }
@@ -99,8 +110,7 @@ namespace Rendering
 
             Shared::Transform orbitTransform = GetTransform();
             orbitTransform.SetPosition(target + pitchRotation * yawedOffset);
-            if (!orbitTransform.SetLookAt(target, Vectors::v3fUp))
-                return false;
+            orbitTransform.SetLookAt(target, Vectors::v3fUp);
 
             GetTransform().SetPosition(orbitTransform.GetPosition());
             GetTransform().SetRotation(orbitTransform.GetRotation());
