@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Rendering/Rendering.h"
+#include "Shared/Transform.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -8,82 +9,47 @@ namespace Rendering
 {
     class Camera
     {
-        Vector3f target{0.0f, 0.0f, 0.0f};
-        Vector3f worldUp{0.0f, 1.0f, 0.0f};
-        Vector3f position{0.0f, 0.0f, 3.0f};
-        float yaw = -90.0f;
-        float pitch = 0.0f;
-        float distance = 3.0f;
+        Shared::Transform transform;
         float fieldOfView = 45.0f;
         float nearPlane = 0.1f;
         float farPlane = 100.0f;
 
-        void UpdateCameraPosition()
-        {
-            const float yawRadians = glm::radians(yaw);
-            const float pitchRadians = glm::radians(pitch);
-
-            const Vector3f direction{
-                glm::cos(yawRadians) * glm::cos(pitchRadians),
-                glm::sin(pitchRadians),
-                glm::sin(yawRadians) * glm::cos(pitchRadians),
-            };
-
-            position = target + direction * distance;
-        }
+        [[nodiscard]] Vector3f GetDirection(const Vector3f &localDirection) const;
 
     public:
-        Camera() { UpdateCameraPosition(); }
+        [[nodiscard]] float GetFieldOfView() const { return fieldOfView; }
+        [[nodiscard]] float GetNearPlane() const { return nearPlane; }
+        [[nodiscard]] float GetFarPlane() const { return farPlane; }
 
-        [[nodiscard]] Matrix4f GetViewMatrix() const
-        {
-            const Vector3f front = glm::normalize(target - position);
-            Vector3f right = glm::normalize(glm::cross(front, worldUp));
-            if (glm::dot(right, right) < 1e-6f)
-            {
-                right = glm::normalize(glm::cross(front, Vector3f{1.0f, 0.0f, 0.0f}));
-            }
+        [[nodiscard]] Shared::Transform &GetTransform() { return transform; }
+        [[nodiscard]] const Shared::Transform &GetTransform() const { return transform; }
 
-            const Vector3f upDirection = glm::cross(right, front);
-            return glm::lookAt(position, target, upDirection);
-        }
+        [[nodiscard]] Matrix4f GetViewMatrix() const;
+        [[nodiscard]] Matrix4f GetProjectionMatrix(float aspectRatio = DEFAULT_ASPECT_RATIO) const;
 
-        [[nodiscard]] Matrix4f GetProjectionMatrix(float aspectRatio = DEFAULT_ASPECT_RATIO) const
-        {
-            return glm::perspective(glm::radians(fieldOfView), aspectRatio, nearPlane, farPlane);
-        }
+        Camera() { transform.SetPosition({0.0f, 0.0f, 3.0f}); }
 
         void Rotate(float yawOffset, float pitchOffset)
         {
-            yaw += yawOffset;
-            pitch = glm::clamp(pitch + pitchOffset, -89.0f, 89.0f);
-            UpdateCameraPosition();
+            Vector3f eulerRotation = transform.GetEulerRotation();
+            eulerRotation.y -= glm::radians(yawOffset);
+            eulerRotation.x = glm::clamp(
+                eulerRotation.x + glm::radians(pitchOffset),
+                glm::radians(-89.0f),
+                glm::radians(89.0f));
+            transform.SetRotation(eulerRotation);
         }
 
         void Zoom(float amount)
         {
-            SetDistance(distance - amount);
+            transform.Translate(GetDirection({0.0f, 0.0f, -1.0f}) * amount);
         }
 
         void Move(float forwardDistance, float rightDistance)
         {
-            const Vector3f front = glm::normalize(target - position);
-            const Vector3f right = glm::normalize(glm::cross(front, worldUp));
-            const Vector3f movement = front * forwardDistance + right * rightDistance;
-            target += movement;
-            UpdateCameraPosition();
-        }
-
-        void SetTarget(const Vector3f &newTarget)
-        {
-            target = newTarget;
-            UpdateCameraPosition();
-        }
-
-        void SetDistance(float newDistance)
-        {
-            distance = glm::max(newDistance, 0.1f);
-            UpdateCameraPosition();
+            const Vector3f front = GetDirection({0.0f, 0.0f, -1.0f});
+            const Vector3f right = GetDirection({1.0f, 0.0f, 0.0f});
+            transform.Translate(front * forwardDistance + right * rightDistance);
         }
     };
 }

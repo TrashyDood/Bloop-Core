@@ -17,13 +17,11 @@ class CustomScene : public Scene
     Shared::Transform cubeTransform;
 
     GLint modelLocation, viewLocation, projectionLocation;
-    bool moveForward = false;
-    bool moveBackward = false;
-    bool moveLeft = false;
-    bool moveRight = false;
-    bool orbiting = false;
-    double lastCursorX = 0.0;
-    double lastCursorY = 0.0;
+
+    double lastCursorX = 0.0, lastCursorY = 0.0;
+    bool moveForward = false, moveBackward = false,
+    moveLeft = false, moveRight = false,
+    orbiting = false;
 
     static void HandleKey(GLFWwindow *window, int key, int, int action, int)
     {
@@ -107,10 +105,9 @@ class CustomScene : public Scene
             return EXIT_FAILURE;
         }
 
-        modelLocation = shader.GetUniformLocation("model");
-        viewLocation = shader.GetUniformLocation("view");
-        projectionLocation = shader.GetUniformLocation("projection");
-        if (modelLocation < 0 || viewLocation < 0 || projectionLocation < 0)
+        if (!shader.TryGetUniformLocation("model", modelLocation) ||
+            !shader.TryGetUniformLocation("view", viewLocation) ||
+            !shader.TryGetUniformLocation("projection", projectionLocation))
         {
             LOG_ERROR("Transform or camera uniforms are missing from the shader program.\n");
             return EXIT_FAILURE;
@@ -169,7 +166,7 @@ int main()
     if (result == EXIT_SUCCESS)
     {
         CustomScene scene;
-        SceneConfig config{0.016667s, true};
+        SceneConfig config;
         result = scene.Start(*window, config);
     }
 

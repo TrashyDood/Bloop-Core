@@ -25,7 +25,7 @@ namespace Rendering
             : position(position), normal(normal), textureCoordinates(textureCoordinates), color(color) {}
     };
 
-    class Mesh : public IResourceOwner, public IDrawable
+    class Mesh : public IResourceOwner
     {
         ResourceHandle vertexArray = 0;
         ResourceHandle vertexBuffer = 0;
@@ -57,7 +57,7 @@ namespace Rendering
         Mesh &operator=(Mesh &&other) noexcept;
 
         virtual bool InitializeResources() override;
-        virtual bool Draw() const override;
+        bool Draw() const;
 
     private:
         virtual void ReleaseResources() noexcept override;

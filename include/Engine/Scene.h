@@ -5,7 +5,7 @@
 
 struct SceneConfig
 {
-    std::chrono::duration<float> targetTimeStep = 0.016667s;
+    std::chrono::duration<float> targetTimeStep = 0.0000001s;
     bool enableVSync = true;
 };
 

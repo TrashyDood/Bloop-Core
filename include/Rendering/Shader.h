@@ -23,19 +23,20 @@ namespace Rendering
         [[nodiscard]] bool HasSources() const { return !sources.empty(); }
 
         [[nodiscard]]
-        GLint GetUniformLocation(const std::string &name) const { return glGetUniformLocation(shaderProgram, name.c_str()); }
+        bool TryGetUniformLocation(const std::string &name, GLint &location) const;
         [[nodiscard]]
-        GLint GetAttributeLocation(const std::string &name) const { return glGetAttribLocation(shaderProgram, name.c_str()); }
-
-        Shader() = default;
-        explicit Shader(std::vector<ShaderSource> sources) : sources(std::move(sources)) {}
-
-        ~Shader();
+        bool TryGetAttributeLocation(const std::string &name, GLint &location) const;
 
         Shader(const Shader &) = delete;
         Shader &operator=(const Shader &) = delete;
 
-        Shader(Shader &&other) noexcept;
+        Shader() = default;
+        
+        explicit Shader(std::vector<ShaderSource> sources) : sources(std::move(sources)) {}
+        ~Shader() { ReleaseResources(); }
+
+        Shader(Shader &&other) noexcept
+            : shaderProgram(std::exchange(other.shaderProgram, 0)), sources(std::move(other.sources)) {}
         Shader &operator=(Shader &&other) noexcept;
 
         void Use() const { glUseProgram(shaderProgram); }

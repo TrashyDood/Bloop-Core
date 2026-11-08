@@ -2,13 +2,17 @@
 
 #include <utility>
 
-Rendering::Shader::~Shader()
+bool Rendering::Shader::TryGetUniformLocation(const std::string &name, GLint &location) const
 {
-    ReleaseResources();
+    location = glGetUniformLocation(shaderProgram, name.c_str());
+    return location != -1;
 }
 
-Rendering::Shader::Shader(Shader &&other) noexcept
-    : shaderProgram(std::exchange(other.shaderProgram, 0)), sources(std::move(other.sources)) { }
+bool Rendering::Shader::TryGetAttributeLocation(const std::string &name, GLint &location) const
+{
+    location = glGetAttribLocation(shaderProgram, name.c_str());
+    return location != -1;
+}
 
 Rendering::Shader &Rendering::Shader::operator=(Shader &&other) noexcept
 {
