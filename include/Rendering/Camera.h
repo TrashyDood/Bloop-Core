@@ -27,7 +27,7 @@ namespace Rendering
         [[nodiscard]] const Shared::Transform &GetTransform() const { return transform; }
 
         [[nodiscard]] Matrix4f GetViewMatrix() const;
-        [[nodiscard]] Matrix4f GetOrthoProjectionMatrix(const float halfWidth, const float halfHeight) const;
+        [[nodiscard]] Matrix4f GetOrthoProjectionMatrix(const float aspectRatio) const;
         [[nodiscard]] Matrix4f GetPerspProjectionMatrix(const float aspectRatio) const;
         [[nodiscard]] Matrix4f GetProjectionMatrix(const float aspectRatio = DEFAULT_ASPECT_RATIO) const;
 
