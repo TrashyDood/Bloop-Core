@@ -9,7 +9,6 @@
 
 #include <cstdlib>
 #include <array>
-#include <vector>
 
 struct MeshObject { Rendering::Mesh &mesh; Shared::Transform transform; };
 struct MeshGeometry { Rendering::MeshVertices vertices; Rendering::MeshIndices indices; };
@@ -27,12 +26,18 @@ const MeshGeometry CubeGeometry{
         {{-0.5f, 0.5f, -0.5f}, {}, {}, Colors::Purple},
     },
     {
-        0, 1, 2, 0, 2, 3,
-        5, 4, 7, 5, 7, 6,
-        1, 5, 6, 1, 6, 2,
-        4, 0, 3, 4, 3, 7,
-        3, 2, 6, 3, 6, 7,
-        4, 5, 1, 4, 1, 0
+        0, 1, 2,
+        0, 2, 3,
+        5, 4, 7,
+        5, 7, 6,
+        1, 5, 6,
+        1, 6, 2,
+        4, 0, 3,
+        4, 3, 7,
+        3, 2, 6,
+        3, 6, 7,
+        4, 5, 1,
+        4, 1, 0
     }};
 
 const MeshGeometry PyramidGeometry{
@@ -62,28 +67,29 @@ class DemoScene : public Scene
     Rendering::Mesh pyramidMesh{PyramidGeometry.vertices, PyramidGeometry.indices};
 
     std::array<MeshObject, 4> sceneObjects{{
-        {cubeMesh, {{-1.f, 0.f, 0.f}}},
-        {cubeMesh, {{1.f, 0.f, 0.f}}},
-        {pyramidMesh, {{0.f, 1.f, 0.f}}},
-        {pyramidMesh, {{0.f, -1.f, 0.f}}}
+        {cubeMesh, {{4.f, 0.f, 0.f}}},
+        {cubeMesh, {{2.f, 0.f, 0.f}}},
+        {pyramidMesh, {{0.f, 0.f, 0.f}}},
+        {pyramidMesh, {{-2.f, 0.f, 0.f}}}
     }};
 
     GLint modelMatrixUniform,
         viewMatrixUniform,
         projectionMatrixUniform;
 
+    double lastCursorX = 0.0, lastCursorY = 0.0;
     bool moveForward = false, moveBackward = false,
         moveLeft = false, moveRight = false,
         moveUp = false, moveDown = false,
         orbiting = false;
 
-    double lastCursorX = 0.0, lastCursorY = 0.0;
+    bool wireframeEnabled = true;
 
 #pragma region Input Handlers
     static void HandleKey(GLFWwindow *window, int key, int, int action, int)
     {
         DemoScene *scene = nullptr;
-        if (!Shared::TryGetWindowUserPointer(*window, scene))
+        if (!Shared::GetWindowUserPointer(*window, scene))
             return;
 
         const bool pressed = action != GLFW_RELEASE;
@@ -114,6 +120,9 @@ class DemoScene : public Scene
 
         if (key == GLFW_KEY_F && action == GLFW_PRESS)
             scene->camera.SetIsOrthographic(!scene->camera.IsOrthographic());
+
+        if (key == GLFW_KEY_G && action == GLFW_PRESS)
+            scene->wireframeEnabled = !scene->wireframeEnabled;
     }
 
     static void HandleMouseButton(GLFWwindow *window, int button, int action, int)
@@ -122,7 +131,7 @@ class DemoScene : public Scene
             return;
 
         DemoScene *scene = nullptr;
-        if (!Shared::TryGetWindowUserPointer(*window, scene))
+        if (!Shared::GetWindowUserPointer(*window, scene))
             return;
 
         scene->orbiting = action == GLFW_PRESS;
@@ -133,7 +142,7 @@ class DemoScene : public Scene
     static void HandleCursorPosition(GLFWwindow *window, double x, double y)
     {
         DemoScene *scene = nullptr;
-        if (!Shared::TryGetWindowUserPointer(*window, scene))
+        if (!Shared::GetWindowUserPointer(*window, scene))
             return;
 
         if (!scene->orbiting || glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1) != GLFW_PRESS)
@@ -154,7 +163,7 @@ class DemoScene : public Scene
     static void HandleScroll(GLFWwindow *window, double, double yOffset)
     {
         DemoScene *scene = nullptr;
-        if (!Shared::TryGetWindowUserPointer(*window, scene))
+        if (!Shared::GetWindowUserPointer(*window, scene))
             return;
 
         constexpr float zoomSensitivity = 0.1f;
@@ -217,6 +226,19 @@ class DemoScene : public Scene
         glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, glm::value_ptr(viewMatrix));
         glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
 
+
+        const float pulseScale = 1.f + glm::sin(time.elapsedTime) * 0.5f;
+
+        sceneObjects[0].transform.RotateEuler({0.f, 1.f * time.deltaTime, 0.f});
+        sceneObjects[0].transform.Translate({0.f, glm::sin(time.elapsedTime) * time.deltaTime, 0.f});
+        sceneObjects[0].transform.SetScale({pulseScale, pulseScale, pulseScale});
+
+        sceneObjects[2].transform.RotateEuler({0.f, 1.f * time.deltaTime, 0.f});
+        sceneObjects[2].transform.Translate({0.f, glm::sin(time.elapsedTime) * time.deltaTime, 0.f});
+        sceneObjects[2].transform.SetScale({pulseScale, pulseScale, pulseScale});
+
+        glPolygonMode(GL_FRONT_AND_BACK, wireframeEnabled ? GL_LINE : GL_FILL);
+
         for (auto& meshObject : sceneObjects)
         {
             const Matrix4f modelMatrix = meshObject.transform.GetTransformMatrix();
@@ -236,7 +258,10 @@ int main()
     if (result == EXIT_SUCCESS)
     {
         DemoScene scene;
-        SceneConfig config;
+        SceneConfig config{
+            .targetTimeStep = 0.000001s,
+            .enableVSync = true
+        };
         result = scene.Start(*window, config);
     }
 
