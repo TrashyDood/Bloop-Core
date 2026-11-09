@@ -1,9 +1,12 @@
 #include "Rendering/Camera.h"
+#include "Shared/EventHandler.h"
 
+#include <atomic>
 #include <cmath>
 #include <exception>
 #include <iostream>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -37,9 +40,9 @@ namespace
 
         transform.SetPosition({2.0f, 3.0f, 4.0f});
         transform.SetScale({2.0f, 3.0f, 4.0f});
-        Require(NearlyEqual(transform.TransformPosition({1.0f, 1.0f, 1.0f}),
+        Require(NearlyEqual(transform.TransformPoint({1.0f, 1.0f, 1.0f}),
                             Vector3f{4.0f, 6.0f, 8.0f}),
-                "TransformPosition applies scale and translation");
+                "TransformPoint applies scale and translation");
         Require(NearlyEqual(transform.TransformVector({1.0f, 1.0f, 1.0f}),
                             Vector3f{2.0f, 3.0f, 4.0f}),
                 "TransformVector applies scale without translation");
@@ -57,6 +60,18 @@ namespace
                 "Rotation updates the transform's right direction");
         Require(NearlyEqual(glm::length(transform.GetRotation()), 1.0f),
                 "Transform stores a normalized rotation");
+    }
+
+    void TestTransformRejectsParallelLookDirection()
+    {
+        Shared::Transform transform;
+        transform.SetRotation(glm::angleAxis(0.5f, Vector3f{0.0f, 1.0f, 0.0f}));
+        const Quaternionf originalRotation = transform.GetRotation();
+
+        transform.SetLookDirection({0.0f, 1.0f, 0.0f}, {0.0f, 2.0f, 0.0f});
+
+        Require(NearlyEqual(glm::dot(originalRotation, transform.GetRotation()), 1.0f),
+                "Parallel look direction and up vectors leave rotation unchanged");
     }
 
     void TestCameraOrthographicProjection()
@@ -95,6 +110,68 @@ namespace
                 "View matrix maps camera position to the origin");
     }
 
+    void Increment(int &value)
+    {
+        ++value;
+    }
+
+    void TestEventHandlerRegistrationAndRemoval()
+    {
+        EventHandler<int &> event;
+        int value = 0;
+
+        const auto callbackId = event.AddCallback(Increment);
+        Require(callbackId.has_value(), "Event accepts a callback");
+        Require(!event.AddCallback(Increment).has_value(), "Event rejects duplicate free-function callbacks");
+
+        event.Invoke(value);
+        Require(value == 1, "Event invokes registered callbacks");
+        Require(event.RemoveCallback(*callbackId), "Event removes a callback by ID");
+        Require(!event.RemoveCallback(*callbackId), "Event reports when a callback ID is not registered");
+
+        event.Invoke(value);
+        Require(value == 1, "Removed callbacks are not invoked");
+    }
+
+    void TestEventHandlerAllowsDuplicateLambdas()
+    {
+        EventHandler<int> event;
+        int value = 0;
+        const auto callback = [&value](int increment) { value += increment; };
+
+        const auto firstId = event.AddCallback(callback);
+        const auto secondId = event.AddCallback(callback);
+        Require(firstId.has_value() && secondId.has_value(), "Event allows duplicate lambda callbacks");
+
+        event.Invoke(2);
+        Require(value == 4, "Event invokes each registered lambda");
+
+        Require(event.RemoveCallback(*firstId), "Event removes one duplicate callback by ID");
+        event.Invoke(3);
+        Require(value == 7, "Removing one duplicate leaves the other registered");
+    }
+
+    void TestEventHandlerConcurrentInvocation()
+    {
+        EventHandler<int> event;
+        std::atomic<int> value = 0;
+        event.AddCallback([&value](int increment) { value.fetch_add(increment, std::memory_order_relaxed); });
+
+        std::vector<std::thread> threads;
+        for (int i = 0; i < 4; ++i)
+        {
+            threads.emplace_back([&event] {
+                for (int j = 0; j < 1000; ++j)
+                    event.Invoke(1);
+            });
+        }
+
+        for (auto &thread : threads)
+            thread.join();
+
+        Require(value == 4000, "Event supports concurrent invocation");
+    }
+
     using Test = std::pair<const char *, void (*)()>;
 }
 
@@ -103,9 +180,13 @@ int main()
     const std::vector<Test> tests{
         {"transform defaults and composition", TestTransformDefaultsAndComposition},
         {"transform rotation", TestTransformRotation},
+        {"transform rejects parallel look direction", TestTransformRejectsParallelLookDirection},
         {"orthographic camera projection", TestCameraOrthographicProjection},
         {"perspective camera projection", TestCameraPerspectiveProjection},
         {"camera view matrix", TestCameraViewMatrix},
+        {"event registration and removal", TestEventHandlerRegistrationAndRemoval},
+        {"event duplicate lambdas", TestEventHandlerAllowsDuplicateLambdas},
+        {"event concurrent invocation", TestEventHandlerConcurrentInvocation},
     };
 
     int failures = 0;
