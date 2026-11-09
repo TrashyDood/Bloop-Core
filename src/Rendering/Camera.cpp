@@ -1,11 +1,5 @@
 #include "Rendering/Camera.h"
 
-Matrix4f Rendering::Camera::GetViewMatrix() const
-{
-    const Vector3f &position = transform.GetPosition();
-    return glm::lookAt(position, position + transform.GetForward(), transform.GetUp());
-}
-
 Matrix4f Rendering::Camera::GetOrthographicMatrix(const float aspectRatio) const
 {
     const float halfHeight = orthographicSize * 0.5f;

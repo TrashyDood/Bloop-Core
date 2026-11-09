@@ -26,7 +26,7 @@ namespace Rendering
         [[nodiscard]] Shared::Transform &GetTransform() { return transform; }
         [[nodiscard]] const Shared::Transform &GetTransform() const { return transform; }
 
-        [[nodiscard]] Matrix4f GetViewMatrix() const;
+        [[nodiscard]] Matrix4f GetViewMatrix() const { return transform.GetLookMatrix(); }
         [[nodiscard]] Matrix4f GetProjectionMatrix(const float aspectRatio = DEFAULT_ASPECT_RATIO) const;
         [[nodiscard]] Matrix4f GetOrthographicMatrix(const float aspectRatio) const;
         [[nodiscard]] Matrix4f GetPerspectiveMatrix(const float aspectRatio) const;
@@ -67,7 +67,7 @@ namespace Rendering
         void ResetPosition(Vector3f resetPosition = DefaultResetPosition, Vector3f lookAt = DefaultLookAt)
         {
             GetTransform().SetPosition(resetPosition);
-            GetTransform().SetLookAt(lookAt, Vectors::v3fUp);
+            GetTransform().SetLookAtPoint(lookAt, Vectors::v3fUp);
             hasOrbitTarget = false;
         }
 
@@ -110,7 +110,7 @@ namespace Rendering
 
             Shared::Transform orbitTransform = GetTransform();
             orbitTransform.SetPosition(target + pitchRotation * yawedOffset);
-            orbitTransform.SetLookAt(target, Vectors::v3fUp);
+            orbitTransform.SetLookAtPoint(target, Vectors::v3fUp);
 
             GetTransform().SetPosition(orbitTransform.GetPosition());
             GetTransform().SetRotation(orbitTransform.GetRotation());
