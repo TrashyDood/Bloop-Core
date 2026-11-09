@@ -24,6 +24,14 @@ namespace Shared
         [[nodiscard]] Vector3f TransformVector(const Vector3f &vector, const bool includeScale = true) const;
         [[nodiscard]] Vector3f TransformPosition(const Vector3f &point, const bool includeScale = true) const;
 
+        Transform(const Vector3f &position = Vectors::v3fZero,
+            const Quaternionf &rotation = Quaternions::qfIdentity,
+            const Vector3f &scale = Vectors::v3fOne)
+            : position(position), scale(scale)
+        {
+            SetRotation(rotation);
+        }
+
         void SetPosition(const Vector3f &newPosition) { position = newPosition; }
         void SetScale(const Vector3f &newScale) { scale = newScale; }
 

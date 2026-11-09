@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Shared/Shared.h"
-#include "Rendering/IResourceOwner.h"
 
 #include <cstdio>
 #include <cstddef>
@@ -12,6 +11,8 @@
 
 namespace Rendering
 {
+    using ResourceHandle = GLuint;
+
     inline constexpr float DefaultAspectRatio = 16.0f / 9.0f;
 
     enum ShaderType : GLenum

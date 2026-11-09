@@ -77,3 +77,8 @@ namespace Vectors
     inline constexpr Vector4f v4fForward{0.f, 0.f, -1.f, 0.f};
     inline constexpr Vector4f v4fBackward{0.f, 0.f, 1.f, 0.f};
 }
+
+namespace Quaternions
+{
+    inline constexpr Quaternionf qfIdentity{1.f, 0.f, 0.f, 0.f};
+}

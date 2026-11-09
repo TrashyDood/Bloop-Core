@@ -8,6 +8,8 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <cstdlib>
+#include <array>
+#include <vector>
 
 struct MeshObject { Rendering::Mesh &mesh; Shared::Transform transform; };
 struct MeshGeometry { Rendering::MeshVertices vertices; Rendering::MeshIndices indices; };
@@ -30,7 +32,8 @@ const MeshGeometry CubeGeometry{
         1, 5, 6, 1, 6, 2,
         4, 0, 3, 4, 3, 7,
         3, 2, 6, 3, 6, 7,
-        4, 5, 1, 4, 1, 0}};
+        4, 5, 1, 4, 1, 0
+    }};
 
 const MeshGeometry PyramidGeometry{
     {
@@ -38,14 +41,17 @@ const MeshGeometry PyramidGeometry{
         {{0.5f, 0.5f, 0.5f}, {}, {}, Colors::Green},
         {{0.5f, 0.5f, -0.5f}, {}, {}, Colors::Blue},
         {{-0.5f, 0.5f, -0.5f}, {}, {}, Colors::Yellow},
-        {{0.0f, -0.5f, 0.0f}, {}, {}, Colors::White},
+        {{0.f, -0.5f, 0.f}, {}, {}, Colors::White},
     },
     {
         0, 1, 4,
         1, 2, 4,
         2, 3, 4,
         3, 0, 4,
-        0, 3, 2, 0, 2, 1}};
+        0, 3, 2,
+        0, 2, 1
+    }
+};
 #pragma endregion
 
 class DemoScene : public Scene
@@ -55,10 +61,12 @@ class DemoScene : public Scene
     Rendering::Mesh cubeMesh{CubeGeometry.vertices, CubeGeometry.indices};
     Rendering::Mesh pyramidMesh{PyramidGeometry.vertices, PyramidGeometry.indices};
 
-    MeshObject cubeObject1{cubeMesh, {}},
-        cubeObject2{cubeMesh, {}},
-        pyramidObject1{pyramidMesh, {}},
-        pyramidObject2{pyramidMesh, {}};
+    std::array<MeshObject, 4> sceneObjects{{
+        {cubeMesh, {{-1.f, 0.f, 0.f}}},
+        {cubeMesh, {{1.f, 0.f, 0.f}}},
+        {pyramidMesh, {{0.f, 1.f, 0.f}}},
+        {pyramidMesh, {{0.f, -1.f, 0.f}}}
+    }};
 
     GLint modelMatrixUniform,
         viewMatrixUniform,
@@ -167,9 +175,9 @@ class DemoScene : public Scene
             return EXIT_FAILURE;
         }
 
-        if (!shader.TryGetUniformLocation("modelMatrix", modelMatrixUniform) ||
-            !shader.TryGetUniformLocation("viewMatrix", viewMatrixUniform) ||
-            !shader.TryGetUniformLocation("projectionMatrix", projectionMatrixUniform))
+        if (!shader.GetUniformLocation("modelMatrix", modelMatrixUniform) ||
+            !shader.GetUniformLocation("viewMatrix", viewMatrixUniform) ||
+            !shader.GetUniformLocation("projectionMatrix", projectionMatrixUniform))
         {
             LOG_ERROR("Transform or camera uniforms are missing from the shader program.\n");
             return EXIT_FAILURE;
@@ -209,13 +217,12 @@ class DemoScene : public Scene
         glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, glm::value_ptr(viewMatrix));
         glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
 
-        const Matrix4f cubeModelMatrix = cubeObject1.transform.GetTransformMatrix();
-        glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, glm::value_ptr(cubeModelMatrix));
-        cubeObject1.mesh.Draw();
-
-        const Matrix4f pyramidModelMatrix = pyramidObject1.transform.GetTransformMatrix();
-        glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, glm::value_ptr(pyramidModelMatrix));
-        pyramidMesh.Draw();
+        for (auto& meshObject : sceneObjects)
+        {
+            const Matrix4f modelMatrix = meshObject.transform.GetTransformMatrix();
+            glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, glm::value_ptr(modelMatrix));
+            meshObject.mesh.Draw();
+        }
 
         return EXIT_SUCCESS;
     }
