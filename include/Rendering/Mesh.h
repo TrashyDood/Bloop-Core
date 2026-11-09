@@ -7,6 +7,8 @@
 #include <glm/glm.hpp>
 
 #include <cstdint>
+#include <cmath>
+#include <limits>
 #include <utility>
 #include <vector>
 
@@ -25,12 +27,8 @@ namespace Rendering
             : position(position), normal(normal), textureCoordinates(textureCoordinates), color(color) {}
     };
 
-    // Represents the geometry of a mesh, including its vertices and indices.
-    struct MeshGeometry
-    {
-        std::vector<Vertex> vertices{};
-        std::vector<std::uint32_t> indices{};
-    };
+    using MeshVertices = std::vector<Vertex>;
+    using MeshIndices = std::vector<std::uint32_t>;
 
     // Represents a mesh in OpenGL, managing its vertex array, vertex buffer, and index buffer.
     class Mesh : public IResourceOwner
@@ -38,31 +36,28 @@ namespace Rendering
         ResourceHandle vertexArray = 0;
         ResourceHandle vertexBuffer = 0;
         ResourceHandle indexBuffer = 0;
-
-        MeshGeometry geometry{};
+        MeshVertices vertices;
+        MeshIndices indices;
 
     public:
-        [[nodiscard]] const MeshGeometry &GetGeometry() const { return geometry; }
-        [[nodiscard]] const std::vector<Vertex> &GetVertices() const { return geometry.vertices; }
-        [[nodiscard]] const std::vector<std::uint32_t> &GetIndices() const { return geometry.indices; }
-        [[nodiscard]] std::size_t GetVertexCount() const { return geometry.vertices.size(); }
-        [[nodiscard]] std::size_t GetIndexCount() const { return geometry.indices.size(); }
+        [[nodiscard]] const std::vector<Vertex> &GetVertices() const { return vertices; }
+        [[nodiscard]] const std::vector<std::uint32_t> &GetIndices() const { return indices; }
         [[nodiscard]] ResourceHandle GetVertexArray() const { return vertexArray; }
         [[nodiscard]] ResourceHandle GetVertexBuffer() const { return vertexBuffer; }
         [[nodiscard]] ResourceHandle GetIndexBuffer() const { return indexBuffer; }
 
-        [[nodiscard]] bool IsInitialized() const override { return vertexArray != 0 && vertexBuffer != 0 && (geometry.indices.empty() || indexBuffer != 0); }
+        [[nodiscard]] bool IsInitialized() const override { return vertexArray != 0 && vertexBuffer != 0 && (indices.empty() || indexBuffer != 0); }
 
         Mesh() = default;
-        explicit Mesh(MeshGeometry geometry) : geometry(std::move(geometry)) {}
+        explicit Mesh(const MeshVertices &vertices, const MeshIndices &indices = {})
+            : vertices(vertices), indices(indices) {}
+        explicit Mesh(MeshVertices &&vertices, MeshIndices &&indices = {})
+            : vertices(std::move(vertices)), indices(std::move(indices)) {}
 
-        ~Mesh();
+        virtual ~Mesh();
 
         Mesh(const Mesh &) = delete;
         Mesh &operator=(const Mesh &) = delete;
-
-        Mesh(Mesh &&other) noexcept;
-        Mesh &operator=(Mesh &&other) noexcept;
 
         bool InitializeResources() override;
         bool Draw() const;

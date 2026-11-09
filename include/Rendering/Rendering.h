@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Shared/Shared.h"
+#include "Rendering/IResourceOwner.h"
 
 #include <cstdio>
 #include <cstddef>
@@ -31,5 +32,4 @@ namespace Rendering
     bool CompileShader(GLenum type, const char *source, ResourceHandle &outShader);
     bool LinkShaders(ResourceHandle &outShaderProgram, const ResourceHandle *shaders, std::size_t shadersCount);
     bool CreateShaderProgram(ResourceHandle &outShaderProgram, const ShaderSource *sources, std::size_t sourcesCount);
-
 }

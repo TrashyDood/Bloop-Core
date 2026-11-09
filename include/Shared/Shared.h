@@ -20,7 +20,6 @@ using Color4f = Vector4f;
 using Matrix3f = glm::mat3;
 using Quaternionf = glm::quat;
 using Matrix4f = glm::mat4;
-using ResourceHandle = GLuint;
 using TimeDuration = std::chrono::duration<double>;
 
 namespace Utils

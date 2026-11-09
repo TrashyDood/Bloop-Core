@@ -9,7 +9,11 @@
 
 #include <cstdlib>
 
-const Rendering::MeshGeometry CubeGeometry {
+struct MeshObject { Rendering::Mesh &mesh; Shared::Transform transform; };
+struct MeshGeometry { Rendering::MeshVertices vertices; Rendering::MeshIndices indices; };
+
+#pragma region Global Constants
+const MeshGeometry CubeGeometry{
     {
         {{-0.5f, -0.5f, 0.5f}, {}, {}, Colors::Red},
         {{0.5f, -0.5f, 0.5f}, {}, {}, Colors::Green},
@@ -26,15 +30,35 @@ const Rendering::MeshGeometry CubeGeometry {
         1, 5, 6, 1, 6, 2,
         4, 0, 3, 4, 3, 7,
         3, 2, 6, 3, 6, 7,
-        4, 5, 1, 4, 1, 0,
-    }};
+        4, 5, 1, 4, 1, 0}};
+
+const MeshGeometry PyramidGeometry{
+    {
+        {{-0.5f, 0.5f, 0.5f}, {}, {}, Colors::Red},
+        {{0.5f, 0.5f, 0.5f}, {}, {}, Colors::Green},
+        {{0.5f, 0.5f, -0.5f}, {}, {}, Colors::Blue},
+        {{-0.5f, 0.5f, -0.5f}, {}, {}, Colors::Yellow},
+        {{0.0f, -0.5f, 0.0f}, {}, {}, Colors::White},
+    },
+    {
+        0, 1, 4,
+        1, 2, 4,
+        2, 3, 4,
+        3, 0, 4,
+        0, 3, 2, 0, 2, 1}};
+#pragma endregion
 
 class DemoScene : public Scene
 {
-    Rendering::Mesh mesh;
     Rendering::Shader shader;
     Rendering::FlyingCamera camera;
-    Shared::Transform meshTransform;
+    Rendering::Mesh cubeMesh{CubeGeometry.vertices, CubeGeometry.indices};
+    Rendering::Mesh pyramidMesh{PyramidGeometry.vertices, PyramidGeometry.indices};
+
+    MeshObject cubeObject1{cubeMesh, {}},
+        cubeObject2{cubeMesh, {}},
+        pyramidObject1{pyramidMesh, {}},
+        pyramidObject2{pyramidMesh, {}};
 
     GLint modelMatrixUniform,
         viewMatrixUniform,
@@ -47,7 +71,7 @@ class DemoScene : public Scene
 
     double lastCursorX = 0.0, lastCursorY = 0.0;
 
-private:
+#pragma region Input Handlers
     static void HandleKey(GLFWwindow *window, int key, int, int action, int)
     {
         DemoScene *scene = nullptr;
@@ -79,6 +103,9 @@ private:
             scene->moveDown = false;
             scene->orbiting = false;
         }
+
+        if (key == GLFW_KEY_F && action == GLFW_PRESS)
+            scene->camera.SetIsOrthographic(!scene->camera.IsOrthographic());
     }
 
     static void HandleMouseButton(GLFWwindow *window, int button, int action, int)
@@ -107,11 +134,11 @@ private:
             return;
         }
 
-        constexpr float sensitivity = 0.005f;
-        const float yawDelta = static_cast<float>(x - scene->lastCursorX) * sensitivity;
-        const float pitchDelta = static_cast<float>(scene->lastCursorY - y) * sensitivity;
-        scene->camera.Orbit(yawDelta, pitchDelta);
+        const float sensitivity = 0.005f,
+            yawDelta = static_cast<float>(x - scene->lastCursorX) * sensitivity,
+            pitchDelta = static_cast<float>(scene->lastCursorY - y) * sensitivity;
 
+        scene->camera.Orbit(yawDelta, pitchDelta);
         scene->lastCursorX = x;
         scene->lastCursorY = y;
     }
@@ -123,18 +150,18 @@ private:
             return;
 
         constexpr float zoomSensitivity = 0.1f;
-        scene->camera.Zoom(static_cast<float>(yOffset) * zoomSensitivity);
+        scene->camera.Zoom(yOffset * zoomSensitivity);
     }
+#pragma endregion
 
     int InitializeShadersAndMeshes()
     {
         using namespace Rendering;
 
-        mesh = Mesh(CubeGeometry);
         shader = Shader({{"vertex.glsl", VertexShader, true},
                          {"fragment.glsl", FragmentShader, true}});
 
-        if (!InitializeResources({&shader, &mesh}))
+        if (!InitializeResources({&shader, &cubeMesh, &pyramidMesh}))
         {
             LOG_ERROR("Failed to initialize resources.\n");
             return EXIT_FAILURE;
@@ -176,15 +203,19 @@ private:
 
         shader.Use();
 
+        // Set the view and projection matrices based on the camera's current state.
         const Matrix4f viewMatrix = camera.GetViewMatrix();
         const Matrix4f projectionMatrix = camera.GetProjectionMatrix(ASPECT_RATIO(GetWindow()));
-        const Matrix4f modelMatrix = meshTransform.GetModelMatrix();
-
-        glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, glm::value_ptr(modelMatrix));
         glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, glm::value_ptr(viewMatrix));
         glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
 
-        mesh.Draw();
+        const Matrix4f cubeModelMatrix = cubeObject1.transform.GetTransformMatrix();
+        glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, glm::value_ptr(cubeModelMatrix));
+        cubeObject1.mesh.Draw();
+
+        const Matrix4f pyramidModelMatrix = pyramidObject1.transform.GetTransformMatrix();
+        glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, glm::value_ptr(pyramidModelMatrix));
+        pyramidMesh.Draw();
 
         return EXIT_SUCCESS;
     }

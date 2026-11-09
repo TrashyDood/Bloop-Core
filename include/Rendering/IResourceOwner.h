@@ -1,10 +1,14 @@
 #pragma once
 
+#include <glad/gl.h>
+
 #include <cstddef>
 #include <vector>
 
 namespace Rendering
 {
+    using ResourceHandle = GLuint;
+
     class IResourceOwner
     {
     protected:

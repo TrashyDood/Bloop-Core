@@ -6,26 +6,6 @@
 
 Rendering::Mesh::~Mesh() { ReleaseResources(); }
 
-Rendering::Mesh::Mesh(Mesh &&other) noexcept
-    : vertexArray(std::exchange(other.vertexArray, 0)),
-      vertexBuffer(std::exchange(other.vertexBuffer, 0)),
-      indexBuffer(std::exchange(other.indexBuffer, 0)),
-      geometry(std::move(other.geometry)) {}
-
-Rendering::Mesh &Rendering::Mesh::operator=(Mesh &&other) noexcept
-{
-    if (this != &other)
-    {
-        ReleaseResources();
-        geometry = std::move(other.geometry);
-        vertexArray = std::exchange(other.vertexArray, 0);
-        vertexBuffer = std::exchange(other.vertexBuffer, 0);
-        indexBuffer = std::exchange(other.indexBuffer, 0);
-    }
-
-    return *this;
-}
-
 void Rendering::Mesh::ReleaseResources() noexcept
 {
     if (vertexArray != 0)
@@ -51,34 +31,34 @@ bool Rendering::Mesh::InitializeResources()
         return false;
     }
 
-    if (geometry.vertices.empty())
+    if (vertices.empty())
     {
         LOG_ERROR("Cannot initialize mesh: no vertices provided.\n");
         return false;
     }
 
     const std::size_t maxBufferSize = static_cast<std::size_t>(std::numeric_limits<GLsizeiptr>::max());
-    if (geometry.vertices.size() > maxBufferSize / sizeof(Vertex) ||
-        geometry.indices.size() > maxBufferSize / sizeof(std::uint32_t) ||
+    if (vertices.size() > maxBufferSize / sizeof(Vertex) ||
+        indices.size() > maxBufferSize / sizeof(std::uint32_t) ||
         sizeof(Vertex) > static_cast<std::size_t>(std::numeric_limits<GLsizei>::max()))
     {
         LOG_ERROR("Cannot initialize mesh: vertex or index data is too large.\n");
         return false;
     }
 
-    for (std::size_t i = 0; i < geometry.indices.size(); ++i)
-        if (geometry.indices[i] >= geometry.vertices.size())
+    for (std::size_t i = 0; i < indices.size(); ++i)
+        if (indices[i] >= vertices.size())
         {
-            LOG_ERROR("Cannot initialize mesh: index %u at position %zu is outside the vertex range.\n", geometry.indices[i], i);
+            LOG_ERROR("Cannot initialize mesh: index %u at position %zu is outside the vertex range.\n", indices[i], i);
             return false;
         }
 
     glGenVertexArrays(1, &vertexArray);
     glGenBuffers(1, &vertexBuffer);
-    if (!geometry.indices.empty())
+    if (!indices.empty())
         glGenBuffers(1, &indexBuffer);
 
-    if (vertexArray == 0 || vertexBuffer == 0 || (!geometry.indices.empty() && indexBuffer == 0))
+    if (vertexArray == 0 || vertexBuffer == 0 || (!indices.empty() && indexBuffer == 0))
     {
         LOG_ERROR("Cannot initialize mesh: failed to create OpenGL buffers.\n");
         ReleaseResources();
@@ -89,17 +69,17 @@ bool Rendering::Mesh::InitializeResources()
 
     glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
     glBufferData(GL_ARRAY_BUFFER,
-                 static_cast<GLsizeiptr>(geometry.vertices.size() * sizeof(Vertex)),
-                 geometry.vertices.data(),
-                 GL_STATIC_DRAW);
+        static_cast<GLsizeiptr>(vertices.size() * sizeof(Vertex)),
+            vertices.data(),
+            GL_STATIC_DRAW);
 
-    if (!geometry.indices.empty())
+    if (!indices.empty())
     {
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-                     static_cast<GLsizeiptr>(geometry.indices.size() * sizeof(std::uint32_t)),
-                     geometry.indices.data(),
-                     GL_STATIC_DRAW);
+            static_cast<GLsizeiptr>(indices.size() * sizeof(std::uint32_t)),
+                indices.data(),
+                GL_STATIC_DRAW);
     }
 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, static_cast<GLsizei>(sizeof(Vertex)),
@@ -129,18 +109,18 @@ bool Rendering::Mesh::Draw() const
         return false;
     }
 
-    const std::size_t drawCount = geometry.indices.empty() ? geometry.vertices.size() : geometry.indices.size();
-    if (drawCount > static_cast<std::size_t>(std::numeric_limits<GLsizei>::max()))
+    const std::size_t drawCount = indices.empty() ? vertices.size() : indices.size();
+    if (drawCount > (std::size_t)(std::numeric_limits<GLsizei>::max()))
     {
         LOG_ERROR("Cannot draw mesh: vertex or index count is too large.\n");
         return false;
     }
 
     glBindVertexArray(vertexArray);
-    if (geometry.indices.empty())
-        glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(geometry.vertices.size()));
+    if (indices.empty())
+        glDrawArrays(GL_TRIANGLES, 0, (GLsizei)(vertices.size()));
     else
-        glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(geometry.indices.size()), GL_UNSIGNED_INT, nullptr);
+        glDrawElements(GL_TRIANGLES, (GLsizei)(indices.size()), GL_UNSIGNED_INT, nullptr);
     glBindVertexArray(0);
 
     return true;
