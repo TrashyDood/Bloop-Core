@@ -42,7 +42,7 @@ Vector3f Shared::Transform::TransformVector(const Vector3f &vector, const bool i
     return Vector3f{GetTransformMatrix(includeScale) * Vector4f{vector, 0.0f}};
 }
 
-Vector3f Shared::Transform::TransformPosition(const Vector3f &point, const bool includeScale) const
+Vector3f Shared::Transform::TransformPoint(const Vector3f &point, const bool includeScale) const
 {
     return Vector3f{GetTransformMatrix(includeScale) * Vector4f{point, 1.0f}};
 }

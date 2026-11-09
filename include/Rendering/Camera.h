@@ -10,7 +10,7 @@ namespace Rendering
     class Camera
     {
         Shared::Transform &transform;
-        bool isOrthographic = true;
+        bool isOrthographic = false;
         float fieldOfView = 90.f, nearPlane = 0.1f, farPlane = 100.f, orthographicSize = 5.f;
 
     public:
@@ -27,9 +27,9 @@ namespace Rendering
         [[nodiscard]] const Shared::Transform &GetTransform() const { return transform; }
 
         [[nodiscard]] Matrix4f GetViewMatrix() const;
-        [[nodiscard]] Matrix4f GetOrthoProjectionMatrix(const float aspectRatio) const;
-        [[nodiscard]] Matrix4f GetPerspProjectionMatrix(const float aspectRatio) const;
         [[nodiscard]] Matrix4f GetProjectionMatrix(const float aspectRatio = DEFAULT_ASPECT_RATIO) const;
+        [[nodiscard]] Matrix4f GetOrthographicMatrix(const float aspectRatio) const;
+        [[nodiscard]] Matrix4f GetPerspectiveMatrix(const float aspectRatio) const;
 
         void SetFieldOfView(const float newFieldOfView) { fieldOfView = newFieldOfView; }
         void SetNearPlane(const float newNearPlane) { nearPlane = newNearPlane; }

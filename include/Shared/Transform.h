@@ -11,6 +11,7 @@ namespace Shared
         Matrix4f rotationMatrix{1.0f};
 
     public:
+        // Get the transform matrix, which combines position, rotation, and scale into a single 4x4 matrix.
         [[nodiscard]] Matrix4f GetTransformMatrix(const bool includeScale = true) const;
         [[nodiscard]] const Matrix4f &GetRotationMatrix() const { return rotationMatrix; }
         [[nodiscard]] const Vector3f &GetPosition() const { return position; }
@@ -21,8 +22,9 @@ namespace Shared
         [[nodiscard]] Vector3f GetUp() const { return TransformVector(Vectors::v3fDown, false); }
         [[nodiscard]] Vector3f GetForward() const { return TransformVector(Vectors::v3fForward, false); }
 
+        // Transform a vector by the transform's rotation and scale (if includeScale is true).
         [[nodiscard]] Vector3f TransformVector(const Vector3f &vector, const bool includeScale = true) const;
-        [[nodiscard]] Vector3f TransformPosition(const Vector3f &point, const bool includeScale = true) const;
+        [[nodiscard]] Vector3f TransformPoint(const Vector3f &point, const bool includeScale = true) const;
 
         Transform(const Vector3f &position = Vectors::v3fZero,
             const Quaternionf &rotation = Quaternions::qfIdentity,
