@@ -2,6 +2,7 @@
 
 #include "Shared/Shared.h"
 #include "Rendering/IResourceOwner.h"
+#include "Rendering/Rendering.h"
 
 #include <glad/gl.h>
 #include <glm/glm.hpp>
@@ -33,6 +34,8 @@ namespace Rendering
     // Represents a mesh in OpenGL, managing its vertex array, vertex buffer, and index buffer.
     class Mesh : public IResourceOwner
     {
+        static constexpr std::size_t MaxBufferSize = static_cast<std::size_t>(std::numeric_limits<GLsizeiptr>::max());
+
         ResourceHandle vertexArray = 0;
         ResourceHandle vertexBuffer = 0;
         ResourceHandle indexBuffer = 0;
@@ -54,7 +57,7 @@ namespace Rendering
         explicit Mesh(MeshVertices &&vertices, MeshIndices &&indices = {})
             : vertices(std::move(vertices)), indices(std::move(indices)) {}
 
-        virtual ~Mesh();
+        virtual ~Mesh() { ReleaseResources(); }
 
         Mesh(const Mesh &) = delete;
         Mesh &operator=(const Mesh &) = delete;
@@ -62,7 +65,10 @@ namespace Rendering
         bool InitializeResources() override;
         bool Draw() const;
 
-    private:
+        static bool CreateBuffers(ResourceHandle &vertexArray, ResourceHandle &vertexBuffer, ResourceHandle &indexBuffer,
+            const MeshVertices &vertices, const MeshIndices &indices = {});
+
+      private:
         void ReleaseResources() noexcept override;
     };
 }

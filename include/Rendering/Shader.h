@@ -22,7 +22,7 @@ namespace Rendering
         [[nodiscard]] bool HasSources() const { return !sources.empty(); }
 
         [[nodiscard]]
-        bool TryGetUniformLocation(const std::string &name, GLint &location) const;
+        bool GetUniformLocation(const std::string &name, GLint &location) const;
         [[nodiscard]]
         bool TryGetAttributeLocation(const std::string &name, GLint &location) const;
 

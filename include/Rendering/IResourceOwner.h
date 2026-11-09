@@ -7,8 +7,6 @@
 
 namespace Rendering
 {
-    using ResourceHandle = GLuint;
-
     class IResourceOwner
     {
     protected:

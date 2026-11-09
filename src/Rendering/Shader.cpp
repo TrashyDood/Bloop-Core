@@ -2,7 +2,7 @@
 
 #include <utility>
 
-bool Rendering::Shader::TryGetUniformLocation(const std::string &name, GLint &location) const
+bool Rendering::Shader::GetUniformLocation(const std::string &name, GLint &location) const
 {
     location = glGetUniformLocation(shaderProgram, name.c_str());
     return location != -1;
