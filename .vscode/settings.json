@@ -2,5 +2,9 @@
   "cmake.configurePreset": "default",
   "cmake.buildPreset": "default",
   "cmake.configureOnOpen": false,
-  "glslLsp.diagnostics.glslang.targetEnv": "opengl"
+  "glslLsp.diagnostics.glslang.targetEnv": "opengl",
+  "[cpp]": {
+    "editor.defaultFormatter": "ms-vscode.cpptools"
+  },
+  "C_Cpp.clang_format_style": "file"
 }
