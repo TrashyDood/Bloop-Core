@@ -34,7 +34,7 @@ namespace Shared
     int SetupWindow(GLFWwindow *&outWindow, const int width = 800, const int height = 600, const char *title = "Engine Window");
 
     template <typename T>
-    bool TryGetWindowUserPointer(GLFWwindow &window, T *&outPointer)
+    bool GetWindowUserPointer(GLFWwindow &window, T *&outPointer)
     {
         outPointer = static_cast<T *>(glfwGetWindowUserPointer(&window));
         return outPointer != nullptr;
