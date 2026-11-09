@@ -22,13 +22,16 @@ class Scene
     bool isRunning = false;
     GLFWwindow *window;
     SceneConfig *config;
+    SceneTime sceneTime;
 
     int Start(GLFWwindow *window, SceneConfig *config);
 
 protected:
+    const SceneTime &GetSceneTime() const { return sceneTime; }
+
     virtual int OnStart() = 0;
-    virtual int OnUpdate(const SceneTime &time) { return EXIT_SUCCESS; }
     virtual int OnDraw(const SceneTime &time) = 0;
+    virtual int OnUpdate(const SceneTime &time) { return EXIT_SUCCESS; }
     virtual void OnStop(const int exitCode) {}
 
 public:

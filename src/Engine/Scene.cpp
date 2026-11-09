@@ -16,9 +16,10 @@ int Scene::Start(GLFWwindow *window, SceneConfig *config)
 
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glEnable(GL_DEPTH_TEST);
+        glEnable(GL_CULL_FACE);
 
-        SceneTime sceneTime;
         TickLoop tickLoop;
+        ThreadTask<int> updateTask;
         tickLoop.Run([&](float deltaTime, float elapsedTime)
         {
             glfwPollEvents();
@@ -26,7 +27,7 @@ int Scene::Start(GLFWwindow *window, SceneConfig *config)
             sceneTime.deltaTime = deltaTime;
             sceneTime.elapsedTime = elapsedTime;
 
-            ThreadTask<int> updateTask =
+            updateTask =
                 StaticThreadPool().SubmitTask([&]() { return OnUpdate(sceneTime); });
 
             int drawResult = OnDraw(sceneTime);
