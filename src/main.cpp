@@ -66,6 +66,13 @@ class DemoScene : public Scene
     Rendering::Mesh cubeMesh{CubeGeometry.vertices, CubeGeometry.indices};
     Rendering::Mesh pyramidMesh{PyramidGeometry.vertices, PyramidGeometry.indices};
 
+    GLint modelMatrixUniform,
+        viewMatrixUniform,
+        projectionMatrixUniform;
+
+    double lastCursorX = 0.0, lastCursorY = 0.0;
+    bool orbiting = false, wireframeEnabled = true;
+
     std::array<MeshObject, 4> sceneObjects{{
         {cubeMesh, {{4.f, 0.f, 0.f}}},
         {cubeMesh, {{2.f, 0.f, 0.f}}},
@@ -73,58 +80,7 @@ class DemoScene : public Scene
         {pyramidMesh, {{-2.f, 0.f, 0.f}}}
     }};
 
-    GLint modelMatrixUniform,
-        viewMatrixUniform,
-        projectionMatrixUniform;
-
-    double lastCursorX = 0.0, lastCursorY = 0.0;
-    bool moveForward = false, moveBackward = false,
-        moveLeft = false, moveRight = false,
-        moveUp = false, moveDown = false,
-        orbiting = false;
-
-    bool wireframeEnabled = true;
-
 #pragma region Input Handlers
-    static void HandleKey(GLFWwindow *window, int key, int, int action, int)
-    {
-        DemoScene *scene = nullptr;
-        if (!Shared::GetWindowUserPointer(*window, scene))
-            return;
-
-        const bool pressed = action != GLFW_RELEASE;
-        switch (key)
-        {
-            case GLFW_KEY_W: scene->moveForward = pressed; break;
-            case GLFW_KEY_S: scene->moveBackward = pressed; break;
-            case GLFW_KEY_A: scene->moveLeft = pressed; break;
-            case GLFW_KEY_D: scene->moveRight = pressed; break;
-            case GLFW_KEY_E: scene->moveUp = pressed; break;
-            case GLFW_KEY_Q: scene->moveDown = pressed; break;
-        }
-
-        if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-            glfwSetWindowShouldClose(window, GLFW_TRUE);
-
-        if (key == GLFW_KEY_R && action == GLFW_PRESS)
-        {
-            scene->camera.ResetPosition();
-            scene->moveForward = false;
-            scene->moveBackward = false;
-            scene->moveLeft = false;
-            scene->moveRight = false;
-            scene->moveUp = false;
-            scene->moveDown = false;
-            scene->orbiting = false;
-        }
-
-        if (key == GLFW_KEY_F && action == GLFW_PRESS)
-            scene->camera.SetIsOrthographic(!scene->camera.IsOrthographic());
-
-        if (key == GLFW_KEY_G && action == GLFW_PRESS)
-            scene->wireframeEnabled = !scene->wireframeEnabled;
-    }
-
     static void HandleMouseButton(GLFWwindow *window, int button, int action, int)
     {
         if (button != GLFW_MOUSE_BUTTON_1)
@@ -195,12 +151,53 @@ class DemoScene : public Scene
         return EXIT_SUCCESS;
     }
 
+    void BindInput()
+    {
+        using namespace Engine;
+        
+        GetInput().BindKey([this](const InputCode &key, const KeyAction &action)
+        {
+            glfwSetWindowShouldClose(&GetWindow(), GLFW_TRUE);
+        }, KeyCode::Escape);
+
+        GetInput().BindKey([this](const InputCode &key, const KeyAction &action)
+        {
+            if (action == Pressed)
+                wireframeEnabled = !wireframeEnabled;
+        }, KeyCode::F);
+
+        GetInput().BindKey([this](const InputCode &key, const KeyAction &action)
+        {
+            if (action == Pressed)
+                camera.SetIsOrthographic(!camera.GetIsOrthographic());
+        }, KeyCode::G);
+
+        GetInput().BindKey([this](const InputCode &key, const KeyAction &action)
+        {
+            if (action != Pressed) return;
+                
+            camera.ResetPosition();
+            orbiting = false;
+        }, KeyCode::R);
+
+        GetInput().BindKey([this](const InputCode &key, const KeyAction &action)
+        {
+            if (action != Pressed) return;
+                
+            camera.ResetPosition();
+            orbiting = false;
+        }, MouseKey::Any);
+    }
+
     int OnStart() override
     {
+        using namespace Engine;
+
         if (InitializeShadersAndMeshes() != EXIT_SUCCESS)
             return EXIT_FAILURE;
 
-        glfwSetKeyCallback(&GetWindow(), HandleKey);
+        BindInput();
+
         glfwSetMouseButtonCallback(&GetWindow(), HandleMouseButton);
         glfwSetCursorPosCallback(&GetWindow(), HandleCursorPosition);
         glfwSetScrollCallback(&GetWindow(), HandleScroll);
@@ -215,11 +212,9 @@ class DemoScene : public Scene
 
     int OnDraw(const SceneTime &time) override
     {
-        camera.Move({
-            ((float)(moveRight) - (float)(moveLeft)),
-            ((float)(moveUp) - (float)(moveDown)),
-            ((float)(moveForward) - (float)(moveBackward)),
-        }, time.deltaTime);
+        using namespace Engine;
+
+        camera.Move(GetInput().GetAxis3(KeyCode::D, KeyCode::A, KeyCode::W, KeyCode::S), time.deltaTime);
 
         shader.Use();
 
@@ -228,7 +223,6 @@ class DemoScene : public Scene
         const Matrix4f projectionMatrix = camera.GetProjectionMatrix(ASPECT_RATIO(GetWindow()));
         glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, glm::value_ptr(viewMatrix));
         glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
-
 
         const float pulseScale = 1.f + glm::sin(time.elapsedTime) * 0.5f;
 
