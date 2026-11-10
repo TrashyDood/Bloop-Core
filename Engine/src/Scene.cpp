@@ -8,15 +8,20 @@ void Scene::HandleKeyEvent(GLFWwindow *window, int key, int, int action, int)
     if (!Shared::GetWindowUserPointer(*window, scene))
         return;
 
-    Engine::KeyAction keyAction;
-    switch (action)
-    {
-        case GLFW_PRESS: keyAction = Engine::Pressed; break;
-        case GLFW_REPEAT: keyAction = Engine::Held; break;
-        case GLFW_RELEASE: keyAction = Engine::Released; break;
-    }
+    scene->input.OnKeyStateChanged(
+        static_cast<Engine::KeyCode>(key),
+        static_cast<Engine::KeyAction>(action));
+}
 
-    scene->input.OnKeyStateChanged(key, keyAction);
+void Scene::HandleMouseButtonEvent(GLFWwindow *window, int button, int action, int)
+{
+    Scene *scene = nullptr;
+    if (!Shared::GetWindowUserPointer(*window, scene))
+        return;
+
+    scene->input.OnKeyStateChanged(
+        static_cast<Engine::MouseKeyCode>(button),
+        static_cast<Engine::KeyAction>(action));
 }
 
 int Scene::Start(GLFWwindow *window, SceneConfig *config)
@@ -30,8 +35,12 @@ int Scene::Start(GLFWwindow *window, SceneConfig *config)
     if (result == EXIT_SUCCESS)
     {
         glfwSwapInterval(config->enableVSync ? 1 : 0);
-        glfwSetFramebufferSizeCallback(&GetWindow(), [](GLFWwindow *, int width, int height) { glViewport(0, 0, width, height); });
         glfwSetKeyCallback(&GetWindow(), HandleKeyEvent);
+        glfwSetMouseButtonCallback(&GetWindow(), HandleMouseButtonEvent);
+        glfwSetFramebufferSizeCallback(&GetWindow(), [](GLFWwindow *, int width, int height)
+        {
+            glViewport(0, 0, width, height);
+        });
 
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 

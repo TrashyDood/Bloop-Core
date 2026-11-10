@@ -5,6 +5,10 @@
 #include "Shader.h"
 #include "Scene.h"
 
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
+
 #include <glm/gtc/type_ptr.hpp>
 
 #include <cstdlib>
@@ -49,12 +53,12 @@ const MeshGeometry PyramidGeometry{
         {{0.f, -0.5f, 0.f}, {}, {}, Colors::White},
     },
     {
-        0, 1, 4,
-        1, 2, 4,
-        2, 3, 4,
-        3, 0, 4,
-        0, 3, 2,
-        0, 2, 1
+        0, 4, 1,
+        1, 4, 2,
+        2, 4, 3,
+        3, 4, 0,
+        0, 2, 3,
+        0, 1, 2
     }
 };
 #pragma endregion
@@ -72,6 +76,9 @@ class DemoScene : public Scene
 
     double lastCursorX = 0.0, lastCursorY = 0.0;
     bool orbiting = false, wireframeEnabled = true;
+    bool imguiInitialized = false;
+    bool my_tool_active = true;
+    float my_color[4]{1.f, 1.f, 1.f, 1.f};
 
     std::array<MeshObject, 4> sceneObjects{{
         {cubeMesh, {{4.f, 0.f, 0.f}}},
@@ -81,27 +88,13 @@ class DemoScene : public Scene
     }};
 
 #pragma region Input Handlers
-    static void HandleMouseButton(GLFWwindow *window, int button, int action, int)
-    {
-        if (button != GLFW_MOUSE_BUTTON_1)
-            return;
-
-        DemoScene *scene = nullptr;
-        if (!Shared::GetWindowUserPointer(*window, scene))
-            return;
-
-        scene->orbiting = action == GLFW_PRESS;
-        if (scene->orbiting)
-            glfwGetCursorPos(window, &scene->lastCursorX, &scene->lastCursorY);
-    }
-
     static void HandleCursorPosition(GLFWwindow *window, double x, double y)
     {
         DemoScene *scene = nullptr;
         if (!Shared::GetWindowUserPointer(*window, scene))
             return;
 
-        if (!scene->orbiting || glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1) != GLFW_PRESS)
+        if (!scene->orbiting)
         {
             scene->orbiting = false;
             return;
@@ -127,7 +120,7 @@ class DemoScene : public Scene
     }
 #pragma endregion
 
-    int InitializeShadersAndMeshes()
+    int InitResources()
     {
         using namespace Rendering;
 
@@ -155,24 +148,24 @@ class DemoScene : public Scene
     {
         using namespace Engine;
         
-        GetInput().BindKey([this](const InputCode &key, const KeyAction &action)
+        GetInput().BindKey([this](const InputCode &, const KeyAction &action)
         {
             glfwSetWindowShouldClose(&GetWindow(), GLFW_TRUE);
         }, KeyCode::Escape);
 
-        GetInput().BindKey([this](const InputCode &key, const KeyAction &action)
+        GetInput().BindKey([this](const InputCode &, const KeyAction &action)
         {
             if (action == Pressed)
                 wireframeEnabled = !wireframeEnabled;
         }, KeyCode::F);
 
-        GetInput().BindKey([this](const InputCode &key, const KeyAction &action)
+        GetInput().BindKey([this](const InputCode &, const KeyAction &action)
         {
             if (action == Pressed)
                 camera.SetIsOrthographic(!camera.GetIsOrthographic());
         }, KeyCode::G);
 
-        GetInput().BindKey([this](const InputCode &key, const KeyAction &action)
+        GetInput().BindKey([this](const InputCode &, const KeyAction &action)
         {
             if (action != Pressed) return;
                 
@@ -180,25 +173,48 @@ class DemoScene : public Scene
             orbiting = false;
         }, KeyCode::R);
 
-        GetInput().BindKey([this](const InputCode &key, const KeyAction &action)
+        GetInput().BindKey([this](const InputCode &, const KeyAction &action)
         {
-            if (action != Pressed) return;
-                
-            camera.ResetPosition();
-            orbiting = false;
-        }, MouseKey::Any);
+            orbiting = static_cast<bool>(action);
+            if (orbiting)
+                glfwGetCursorPos(&GetWindow(), &lastCursorX, &lastCursorY);
+        }, MouseKeyCode::Any);
+    }
+
+    int InitImgui()
+    {
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
+        ImGui::StyleColorsDark();
+
+        if (!ImGui_ImplGlfw_InitForOpenGL(&GetWindow(), true))
+        {
+            LOG_ERROR("Failed to initialize ImGui GLFW backend.\n");
+            ImGui::DestroyContext();
+            return EXIT_FAILURE;
+        }
+
+        if (!ImGui_ImplOpenGL3_Init("#version 330"))
+        {
+            LOG_ERROR("Failed to initialize ImGui OpenGL backend.\n");
+            ImGui_ImplGlfw_Shutdown();
+            ImGui::DestroyContext();
+            return EXIT_FAILURE;
+        }
+
+        imguiInitialized = true;
+        return EXIT_SUCCESS;
     }
 
     int OnStart() override
     {
         using namespace Engine;
 
-        if (InitializeShadersAndMeshes() != EXIT_SUCCESS)
+        if (InitResources() != EXIT_SUCCESS)
             return EXIT_FAILURE;
 
         BindInput();
 
-        glfwSetMouseButtonCallback(&GetWindow(), HandleMouseButton);
         glfwSetCursorPosCallback(&GetWindow(), HandleCursorPosition);
         glfwSetScrollCallback(&GetWindow(), HandleScroll);
 
@@ -210,11 +226,69 @@ class DemoScene : public Scene
         return EXIT_SUCCESS;
     }
 
+    void DrawImgui()
+    {
+        ImGui::Begin("My First Tool", &my_tool_active, ImGuiWindowFlags_MenuBar);
+        if (ImGui::BeginMenuBar())
+        {
+            if (ImGui::BeginMenu("File"))
+            {
+                if (ImGui::MenuItem("Open..", "Ctrl+O"))
+                { /* Do stuff */
+                }
+                if (ImGui::MenuItem("Save", "Ctrl+S"))
+                { /* Do stuff */
+                }
+                if (ImGui::MenuItem("Close", "Ctrl+W"))
+                {
+                    my_tool_active = false;
+                }
+                ImGui::EndMenu();
+            }
+            ImGui::EndMenuBar();
+        }
+
+        // Edit a color stored as 4 floats
+        ImGui::ColorEdit4("Color", my_color);
+
+        // Generate samples and plot them
+        float samples[100];
+        for (int n = 0; n < 100; n++)
+            samples[n] = sinf(n * 0.2f + ImGui::GetTime() * 1.5f);
+        ImGui::PlotLines("Samples", samples, 100);
+
+        // Display contents in a scrolling region
+        ImGui::TextColored(ImVec4(1, 1, 0, 1), "Important Stuff");
+        ImGui::BeginChild("Scrolling");
+        for (int n = 0; n < 50; n++)
+            ImGui::Text("%04d: Some text", n);
+        ImGui::EndChild();
+        ImGui::End();
+    }
+
+    void OnStop(const int) override
+    {
+        if (!imguiInitialized)
+            return;
+
+        ImGui_ImplOpenGL3_Shutdown();
+        ImGui_ImplGlfw_Shutdown();
+        ImGui::DestroyContext();
+        imguiInitialized = false;
+    }
+
     int OnDraw(const SceneTime &time) override
     {
         using namespace Engine;
 
-        camera.Move(GetInput().GetAxis3(KeyCode::D, KeyCode::A, KeyCode::W, KeyCode::S), time.deltaTime);
+        if (!imguiInitialized && InitImgui() != EXIT_SUCCESS)
+            return EXIT_FAILURE;
+
+        Vector3f moveVector{};
+        GetInput().GetAxis3(KeyCode::D, KeyCode::A, KeyCode::Q, KeyCode::E,
+            KeyCode::W, KeyCode::S, moveVector.x, moveVector.y, moveVector.z);
+
+        camera.Move(moveVector, time.deltaTime);
 
         shader.Use();
 
@@ -242,6 +316,15 @@ class DemoScene : public Scene
             glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, glm::value_ptr(modelMatrix));
             meshObject.mesh.Draw();
         }
+
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        DrawImgui();
+        
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         return EXIT_SUCCESS;
     }

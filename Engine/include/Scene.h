@@ -29,6 +29,7 @@ class Scene
     Engine::InputHandler input;
 
     static void HandleKeyEvent(GLFWwindow *window, int key, int scancode, int action, int modifiers);
+    static void HandleMouseButtonEvent(GLFWwindow *window, int button, int action, int modifiers);
     int Start(GLFWwindow *window, SceneConfig *config);
 
 protected:
