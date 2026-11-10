@@ -1,4 +1,4 @@
-#include "Rendering/Camera.h"
+#include "Camera.h"
 
 Matrix4f Rendering::Camera::GetOrthographicMatrix(const float aspectRatio) const
 {

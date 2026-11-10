@@ -1,5 +1,5 @@
-#include "Rendering/Camera.h"
-#include "Shared/EventHandler.h"
+#include "Camera.h"
+#include "EventHandler.h"
 
 #include <atomic>
 #include <cmath>

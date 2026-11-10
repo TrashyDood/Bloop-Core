@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Shared/Shared.h"
-#include "Rendering/IResourceOwner.h"
-#include "Rendering/Rendering.h"
+#include "Shared.h"
+#include "IResourceOwner.h"
+#include "Rendering.h"
 
 #include <glad/gl.h>
 #include <glm/glm.hpp>

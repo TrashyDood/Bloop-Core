@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Rendering/Rendering.h"
-#include "Shared/Transform.h"
+#include "Rendering.h"
+#include "Transform.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 

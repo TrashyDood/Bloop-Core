@@ -1,5 +1,5 @@
-#include "Rendering/Mesh.h"
-#include "Rendering/Rendering.h"
+#include "Mesh.h"
+#include "Rendering.h"
 
 #include <cstddef>
 #include <limits>

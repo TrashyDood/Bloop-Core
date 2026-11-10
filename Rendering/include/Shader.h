@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Rendering/Rendering.h"
-#include "Shared/Shared.h"
-#include "Rendering/IResourceOwner.h"
+#include "Rendering.h"
+#include "Shared.h"
+#include "IResourceOwner.h"
 
 #include <utility>
 #include <vector>

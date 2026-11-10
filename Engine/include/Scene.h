@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Shared/Shared.h"
-#include "Shared/Transform.h"
+#include "Shared.h"
+#include "Transform.h"
 
 #include <GLFW/glfw3.h>
 

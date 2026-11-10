@@ -1,5 +1,5 @@
-#include "Rendering/IResourceOwner.h"
-#include "Shared/Shared.h"
+#include "IResourceOwner.h"
+#include "Shared.h"
 
 bool Rendering::InitializeResources(IResourceOwner *owners[], std::size_t count)
 {

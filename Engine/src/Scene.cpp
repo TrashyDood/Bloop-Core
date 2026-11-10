@@ -1,7 +1,6 @@
-#include "Engine/Scene.h"
-
-#include "Shared/TickLoop.h"
-#include "Shared/ThreadPool.h"
+#include "Scene.h"
+#include "TickLoop.h"
+#include "ThreadPool.h"
 
 int Scene::Start(GLFWwindow *window, SceneConfig *config)
 {
@@ -15,8 +14,6 @@ int Scene::Start(GLFWwindow *window, SceneConfig *config)
         glfwSetFramebufferSizeCallback(&GetWindow(), [](GLFWwindow *, int width, int height) { glViewport(0, 0, width, height); });
 
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-        glEnable(GL_DEPTH_TEST);
-        glEnable(GL_CULL_FACE);
 
         TickLoop tickLoop;
         ThreadTask<int> updateTask;

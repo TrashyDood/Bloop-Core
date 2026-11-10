@@ -28,9 +28,9 @@ add_custom_target(copy_shaders
 
 file(GLOB ENGINE_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Rendering/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Shared/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Engine/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Rendering/src/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Shared/src/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Engine/src/*.cpp"
 )
 
 add_executable(Engine
@@ -40,7 +40,9 @@ add_executable(Engine
 add_dependencies(Engine copy_shaders)
 
 target_include_directories(Engine PRIVATE
-    include
+    Rendering/include
+    Engine/include
+    Shared/include
     third_party/glad/include
     ${GLFW_INCLUDE_DIRS}
 )
@@ -65,11 +67,12 @@ endif()
 if(BUILD_TESTING)
     add_executable(EngineTests
         tests/UnitTests.cpp
-        src/Rendering/Camera.cpp
-        src/Shared/Transform.cpp
+        Rendering/src/Camera.cpp
+        Shared/src/Transform.cpp
     )
     target_include_directories(EngineTests PRIVATE
-        include
+        Rendering/include
+        Shared/include
         third_party/glad/include
         ${GLFW_INCLUDE_DIRS}
     )

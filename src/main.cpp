@@ -1,9 +1,9 @@
-#include "Shared/Shared.h"
-#include "Shared/Transform.h"
-#include "Rendering/Camera.h"
-#include "Rendering/Mesh.h"
-#include "Rendering/Shader.h"
-#include "Engine/Scene.h"
+#include "Shared.h"
+#include "Transform.h"
+#include "Camera.h"
+#include "Mesh.h"
+#include "Shader.h"
+#include "Scene.h"
 
 #include <glm/gtc/type_ptr.hpp>
 
@@ -206,6 +206,9 @@ class DemoScene : public Scene
         glfwSetScrollCallback(&GetWindow(), HandleScroll);
 
         camera.ResetPosition();
+
+        glEnable(GL_DEPTH_TEST);
+        glEnable(GL_CULL_FACE);
 
         return EXIT_SUCCESS;
     }

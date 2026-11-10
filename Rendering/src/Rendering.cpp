@@ -1,4 +1,4 @@
-#include "Rendering/Rendering.h"
+#include "Rendering.h"
 
 #include <cstdio>
 #include <fstream>
