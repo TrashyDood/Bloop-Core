@@ -39,11 +39,22 @@ add_executable(Engine
 )
 add_dependencies(Engine copy_shaders)
 
+target_sources(Engine PRIVATE
+    third_party/imgui/imgui.cpp
+    third_party/imgui/imgui_draw.cpp
+    third_party/imgui/imgui_tables.cpp
+    third_party/imgui/imgui_widgets.cpp
+    third_party/imgui/backends/imgui_impl_glfw.cpp
+    third_party/imgui/backends/imgui_impl_opengl3.cpp
+)
+
 target_include_directories(Engine PRIVATE
     Rendering/include
     Engine/include
     Shared/include
     third_party/glad/include
+    third_party/imgui
+    third_party/imgui/backends
     ${GLFW_INCLUDE_DIRS}
 )
 
