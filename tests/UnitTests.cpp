@@ -79,6 +79,7 @@ namespace
     {
         Shared::Transform transform;
         Rendering::Camera camera(transform);
+        camera.SetIsOrthographic(true);
         camera.SetOrthographicSize(4.0f);
 
         const Matrix4f projection = camera.GetProjectionMatrix(2.0f);
@@ -223,57 +224,107 @@ namespace
             {
                 events.emplace_back(code, action);
             },
-            Engine::MouseKey::Left);
+            Engine::MouseKeyCode::Left);
 
         Require(callbackId.has_value(), "Input handler accepts a typed mouse-button callback");
-        Require(!input.IsKeyHeld(Engine::MouseKey::Left), "Unseen mouse buttons are not held");
+        Require(!input.IsKeyHeld(Engine::MouseKeyCode::Left), "Unseen mouse buttons are not held");
 
-        input.OnKeyStateChanged(static_cast<Engine::InputCode>(Engine::MouseKey::Left), Engine::Pressed);
-        Require(input.IsKeyHeld(Engine::MouseKey::Left), "Pressed mouse button becomes held");
-        input.OnKeyStateChanged(static_cast<Engine::InputCode>(Engine::MouseKey::Left), Engine::Released);
-        Require(!input.IsKeyHeld(Engine::MouseKey::Left), "Released mouse button is no longer held");
+        input.OnKeyStateChanged(static_cast<Engine::InputCode>(Engine::MouseKeyCode::Left), Engine::Pressed);
+        Require(input.IsKeyHeld(Engine::MouseKeyCode::Left), "Pressed mouse button becomes held");
+        input.OnKeyStateChanged(static_cast<Engine::InputCode>(Engine::MouseKeyCode::Left), Engine::Released);
+        Require(!input.IsKeyHeld(Engine::MouseKeyCode::Left), "Released mouse button is no longer held");
         Require(events.size() == 2, "Mouse callback receives press and release events");
-        Require(events[0] == std::make_pair(static_cast<Engine::InputCode>(Engine::MouseKey::Left), Engine::Pressed) &&
-                    events[1] == std::make_pair(static_cast<Engine::InputCode>(Engine::MouseKey::Left), Engine::Released),
+        Require(events[0] == std::make_pair(static_cast<Engine::InputCode>(Engine::MouseKeyCode::Left), Engine::Pressed) &&
+                    events[1] == std::make_pair(static_cast<Engine::InputCode>(Engine::MouseKeyCode::Left), Engine::Released),
                 "Mouse callback receives the button code and actions");
 
-        Require(input.UnbindKey(*callbackId, Engine::MouseKey::Left), "Mouse callback can be unbound by typed button");
+        Require(input.UnbindKey(*callbackId, Engine::MouseKeyCode::Left), "Mouse callback can be unbound by typed button");
     }
 
     void TestInputHandlerAnyInputBinding()
     {
         Engine::InputHandler input;
         std::vector<Engine::InputCode> codes;
-        const auto callbackId = input.BindKeyEvent(
-            [&codes](const Engine::InputCode &code, const Engine::KeyAction &) { codes.push_back(code); });
+        const auto callbackId = input.BindKey(
+            [&codes](const Engine::InputCode &code, const Engine::KeyAction &) { codes.push_back(code); },
+            Engine::AnyInput);
 
         Require(callbackId.has_value(), "Input handler accepts an any-input callback");
-        input.OnKeyStateChanged(static_cast<Engine::InputCode>(Engine::KeyCode::A), Engine::Pressed);
-        input.OnKeyStateChanged(static_cast<Engine::InputCode>(Engine::MouseKey::Right), Engine::Pressed);
+        input.OnKeyStateChanged(Engine::KeyCode::A, Engine::Pressed);
+        input.OnKeyStateChanged(Engine::MouseKeyCode::Right, Engine::Pressed);
 
         Require(codes == std::vector<Engine::InputCode>{
                              static_cast<Engine::InputCode>(Engine::KeyCode::A),
-                             static_cast<Engine::InputCode>(Engine::MouseKey::Right)},
+                             static_cast<Engine::InputCode>(Engine::MouseKeyCode::Right)},
                 "Any-input callback receives keyboard and mouse events");
         Require(input.IsKeyHeld(Engine::AnyInput), "Any-input state is held while any input is down");
 
-        Require(input.UnbindKeyEvent(*callbackId), "Any-input callback can be unbound");
-        input.OnKeyStateChanged(static_cast<Engine::InputCode>(Engine::KeyCode::A), Engine::Released);
-        input.OnKeyStateChanged(static_cast<Engine::InputCode>(Engine::MouseKey::Right), Engine::Released);
+        Require(input.UnbindKey(*callbackId, Engine::AnyInput), "Any-input callback can be unbound");
+        input.OnKeyStateChanged(Engine::KeyCode::A, Engine::Released);
+        input.OnKeyStateChanged(Engine::MouseKeyCode::Right, Engine::Released);
         Require(!input.IsKeyHeld(Engine::AnyInput), "Any-input state clears when all inputs are released");
     }
 
-    void TestInputHandlerAxis3()
+    void TestInputHandlerMouseAnyBinding()
+    {
+        Engine::InputHandler input;
+        std::vector<Engine::InputCode> codes;
+        const auto callbackId = input.BindKey(
+            [&codes](const Engine::InputCode &code, const Engine::KeyAction &) { codes.push_back(code); },
+            Engine::MouseKeyCode::Any);
+
+        Require(callbackId.has_value(), "Input handler accepts a mouse-any callback");
+        const std::vector<Engine::MouseKeyCode> buttons{
+            Engine::MouseKeyCode::Button1, Engine::MouseKeyCode::Button2,
+            Engine::MouseKeyCode::Button3, Engine::MouseKeyCode::Button4,
+            Engine::MouseKeyCode::Button5, Engine::MouseKeyCode::Button6,
+            Engine::MouseKeyCode::Button7, Engine::MouseKeyCode::Button8};
+
+        for (const auto button : buttons)
+            input.OnKeyStateChanged(button, Engine::Pressed);
+
+        Require(codes.size() == buttons.size(), "MouseKeyCode::Any receives all mouse buttons");
+        for (std::size_t i = 0; i < buttons.size(); ++i)
+            Require(codes[i] == static_cast<Engine::InputCode>(buttons[i]),
+                    "MouseKeyCode::Any receives each pressed button code");
+    }
+
+    void TestInputHandlerTypedAnyState()
+    {
+        Engine::InputHandler input;
+
+        input.OnKeyStateChanged(Engine::KeyCode::A, Engine::Pressed);
+        input.OnKeyStateChanged(Engine::MouseKeyCode::Left, Engine::Pressed);
+
+        Require(input.IsKeyHeld(Engine::KeyCode::Any), "KeyCode::Any reports held keys");
+        Require(input.IsKeyHeld(Engine::MouseKeyCode::Any), "MouseKeyCode::Any reports held mouse buttons");
+        Require(input.IsKeyHeld(Engine::AnyInput), "AnyInput reports held inputs of any type");
+
+        input.OnKeyStateChanged(Engine::KeyCode::A, Engine::Released);
+        Require(!input.IsKeyHeld(Engine::KeyCode::Any), "KeyCode::Any clears when no keys are held");
+        Require(input.IsKeyHeld(Engine::MouseKeyCode::Any), "MouseKeyCode::Any remains held while a button is held");
+        Require(input.IsKeyHeld(Engine::AnyInput), "AnyInput remains held while an input is held");
+
+        input.OnKeyStateChanged(Engine::MouseKeyCode::Left, Engine::Released);
+        Require(!input.IsKeyHeld(Engine::MouseKeyCode::Any), "MouseKeyCode::Any clears when no buttons are held");
+        Require(!input.IsKeyHeld(Engine::AnyInput), "AnyInput clears when no inputs are held");
+    }
+
+    void TestInputHandlerAxis2()
     {
         Engine::InputHandler input;
         input.OnKeyStateChanged(static_cast<Engine::InputCode>(Engine::KeyCode::D), Engine::Pressed);
         input.OnKeyStateChanged(static_cast<Engine::InputCode>(Engine::KeyCode::S), Engine::Pressed);
 
-        Require(NearlyEqual(input.GetAxis3(
-                                Engine::KeyCode::D, Engine::KeyCode::A,
-                                Engine::KeyCode::W, Engine::KeyCode::S),
-                            Vector3f{1.0f, 0.0f, -1.0f}),
-                "Axis3 combines positive horizontal and negative depth input");
+        float x = 0.0f;
+        float y = 0.0f;
+        input.GetAxis2(
+            Engine::KeyCode::D, Engine::KeyCode::A,
+            Engine::KeyCode::W, Engine::KeyCode::S,
+            x, y);
+
+        Require(NearlyEqual(x, 1.0f) && NearlyEqual(y, 1.0f),
+                "Axis2 combines horizontal and vertical input");
     }
 
     using Test = std::pair<const char *, void (*)()>;
@@ -295,7 +346,9 @@ int main()
         {"input callback unbinding", TestInputHandlerUnbindsKeyCallback},
         {"input mouse binding and state", TestInputHandlerMouseBindingAndState},
         {"input any-input binding", TestInputHandlerAnyInputBinding},
-        {"input 3D axis", TestInputHandlerAxis3},
+        {"input mouse-any binding", TestInputHandlerMouseAnyBinding},
+        {"input typed any state", TestInputHandlerTypedAnyState},
+        {"input 2D axis", TestInputHandlerAxis2},
     };
 
     int failures = 0;
