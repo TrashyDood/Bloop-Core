@@ -20,7 +20,7 @@ namespace Rendering
         [[nodiscard]] float GetFieldOfView() const { return fieldOfView; }
         [[nodiscard]] float GetNearPlane() const { return nearPlane; }
         [[nodiscard]] float GetFarPlane() const { return farPlane; }
-        [[nodiscard]] bool IsOrthographic() const { return isOrthographic; }
+        [[nodiscard]] bool GetIsOrthographic() const { return isOrthographic; }
         [[nodiscard]] float GetOrthographicSize() const { return orthographicSize; }
 
         [[nodiscard]] Shared::Transform &GetTransform() { return transform; }
