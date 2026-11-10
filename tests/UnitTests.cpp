@@ -1,5 +1,6 @@
 #include "Camera.h"
 #include "EventHandler.h"
+#include "InputHandler.h"
 
 #include <atomic>
 #include <cmath>
@@ -120,14 +121,14 @@ namespace
         EventHandler<int &> event;
         int value = 0;
 
-        const auto callbackId = event.AddCallback(Increment);
+        const auto callbackId = event.BindCallback(Increment);
         Require(callbackId.has_value(), "Event accepts a callback");
-        Require(!event.AddCallback(Increment).has_value(), "Event rejects duplicate free-function callbacks");
+        Require(!event.BindCallback(Increment).has_value(), "Event rejects duplicate free-function callbacks");
 
         event.Invoke(value);
         Require(value == 1, "Event invokes registered callbacks");
-        Require(event.RemoveCallback(*callbackId), "Event removes a callback by ID");
-        Require(!event.RemoveCallback(*callbackId), "Event reports when a callback ID is not registered");
+        Require(event.UnbindCallback(*callbackId), "Event removes a callback by ID");
+        Require(!event.UnbindCallback(*callbackId), "Event reports when a callback ID is not registered");
 
         event.Invoke(value);
         Require(value == 1, "Removed callbacks are not invoked");
@@ -139,14 +140,14 @@ namespace
         int value = 0;
         const auto callback = [&value](int increment) { value += increment; };
 
-        const auto firstId = event.AddCallback(callback);
-        const auto secondId = event.AddCallback(callback);
+        const auto firstId = event.BindCallback(callback);
+        const auto secondId = event.BindCallback(callback);
         Require(firstId.has_value() && secondId.has_value(), "Event allows duplicate lambda callbacks");
 
         event.Invoke(2);
         Require(value == 4, "Event invokes each registered lambda");
 
-        Require(event.RemoveCallback(*firstId), "Event removes one duplicate callback by ID");
+        Require(event.UnbindCallback(*firstId), "Event removes one duplicate callback by ID");
         event.Invoke(3);
         Require(value == 7, "Removing one duplicate leaves the other registered");
     }
@@ -155,7 +156,7 @@ namespace
     {
         EventHandler<int> event;
         std::atomic<int> value = 0;
-        event.AddCallback([&value](int increment) { value.fetch_add(increment, std::memory_order_relaxed); });
+        event.BindCallback([&value](int increment) { value.fetch_add(increment, std::memory_order_relaxed); });
 
         std::vector<std::thread> threads;
         for (int i = 0; i < 4; ++i)
@@ -170,6 +171,109 @@ namespace
             thread.join();
 
         Require(value == 4000, "Event supports concurrent invocation");
+    }
+
+    void TestInputHandlerKeyStateTransitions()
+    {
+        Engine::InputHandler input;
+        std::vector<Engine::KeyAction> actions;
+        const auto callbackId = input.BindKey(
+            [&actions](const Engine::InputCode &, const Engine::KeyAction &action) { actions.push_back(action); },
+            Engine::KeyCode::A);
+
+        Require(callbackId.has_value(), "Input handler accepts a key callback");
+        Require(!input.IsKeyHeld(Engine::KeyCode::A), "Unseen keys are not held");
+
+        input.OnKeyStateChanged(static_cast<Engine::InputCode>(Engine::KeyCode::A), Engine::Pressed);
+        Require(input.IsKeyHeld(Engine::KeyCode::A), "Pressed key becomes held");
+        input.OnKeyStateChanged(static_cast<Engine::InputCode>(Engine::KeyCode::A), Engine::Pressed);
+        input.OnKeyStateChanged(static_cast<Engine::InputCode>(Engine::KeyCode::A), Engine::Held);
+        input.OnKeyStateChanged(static_cast<Engine::InputCode>(Engine::KeyCode::A), Engine::Released);
+        Require(!input.IsKeyHeld(Engine::KeyCode::A), "Released key is no longer held");
+        input.OnKeyStateChanged(static_cast<Engine::InputCode>(Engine::KeyCode::A), Engine::Pressed);
+
+        const std::vector<Engine::KeyAction> expected{
+            Engine::Pressed, Engine::Held, Engine::Held, Engine::Released, Engine::Pressed};
+        Require(actions == expected, "Input handler emits press, hold, and release transitions");
+    }
+
+    void TestInputHandlerUnbindsKeyCallback()
+    {
+        Engine::InputHandler input;
+        int calls = 0;
+        const auto callbackId = input.BindKey(
+            [&calls](const Engine::InputCode &, const Engine::KeyAction &) { ++calls; },
+            Engine::KeyCode::B);
+
+        Require(callbackId.has_value(), "Input handler returns a callback ID");
+        Require(!input.UnbindKey(*callbackId, Engine::KeyCode::A), "Callback cannot be removed from another key");
+        Require(input.UnbindKey(*callbackId, Engine::KeyCode::B), "Input handler removes callback by key and ID");
+        Require(!input.UnbindKey(*callbackId, Engine::KeyCode::B), "Removed callback cannot be removed twice");
+
+        input.OnKeyStateChanged(static_cast<Engine::InputCode>(Engine::KeyCode::B), Engine::Pressed);
+        Require(calls == 0, "Unbound input callback is not invoked");
+    }
+
+    void TestInputHandlerMouseBindingAndState()
+    {
+        Engine::InputHandler input;
+        std::vector<std::pair<Engine::InputCode, Engine::KeyAction>> events;
+        const auto callbackId = input.BindKey(
+            [&events](const Engine::InputCode &code, const Engine::KeyAction &action)
+            {
+                events.emplace_back(code, action);
+            },
+            Engine::MouseKey::Left);
+
+        Require(callbackId.has_value(), "Input handler accepts a typed mouse-button callback");
+        Require(!input.IsKeyHeld(Engine::MouseKey::Left), "Unseen mouse buttons are not held");
+
+        input.OnKeyStateChanged(static_cast<Engine::InputCode>(Engine::MouseKey::Left), Engine::Pressed);
+        Require(input.IsKeyHeld(Engine::MouseKey::Left), "Pressed mouse button becomes held");
+        input.OnKeyStateChanged(static_cast<Engine::InputCode>(Engine::MouseKey::Left), Engine::Released);
+        Require(!input.IsKeyHeld(Engine::MouseKey::Left), "Released mouse button is no longer held");
+        Require(events.size() == 2, "Mouse callback receives press and release events");
+        Require(events[0] == std::make_pair(static_cast<Engine::InputCode>(Engine::MouseKey::Left), Engine::Pressed) &&
+                    events[1] == std::make_pair(static_cast<Engine::InputCode>(Engine::MouseKey::Left), Engine::Released),
+                "Mouse callback receives the button code and actions");
+
+        Require(input.UnbindKey(*callbackId, Engine::MouseKey::Left), "Mouse callback can be unbound by typed button");
+    }
+
+    void TestInputHandlerAnyInputBinding()
+    {
+        Engine::InputHandler input;
+        std::vector<Engine::InputCode> codes;
+        const auto callbackId = input.BindKeyEvent(
+            [&codes](const Engine::InputCode &code, const Engine::KeyAction &) { codes.push_back(code); });
+
+        Require(callbackId.has_value(), "Input handler accepts an any-input callback");
+        input.OnKeyStateChanged(static_cast<Engine::InputCode>(Engine::KeyCode::A), Engine::Pressed);
+        input.OnKeyStateChanged(static_cast<Engine::InputCode>(Engine::MouseKey::Right), Engine::Pressed);
+
+        Require(codes == std::vector<Engine::InputCode>{
+                             static_cast<Engine::InputCode>(Engine::KeyCode::A),
+                             static_cast<Engine::InputCode>(Engine::MouseKey::Right)},
+                "Any-input callback receives keyboard and mouse events");
+        Require(input.IsKeyHeld(Engine::AnyInput), "Any-input state is held while any input is down");
+
+        Require(input.UnbindKeyEvent(*callbackId), "Any-input callback can be unbound");
+        input.OnKeyStateChanged(static_cast<Engine::InputCode>(Engine::KeyCode::A), Engine::Released);
+        input.OnKeyStateChanged(static_cast<Engine::InputCode>(Engine::MouseKey::Right), Engine::Released);
+        Require(!input.IsKeyHeld(Engine::AnyInput), "Any-input state clears when all inputs are released");
+    }
+
+    void TestInputHandlerAxis3()
+    {
+        Engine::InputHandler input;
+        input.OnKeyStateChanged(static_cast<Engine::InputCode>(Engine::KeyCode::D), Engine::Pressed);
+        input.OnKeyStateChanged(static_cast<Engine::InputCode>(Engine::KeyCode::S), Engine::Pressed);
+
+        Require(NearlyEqual(input.GetAxis3(
+                                Engine::KeyCode::D, Engine::KeyCode::A,
+                                Engine::KeyCode::W, Engine::KeyCode::S),
+                            Vector3f{1.0f, 0.0f, -1.0f}),
+                "Axis3 combines positive horizontal and negative depth input");
     }
 
     using Test = std::pair<const char *, void (*)()>;
@@ -187,6 +291,11 @@ int main()
         {"event registration and removal", TestEventHandlerRegistrationAndRemoval},
         {"event duplicate lambdas", TestEventHandlerAllowsDuplicateLambdas},
         {"event concurrent invocation", TestEventHandlerConcurrentInvocation},
+        {"input key state transitions", TestInputHandlerKeyStateTransitions},
+        {"input callback unbinding", TestInputHandlerUnbindsKeyCallback},
+        {"input mouse binding and state", TestInputHandlerMouseBindingAndState},
+        {"input any-input binding", TestInputHandlerAnyInputBinding},
+        {"input 3D axis", TestInputHandlerAxis3},
     };
 
     int failures = 0;
