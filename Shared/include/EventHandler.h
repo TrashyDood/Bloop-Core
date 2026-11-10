@@ -14,16 +14,17 @@ public:
     using CallbackId = std::uint64_t;
     using EventCallback = std::function<void(TArgs...)>;
     using FunctionPointer = void (*)(TArgs...);
+    using BindResult = std::optional<CallbackId>;
 
-    std::optional<CallbackId> AddCallback(FunctionPointer callback)
+    BindResult BindCallback(FunctionPointer callback)
     {
         if (callback == nullptr)
             return std::nullopt;
 
-        return AddCallbackImpl(EventCallback{callback}, callback);
+        return BindCallbackImpl(EventCallback{callback}, callback);
     }
 
-    std::optional<CallbackId> AddCallback(EventCallback callback)
+    BindResult BindCallback(EventCallback callback)
     {
         if (!callback)
             return std::nullopt;
@@ -32,10 +33,10 @@ public:
         if (const auto target = callback.template target<FunctionPointer>())
             functionPointer = *target;
 
-        return AddCallbackImpl(std::move(callback), functionPointer);
+        return BindCallbackImpl(std::move(callback), functionPointer);
     }
 
-    bool RemoveCallback(CallbackId id)
+    bool UnbindCallback(CallbackId id)
     {
         std::lock_guard<std::mutex> lock(mutex);
 
@@ -74,7 +75,7 @@ private:
         FunctionPointer functionPointer;
     };
 
-    std::optional<CallbackId> AddCallbackImpl(EventCallback callback, FunctionPointer functionPointer)
+    BindResult BindCallbackImpl(EventCallback callback, FunctionPointer functionPointer)
     {
         std::lock_guard<std::mutex> lock(mutex);
 
