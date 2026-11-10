@@ -159,6 +159,28 @@
         "close": false
       },
       "problemMatcher": []
+    },
+    {
+      "label": "MSYS2: Run Tests",
+      "type": "shell",
+      "command": "call \"${config:msys2.root}\\msys2_shell.cmd\" -ucrt64 -defterm -no-start -here -c \"cmake --preset default && cmake --build --preset default && ctest --test-dir build --output-on-failure\"",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "shell": {
+          "executable": "cmd.exe",
+          "args": [
+            "/d",
+            "/c"
+          ]
+        }
+      },
+      "presentation": {
+        "group": "msys2",
+        "reveal": "always",
+        "panel": "dedicated",
+        "close": false
+      },
+      "problemMatcher": []
     }
   ]
 }

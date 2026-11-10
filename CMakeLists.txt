@@ -67,10 +67,12 @@ endif()
 if(BUILD_TESTING)
     add_executable(EngineTests
         tests/UnitTests.cpp
+        Engine/src/InputHandler.cpp
         Rendering/src/Camera.cpp
         Shared/src/Transform.cpp
     )
     target_include_directories(EngineTests PRIVATE
+        Engine/include
         Rendering/include
         Shared/include
         third_party/glad/include

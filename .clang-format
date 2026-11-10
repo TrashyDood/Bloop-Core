@@ -6,6 +6,7 @@ ContinuationIndentWidth: 4
 AlignAfterOpenBracket: DontAlign
 BinPackParameters: true
 BreakBeforeBraces: Allman
+NamespaceIndentation: All
 AllowShortFunctionsOnASingleLine: None
 AllowShortIfStatementsOnASingleLine: Never
 BreakTemplateDeclarations: Yes
