@@ -2,6 +2,7 @@
 
 #include "Shared.h"
 #include "Transform.h"
+#include "InputHandler.h"
 
 #include <GLFW/glfw3.h>
 
@@ -20,14 +21,19 @@ struct SceneTime
 class Scene
 {
     bool isRunning = false;
+
     GLFWwindow *window;
     SceneConfig *config;
-    SceneTime sceneTime;
 
+    SceneTime sceneTime;
+    Engine::InputHandler input;
+
+    static void HandleKeyEvent(GLFWwindow *window, int key, int scancode, int action, int modifiers);
     int Start(GLFWwindow *window, SceneConfig *config);
 
 protected:
-    const SceneTime &GetSceneTime() const { return sceneTime; }
+    [[nodiscard]] const SceneTime &GetSceneTime() const { return sceneTime; }
+    [[nodiscard]] Engine::InputHandler &GetInput() { return input; }
 
     virtual int OnStart() = 0;
     virtual int OnDraw(const SceneTime &time) = 0;

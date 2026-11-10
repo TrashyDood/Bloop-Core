@@ -2,16 +2,36 @@
 #include "TickLoop.h"
 #include "ThreadPool.h"
 
+void Scene::HandleKeyEvent(GLFWwindow *window, int key, int, int action, int)
+{
+    Scene *scene = nullptr;
+    if (!Shared::GetWindowUserPointer(*window, scene))
+        return;
+
+    Engine::KeyAction keyAction;
+    switch (action)
+    {
+        case GLFW_PRESS: keyAction = Engine::Pressed; break;
+        case GLFW_REPEAT: keyAction = Engine::Held; break;
+        case GLFW_RELEASE: keyAction = Engine::Released; break;
+    }
+
+    scene->input.OnKeyStateChanged(key, keyAction);
+}
+
 int Scene::Start(GLFWwindow *window, SceneConfig *config)
 {
+    Scene::config = config;
+    Scene::window = window;
     glfwSetWindowUserPointer(window, dynamic_cast<void *>(this));
     isRunning = true;
     int result = OnStart();
-
+    
     if (result == EXIT_SUCCESS)
     {
         glfwSwapInterval(config->enableVSync ? 1 : 0);
         glfwSetFramebufferSizeCallback(&GetWindow(), [](GLFWwindow *, int width, int height) { glViewport(0, 0, width, height); });
+        glfwSetKeyCallback(&GetWindow(), HandleKeyEvent);
 
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 
@@ -51,8 +71,5 @@ int Scene::Start(GLFWwindow &window, SceneConfig &config)
     if (isRunning)
         return EXIT_FAILURE;
 
-    Scene::config = &config;
-    Scene::window = &window;
-
-    return Start(Scene::window, Scene::config);
+    return Start(&window, &config);
 }
