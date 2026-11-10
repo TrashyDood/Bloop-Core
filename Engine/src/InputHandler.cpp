@@ -4,79 +4,87 @@
 
 namespace Engine
 {
-    InputHandler::KeyEventHandler &InputHandler::GetKeyEventHandler(const InputCode &key)
+#pragma region Private Getters
+    InputHandler::WildcardState &InputHandler::GetWildcardState(const InputCode &key)
     {
-        return keyEvents.try_emplace(key).first->second;
+        return wildcardStates.try_emplace(key).first->second;
     }
 
-    bool &InputHandler::GetKeyHoldState(const InputCode &key)
+    InputHandler::KeyState &InputHandler::GetKeyState(const InputCode &key)
     {
-        return heldKeys.try_emplace(key).first->second;
+        return keyStates.try_emplace(key).first->second;
     }
 
-    void InputHandler::OnKeyStateChanged(const InputCode &key, const KeyAction &action)
+#pragma endregion
+
+    void InputHandler::OnKeyStateChanged(const InputCode &key, const KeyAction &action, const InputCode &wildcardKey)
     {
         KeyAction eventAction = action;
-        bool &isHeld = GetKeyHoldState(key);
+        bool &isHeld = GetKeyState(key).isHeld;
         const bool wasHeld = isHeld;
 
-        switch (action)
+        eventAction = static_cast<KeyAction>(action + (wasHeld && action == Pressed));
+        isHeld = static_cast<bool>(action);
+        const int heldCountChange = static_cast<int>(isHeld) - static_cast<int>(wasHeld);
+
+        GetWildcardState(wildcardKey).heldKeyCount += heldCountChange;
+        if (wildcardKey != AnyInput)
+            GetWildcardState(AnyInput).heldKeyCount += heldCountChange;
+
+        GetKeyState(key).eventHandler.Invoke(key, eventAction);
+        GetWildcardState(wildcardKey).eventHandler.Invoke(key, eventAction);
+        
+        if (wildcardKey != AnyInput)
+            GetWildcardState(AnyInput).eventHandler.Invoke(key, eventAction);
+    }
+
+    InputHandler::KeyEventHandler::BindResult InputHandler::BindKey(
+        KeyCallback callback, const InputCode &key, const InputCode &wildcardKey)
+    {
+        return (key == wildcardKey)
+            ? GetWildcardState(wildcardKey).eventHandler.BindCallback(std::move(callback))
+            : GetKeyState(key).eventHandler.BindCallback(std::move(callback));
+    }
+
+    bool InputHandler::UnbindKey(CallbackId callbackId, const InputCode &key, const InputCode &wildcardKey)
+    {
+        if (key == wildcardKey)
+            return GetWildcardState(wildcardKey).eventHandler.UnbindCallback(callbackId);
+
+        const auto state = keyStates.find(key);
+        return state != keyStates.end() && state->second.eventHandler.UnbindCallback(callbackId);
+    }
+
+    bool InputHandler::IsKeyHeld(const InputCode &key, const InputCode &wildcardKey) const
+    {
+        if (key == wildcardKey)
         {
-        case Pressed:
-            eventAction = isHeld ? Held : Pressed;
-            isHeld = true;
-            break;
-        case Held:
-            isHeld = true;
-            break;
-        case Released:
-            isHeld = false;
-            break;
+            const auto state = wildcardStates.find(wildcardKey);
+            return state != wildcardStates.end() && state->second.heldKeyCount > 0;
         }
 
-        heldKeyCount += static_cast<int>(isHeld) - static_cast<int>(wasHeld);
-        GetKeyEventHandler(key).Invoke(key, eventAction);
-        anyKeyEventHandler.Invoke(key, eventAction);
+        const auto state = keyStates.find(key);
+        return state != keyStates.end() && state->second.isHeld;
     }
 
-    InputHandler::KeyEventHandler::BindResult InputHandler::BindKeyEvent(
-        KeyCallback callback, const InputCode &key)
+#pragma region Axis Queries
+    float InputHandler::GetAxis(const KeyCode &positive, const KeyCode &negative) const
     {
-        return (key == AnyInput) ? anyKeyEventHandler.BindCallback(std::move(callback))
-                                 : GetKeyEventHandler(key).BindCallback(std::move(callback));
+        return static_cast<float>(IsKeyHeld(positive)) - static_cast<float>(IsKeyHeld(negative));
     }
 
-    bool InputHandler::UnbindKeyEvent(CallbackId callbackId, const InputCode &key)
+    void InputHandler::GetAxis2(const KeyCode &right, const KeyCode &left, const KeyCode &up, const KeyCode &down,
+        float &outX, float &outY) const
     {
-        if (key == AnyInput)
-            return anyKeyEventHandler.UnbindCallback(callbackId);
-
-        const auto handler = keyEvents.find(key);
-        return handler != keyEvents.end() && handler->second.UnbindCallback(callbackId);
+        outX = GetAxis(right, left);
+        outY = GetAxis(down, up);
     }
 
-    bool InputHandler::IsKeyHeld(const InputCode &key) const
+    void InputHandler::GetAxis3(const KeyCode &right, const KeyCode &left, const KeyCode &up, const KeyCode &down,
+        const KeyCode &forward, const KeyCode &back, float &outX, float &outY, float &outZ) const
     {
-        if (key == AnyInput) return heldKeyCount > 0;
-
-        const auto state = heldKeys.find(key);
-        return state != heldKeys.end() && state->second;
+        GetAxis2(right, left, up, down, outX, outY);
+        outZ = GetAxis(forward, back);
     }
-
-    bool InputHandler::IsKeyHeld(const KeyCode &key) const
-    {
-        return IsKeyHeld(static_cast<InputCode>(key));
-    }
-
-    bool InputHandler::IsKeyHeld(const MouseKey &key) const
-    {
-        return IsKeyHeld(static_cast<InputCode>(key));
-    }
-
-    Vector3f InputHandler::GetAxis3(KeyCode right, KeyCode left, KeyCode up, KeyCode down) const
-    {
-        const float x = static_cast<float>(IsKeyHeld(right)) - static_cast<float>(IsKeyHeld(left));
-        const float z = static_cast<float>(IsKeyHeld(up)) - static_cast<float>(IsKeyHeld(down));
-        return {x, 0, z};
-    }
-}
+#pragma endregion
+} // namespace Engine

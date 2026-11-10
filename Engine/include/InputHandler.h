@@ -3,9 +3,9 @@
 #include "EventHandler.h"
 #include "Shared.h"
 
+#include <GLFW/glfw3.h>
 #include <optional>
 #include <unordered_map>
-#include <GLFW/glfw3.h>
 
 namespace Engine
 {
@@ -13,9 +13,19 @@ namespace Engine
 
     inline constexpr InputCode AnyInput = -2;
 
+    enum class KeyCode : InputCode;
+    enum class MouseKeyCode : InputCode;
+
+    template <typename T = InputCode>
+    inline constexpr InputCode WildcardCode = AnyInput;
+    template <>
+    inline constexpr InputCode WildcardCode<KeyCode> = AnyInput - 1;
+    template <>
+    inline constexpr InputCode WildcardCode<MouseKeyCode> = AnyInput - 2;
+
     enum class KeyCode : InputCode
     {
-        Any = -3,
+        Any = WildcardCode<KeyCode>,
         Unknown = GLFW_KEY_UNKNOWN,
         Space = GLFW_KEY_SPACE,
         Apostrophe = GLFW_KEY_APOSTROPHE,
@@ -139,9 +149,9 @@ namespace Engine
         Menu = GLFW_KEY_MENU
     };
 
-    enum class MouseKey : InputCode
+    enum class MouseKeyCode : InputCode
     {
-        Any = -4,
+        Any = WildcardCode<MouseKeyCode>,
         Button1 = GLFW_MOUSE_BUTTON_1,
         Button2 = GLFW_MOUSE_BUTTON_2,
         Button3 = GLFW_MOUSE_BUTTON_3,
@@ -166,44 +176,55 @@ namespace Engine
     {
         using KeyEventHandler = EventHandler<const InputCode &, const KeyAction &>;
 
-        int heldKeyCount = 0;
-        KeyEventHandler anyKeyEventHandler;
-        std::unordered_map<InputCode, KeyEventHandler> keyEvents;
-        std::unordered_map<InputCode, bool> heldKeys;
-
-        [[nodiscard]] KeyEventHandler &GetKeyEventHandler(const InputCode &key);
-        [[nodiscard]] bool &GetKeyHoldState(const InputCode &key);
-
     public:
         using CallbackId = KeyEventHandler::CallbackId;
         using KeyCallback = KeyEventHandler::EventCallback;
 
-        // Should not be called by consumer.
-        void OnKeyStateChanged(const InputCode &key, const KeyAction &action);
-        KeyEventHandler::BindResult BindKeyEvent(KeyCallback callback, const InputCode &key = AnyInput);
-        bool UnbindKeyEvent(CallbackId callbackId, const InputCode &key = AnyInput);
+    private:
+        struct WildcardState { int heldKeyCount = 0; KeyEventHandler eventHandler; };
+        struct KeyState { bool isHeld = false; KeyEventHandler eventHandler; };
 
-        [[nodiscard]] bool IsKeyHeld(const InputCode &key = AnyInput) const;
-        [[nodiscard]] bool IsKeyHeld(const KeyCode &key = KeyCode::Any) const;
-        [[nodiscard]] bool IsKeyHeld(const MouseKey &key = MouseKey::Any) const;
-        [[nodiscard]] Vector3f GetAxis3(KeyCode right, KeyCode left, KeyCode up, KeyCode down) const;
+        std::unordered_map<InputCode, KeyState> keyStates;
+        std::unordered_map<InputCode, WildcardState> wildcardStates;
+
+        [[nodiscard]] WildcardState &GetWildcardState(const InputCode &key);
+        [[nodiscard]] KeyState &GetKeyState(const InputCode &key);
+
+    public:
+        void OnKeyStateChanged(const InputCode &key, const KeyAction &action, const InputCode &wildcardKey = AnyInput);
+        KeyEventHandler::BindResult BindKey( KeyCallback callback, const InputCode &key, const InputCode &wildcardKey = AnyInput);
+        bool UnbindKey(CallbackId callbackId, const InputCode &key, const InputCode &wildcardKey = AnyInput);
+        [[nodiscard]] bool IsKeyHeld(const InputCode &key, const InputCode &wildcardKey = AnyInput) const;
+        [[nodiscard]] float GetAxis(const KeyCode &positive, const KeyCode &negative) const;
+
+        void GetAxis2(const KeyCode &right, const KeyCode &left, const KeyCode &up, const KeyCode &down, float &outX,
+            float &outY) const;
+
+        void GetAxis3(const KeyCode &right, const KeyCode &left, const KeyCode &up, const KeyCode &down,
+            const KeyCode &forward, const KeyCode &back, float &outX, float &outY, float &outZ) const;
+
+        template <typename T>
+        void OnKeyStateChanged(const T &key, const KeyAction &action)
+        {
+            OnKeyStateChanged(static_cast<InputCode>(key), action, WildcardCode<T>);
+        }
 
         template <typename T>
         KeyEventHandler::BindResult BindKey(KeyCallback callback, const T &key)
         {
-            return BindKeyEvent(callback, static_cast<InputCode>(key));
+            return BindKey(callback, static_cast<InputCode>(key), WildcardCode<T>);
         }
 
         template <typename T>
         bool UnbindKey(CallbackId callbackId, const T &key)
         {
-            return UnbindKeyEvent(callbackId, static_cast<InputCode>(key));
+            return UnbindKey(callbackId, static_cast<InputCode>(key), WildcardCode<T>);
         }
 
         template <typename T>
-        bool Test(const T &key)
+        bool IsKeyHeld(const T &key) const
         {
-            return false;
+            return IsKeyHeld(static_cast<InputCode>(key), WildcardCode<T>);
         }
     };
-} // namespace Engine
+}
