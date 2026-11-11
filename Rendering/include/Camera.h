@@ -64,6 +64,8 @@ namespace Rendering
         FlyingCamera(const float fieldOfView = 45.f, const float nearPlane = 0.1f, const float farPlane = 100.f)
             : Camera(transform) {}
 
+        [[nodiscard]] float GetOrbitDistance() { return glm::distance(GetTransform().GetPosition(), GetOrbitTarget()); }
+
         void ResetPosition(Vector3f resetPosition = DefaultResetPosition, Vector3f lookAt = DefaultLookAt)
         {
             GetTransform().SetPosition(resetPosition);
