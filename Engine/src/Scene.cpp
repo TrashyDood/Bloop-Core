@@ -34,7 +34,7 @@ int Scene::Start(GLFWwindow *window, SceneConfig *config)
     
     if (result == EXIT_SUCCESS)
     {
-        glfwSwapInterval(config->enableVSync ? 1 : 0);
+        glfwSwapInterval(config->vsyncEnabled ? 1 : 0);
         glfwSetKeyCallback(&GetWindow(), HandleKeyEvent);
         glfwSetMouseButtonCallback(&GetWindow(), HandleMouseButtonEvent);
         glfwSetFramebufferSizeCallback(&GetWindow(), [](GLFWwindow *, int width, int height)

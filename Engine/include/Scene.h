@@ -9,7 +9,7 @@
 struct SceneConfig
 {
     TimeDuration targetTimeStep = 0.0000001s;
-    bool enableVSync = true;
+    bool vsyncEnabled = true;
 };
 
 struct SceneTime
