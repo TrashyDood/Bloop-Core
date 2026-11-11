@@ -13,6 +13,16 @@
 
 #include <cstdlib>
 #include <array>
+#include <cmath>
+
+#define IMGUI_FRAME_START                                                                                              \
+    ImGui_ImplOpenGL3_NewFrame();                                                                                      \
+    ImGui_ImplGlfw_NewFrame();                                                                                         \
+    ImGui::NewFrame();
+
+#define IMGUI_FRAME_END                                                                                                \
+    ImGui::Render();                                                                                                   \
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 struct MeshObject { Rendering::Mesh &mesh; Shared::Transform transform; };
 struct MeshGeometry { Rendering::MeshVertices vertices; Rendering::MeshIndices indices; };
@@ -76,9 +86,6 @@ class DemoScene : public Scene
 
     double lastCursorX = 0.0, lastCursorY = 0.0;
     bool orbiting = false, wireframeEnabled = true;
-    bool imguiInitialized = false;
-    bool my_tool_active = true;
-    float my_color[4]{1.f, 1.f, 1.f, 1.f};
 
     std::array<MeshObject, 4> sceneObjects{{
         {cubeMesh, {{4.f, 0.f, 0.f}}},
@@ -86,6 +93,11 @@ class DemoScene : public Scene
         {pyramidMesh, {{0.f, 0.f, 0.f}}},
         {pyramidMesh, {{-2.f, 0.f, 0.f}}}
     }};
+
+    // IMGUI
+    bool imguiInitialized = false,
+        imguiWindowEnabled = true;
+    // IMGUI
 
 #pragma region Input Handlers
     static void HandleCursorPosition(GLFWwindow *window, double x, double y)
@@ -168,6 +180,13 @@ class DemoScene : public Scene
         GetInput().BindKey([this](const InputCode &, const KeyAction &action)
         {
             if (action != Pressed) return;
+            GetConfig().enableVSync = !GetConfig().enableVSync;
+            glfwSwapInterval(GetConfig().enableVSync ? 1 : 0);
+        }, KeyCode::V);
+
+        GetInput().BindKey([this](const InputCode &, const KeyAction &action)
+        {
+            if (action != Pressed) return;
                 
             camera.ResetPosition();
             orbiting = false;
@@ -186,6 +205,10 @@ class DemoScene : public Scene
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
         ImGui::StyleColorsDark();
+        ImGuiStyle &style = ImGui::GetStyle();
+        style.Colors[ImGuiCol_TitleBg] = ImVec4(0.12f, 0.12f, 0.12f, 1.f);
+        style.Colors[ImGuiCol_TitleBgActive] = ImVec4(0.18f, 0.18f, 0.18f, 1.f);
+        style.Colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.12f, 0.12f, 0.12f, 0.75f);
 
         if (!ImGui_ImplGlfw_InitForOpenGL(&GetWindow(), true))
         {
@@ -228,66 +251,80 @@ class DemoScene : public Scene
 
     void DrawImgui()
     {
-        ImGui::Begin("My First Tool", &my_tool_active, ImGuiWindowFlags_MenuBar);
-        if (ImGui::BeginMenuBar())
+        static float targetFramerate = 1.f / GetConfig().targetTimeStep.count();
+        static bool invalidTargetFramerate = false;
+        const float framerate = 1.f / std::max(0.0000000001f, GetSceneTime().deltaTime);
+
+        ImGui::Begin("Scene Context", &imguiWindowEnabled);
+        ImGui::SeparatorText("Info");
+
+        ImGui::Text("Framerate: %.1f FPS", framerate);
+        const Vector3f &position = camera.GetTransform().GetPosition();
+        const Vector3f direction = camera.GetTransform().GetForward();
+        ImGui::TextUnformatted("Camera position:");
+        ImGui::SameLine();
+        ImGui::TextColored({1.f, 0.3f, 0.3f, 1.f}, "X %.2f", position.x);
+        ImGui::SameLine();
+        ImGui::TextColored({0.3f, 1.f, 0.3f, 1.f}, "Y %.2f", position.y);
+        ImGui::SameLine();
+        ImGui::TextColored({0.3f, 0.5f, 1.f, 1.f}, "Z %.2f", position.z);
+        ImGui::TextUnformatted("Camera facing:");
+        ImGui::SameLine();
+        ImGui::TextColored({1.f, 0.3f, 0.3f, 1.f}, "X %.2f", direction.x);
+        ImGui::SameLine();
+        ImGui::TextColored({0.3f, 1.f, 0.3f, 1.f}, "Y %.2f", direction.y);
+        ImGui::SameLine();
+        ImGui::TextColored({0.3f, 0.5f, 1.f, 1.f}, "Z %.2f", direction.z);
+        ImGui::Text("Camera distance: %.2f", camera.GetOrbitDistance());
+
+        if (ImGui::Button("Reset camera (R)"))
         {
-            if (ImGui::BeginMenu("File"))
-            {
-                if (ImGui::MenuItem("Open..", "Ctrl+O"))
-                { /* Do stuff */
-                }
-                if (ImGui::MenuItem("Save", "Ctrl+S"))
-                { /* Do stuff */
-                }
-                if (ImGui::MenuItem("Close", "Ctrl+W"))
-                {
-                    my_tool_active = false;
-                }
-                ImGui::EndMenu();
-            }
-            ImGui::EndMenuBar();
+            camera.ResetPosition();
+            orbiting = false;
         }
 
-        // Edit a color stored as 4 floats
-        ImGui::ColorEdit4("Color", my_color);
+        ImGui::Spacing();
+        ImGui::SeparatorText("Settings");
 
-        // Generate samples and plot them
-        float samples[100];
-        for (int n = 0; n < 100; n++)
-            samples[n] = sinf(n * 0.2f + ImGui::GetTime() * 1.5f);
-        ImGui::PlotLines("Samples", samples, 100);
+        bool isOrthographic = camera.GetIsOrthographic();
+        if (ImGui::Checkbox("Orthographic (G)", &isOrthographic))
+            camera.SetIsOrthographic(isOrthographic);
+        ImGui::Checkbox("Wireframe (F)", &wireframeEnabled);
 
-        // Display contents in a scrolling region
-        ImGui::TextColored(ImVec4(1, 1, 0, 1), "Important Stuff");
-        ImGui::BeginChild("Scrolling");
-        for (int n = 0; n < 50; n++)
-            ImGui::Text("%04d: Some text", n);
-        ImGui::EndChild();
+        if (ImGui::Checkbox("VSync (V)", &GetConfig().enableVSync))
+        {
+            glfwSwapInterval(GetConfig().enableVSync ? 1 : 0);
+            if (GetConfig().enableVSync)
+                GetConfig().targetTimeStep = std::chrono::duration<double>::zero();
+        }
+
+        ImGui::BeginDisabled(GetConfig().enableVSync);
+        ImGui::SetNextItemWidth(100.f);
+        ImGui::InputFloat("Target framerate", &targetFramerate, 1.f, 10.f, "%.1f");
+        ImGui::EndDisabled();
+
+        invalidTargetFramerate =
+            !GetConfig().enableVSync && (!std::isfinite(targetFramerate) || targetFramerate <= 0.f);
+        if (!invalidTargetFramerate)
+        {
+            GetConfig().targetTimeStep =
+                GetConfig().enableVSync
+                ? std::chrono::duration<double>::zero()
+                : std::chrono::duration<double>(1.0 / targetFramerate);
+        }
+
+        if (invalidTargetFramerate)
+            ImGui::TextUnformatted("Target framerate must be greater than zero.");
         ImGui::End();
-    }
-
-    void OnStop(const int) override
-    {
-        if (!imguiInitialized)
-            return;
-
-        ImGui_ImplOpenGL3_Shutdown();
-        ImGui_ImplGlfw_Shutdown();
-        ImGui::DestroyContext();
-        imguiInitialized = false;
     }
 
     int OnDraw(const SceneTime &time) override
     {
         using namespace Engine;
 
-        if (!imguiInitialized && InitImgui() != EXIT_SUCCESS)
-            return EXIT_FAILURE;
-
         Vector3f moveVector{};
         GetInput().GetAxis3(KeyCode::D, KeyCode::A, KeyCode::Q, KeyCode::E,
             KeyCode::W, KeyCode::S, moveVector.x, moveVector.y, moveVector.z);
-
         camera.Move(moveVector, time.deltaTime);
 
         shader.Use();
@@ -317,30 +354,39 @@ class DemoScene : public Scene
             meshObject.mesh.Draw();
         }
 
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
+        if (!imguiInitialized && InitImgui() != EXIT_SUCCESS)
+            return EXIT_SUCCESS;
 
+        IMGUI_FRAME_START
         DrawImgui();
-        
-        ImGui::Render();
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        IMGUI_FRAME_END
 
         return EXIT_SUCCESS;
+    }
+
+    void OnStop(const int) override
+    {
+        if (!imguiInitialized)
+            return;
+
+        ImGui_ImplOpenGL3_Shutdown();
+        ImGui_ImplGlfw_Shutdown();
+        ImGui::DestroyContext();
+        imguiInitialized = false;
     }
 };
 
 int main()
 {
     GLFWwindow *window = nullptr;
-    int result = Shared::SetupWindow(window, 800, 600, "Engine Window");
+    int result = Shared::SetupWindow(window, 1200, 900, "Engine Window");
 
     if (result == EXIT_SUCCESS)
     {
         DemoScene scene;
         SceneConfig config{
-            .targetTimeStep = 0.000001s,
-            .enableVSync = true
+            .targetTimeStep = 0.0333333s,
+            .enableVSync = false
         };
         result = scene.Start(*window, config);
     }
