@@ -1,6 +1,48 @@
 #pragma once
 
 #include <chrono>
+#include <stdexcept>
+
+#pragma region Windows Timer Resolution
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define SHARED_DEFINED_WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define SHARED_DEFINED_NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#include <mmsystem.h>
+#ifdef SHARED_DEFINED_NOMINMAX
+#undef NOMINMAX
+#undef SHARED_DEFINED_NOMINMAX
+#endif
+#ifdef SHARED_DEFINED_WIN32_LEAN_AND_MEAN
+#undef WIN32_LEAN_AND_MEAN
+#undef SHARED_DEFINED_WIN32_LEAN_AND_MEAN
+#endif
+
+struct TimerResolution
+{
+    bool active;
+
+    explicit TimerResolution(bool enabled) : active(enabled)
+    {
+        if (active && timeBeginPeriod(1) != TIMERR_NOERROR)
+            throw std::runtime_error("Failed to increase Windows timer resolution.");
+    }
+
+    ~TimerResolution()
+    {
+        if (active)
+            timeEndPeriod(1);
+    }
+};
+
+#endif
+#pragma endregion
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
