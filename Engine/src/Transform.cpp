@@ -6,40 +6,40 @@
 
 #define EPSILON 1e-6f
 
-Matrix4f Shared::Transform::GetTransformMatrixScaled() const
+Matrix4f Engine::Transform::GetTransformMatrixScaled() const
 {
     return glm::scale(glm::translate(Matrix4f{1.0f}, position) * rotationMatrix, scale);
 }
 
-Matrix4f Shared::Transform::GetTransformMatrixUnScaled() const
+Matrix4f Engine::Transform::GetTransformMatrixUnScaled() const
 {
     return glm::translate(Matrix4f{1.0f}, position) * rotationMatrix;
 }
 
-Matrix4f Shared::Transform::GetTransformMatrix(const bool includeScale) const
+Matrix4f Engine::Transform::GetTransformMatrix(const bool includeScale) const
 {
     return includeScale
         ? GetTransformMatrixScaled()
         : GetTransformMatrixUnScaled();
 }
 
-Matrix4f Shared::Transform::GetLookMatrix() const
+Matrix4f Engine::Transform::GetLookMatrix() const
 {
     return glm::lookAt(position, position + GetForward(), GetUp());
 }
 
 
-Vector3f Shared::Transform::TransformVector(const Vector3f &vector, const bool includeScale) const
+Vector3f Engine::Transform::TransformVector(const Vector3f &vector, const bool includeScale) const
 {
     return Vector3f{GetTransformMatrix(includeScale) * Vector4f{vector, 0.0f}};
 }
 
-Vector3f Shared::Transform::TransformPoint(const Vector3f &point, const bool includeScale) const
+Vector3f Engine::Transform::TransformPoint(const Vector3f &point, const bool includeScale) const
 {
     return Vector3f{GetTransformMatrix(includeScale) * Vector4f{point, 1.0f}};
 }
 
-void Shared::Transform::SetRotation(const Quaternionf &newRotation)
+void Engine::Transform::SetRotation(const Quaternionf &newRotation)
 {
     rotation = glm::dot(newRotation, newRotation) > 0.0f ?
         glm::normalize(newRotation) : Quaternionf{1.0f, 0.0f, 0.0f, 0.0f};
@@ -48,7 +48,7 @@ void Shared::Transform::SetRotation(const Quaternionf &newRotation)
     rotationMatrix = glm::mat4_cast(rotation);
 }
 
-void Shared::Transform::SetLookDirection(const Vector3f &direction, const Vector3f &up)
+void Engine::Transform::SetLookDirection(const Vector3f &direction, const Vector3f &up)
 {
     if (glm::length2(direction) <= EPSILON || glm::length2(up) <= EPSILON)
         return;

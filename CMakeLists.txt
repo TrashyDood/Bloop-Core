@@ -81,7 +81,7 @@ if(BUILD_TESTING)
         tests/UnitTests.cpp
         Engine/src/InputHandler.cpp
         Rendering/src/Camera.cpp
-        Shared/src/Transform.cpp
+        Engine/src/Transform.cpp
     )
     target_include_directories(EngineTests PRIVATE
         Engine/include

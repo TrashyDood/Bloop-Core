@@ -2,7 +2,7 @@
 
 #include "Shared.h"
 
-namespace Shared
+namespace Engine
 {
     class Transform
     {
