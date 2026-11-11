@@ -4,38 +4,13 @@
 #include "IResourceOwner.h"
 #include "Rendering.h"
 
-#include <glad/gl.h>
-#include <glm/glm.hpp>
-
 #include <cstdint>
-#include <cmath>
-#include <limits>
-#include <utility>
-#include <vector>
 
 namespace Rendering
 {
-    // Represents a single vertex in a mesh, containing position, normal, texture coordinates, and color information.
-    struct Vertex
-    {
-        Vector3f position{};
-        Vector3f normal{};
-        Vector2f textureCoordinates{};
-        Color4f color = Colors::White;
-
-        Vertex() = default;
-        Vertex(Vector3f position, Vector3f normal = {}, Vector2f textureCoordinates = {}, Color4f color = Colors::White)
-            : position(position), normal(normal), textureCoordinates(textureCoordinates), color(color) {}
-    };
-
-    using MeshVertices = std::vector<Vertex>;
-    using MeshIndices = std::vector<std::uint32_t>;
-
     // Represents a mesh in OpenGL, managing its vertex array, vertex buffer, and index buffer.
     class Mesh : public IResourceOwner
     {
-        static constexpr std::size_t MaxBufferSize = static_cast<std::size_t>(std::numeric_limits<GLsizeiptr>::max());
-
         ResourceHandle vertexArray = 0;
         ResourceHandle vertexBuffer = 0;
         ResourceHandle indexBuffer = 0;
@@ -64,9 +39,6 @@ namespace Rendering
 
         bool InitializeResources() override;
         bool Draw() const;
-
-        static bool CreateBuffers(ResourceHandle &vertexArray, ResourceHandle &vertexBuffer, ResourceHandle &indexBuffer,
-            const MeshVertices &vertices, const MeshIndices &indices = {});
 
       private:
         void ReleaseResources() noexcept override;
