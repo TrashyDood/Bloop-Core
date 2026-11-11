@@ -24,6 +24,8 @@
 #undef SHARED_DEFINED_WIN32_LEAN_AND_MEAN
 #endif
 
+#define SMALL_NUMBER 1e-6f
+
 struct TimerResolution
 {
     bool active;

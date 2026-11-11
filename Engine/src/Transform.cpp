@@ -4,8 +4,6 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/norm.hpp>
 
-#define EPSILON 1e-6f
-
 Matrix4f Engine::Transform::GetTransformMatrixScaled() const
 {
     return glm::scale(glm::translate(Matrix4f{1.0f}, position) * rotationMatrix, scale);
@@ -50,13 +48,13 @@ void Engine::Transform::SetRotation(const Quaternionf &newRotation)
 
 void Engine::Transform::SetLookDirection(const Vector3f &direction, const Vector3f &up)
 {
-    if (glm::length2(direction) <= EPSILON || glm::length2(up) <= EPSILON)
+    if (glm::length2(direction) <= SMALL_NUMBER || glm::length2(up) <= SMALL_NUMBER)
         return;
 
     const Vector3f normalizedDirection = glm::normalize(direction),
         normalizedUp = glm::normalize(up);
 
-    if (glm::length2(glm::cross(normalizedDirection, normalizedUp)) <= EPSILON)
+    if (glm::length2(glm::cross(normalizedDirection, normalizedUp)) <= SMALL_NUMBER)
         return;
 
     SetRotation(glm::quatLookAt(normalizedDirection, normalizedUp));
