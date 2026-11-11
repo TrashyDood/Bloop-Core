@@ -46,12 +46,12 @@ int Scene::Start(GLFWwindow *window, SceneConfig *config)
 
         TickLoop tickLoop;
         ThreadTask<int> updateTask;
-        tickLoop.Run([&](float deltaTime, float elapsedTime)
+        tickLoop.Run([&](const TimeDuration &deltaTime, const TimeDuration &elapsedTime)
         {
             glfwPollEvents();
 
-            sceneTime.deltaTime = deltaTime;
-            sceneTime.elapsedTime = elapsedTime;
+            sceneTime.deltaTime = std::chrono::duration<float>(deltaTime).count();
+            sceneTime.elapsedTime = std::chrono::duration<float>(elapsedTime).count();
 
             updateTask =
                 StaticThreadPool().SubmitTask([&]() { return OnUpdate(sceneTime); });
