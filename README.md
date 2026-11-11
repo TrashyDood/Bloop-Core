@@ -1,6 +1,8 @@
 # Bloop Core Engine
 
-A work-in-progress C++17 project using GLFW, OpenGL, GLAD, and GLM.
+A work-in-progress C++17 OpenGL demo with a GLFW window, GLAD, GLM, and Dear ImGui. It renders animated cubes and pyramids, with a flying camera, keyboard/mouse input, and an in-app panel for camera, display, and frame-rate settings. The input handler supports typed keyboard and mouse codes, including wildcard bindings.
+
+Controls: WASD to move, Q/E vertically, mouse buttons to orbit, scroll to zoom, F for wireframe, G for orthographic view, V for VSync, R to reset the camera, and Esc to exit.
 
 ## Build and run
 
