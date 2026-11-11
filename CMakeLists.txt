@@ -18,11 +18,19 @@ find_file(GLFW_STATIC_LIBRARY
     REQUIRED
 )
 
-set(SHADER_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/shaders")
+set(SHADER_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/assets/shaders")
 add_custom_target(copy_shaders
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${CMAKE_CURRENT_SOURCE_DIR}/shaders"
+        "${CMAKE_CURRENT_SOURCE_DIR}/assets/shaders"
         "${SHADER_OUTPUT_DIR}"
+    VERBATIM
+)
+
+set(MODEL_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/assets/models")
+add_custom_target(copy_models
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_CURRENT_SOURCE_DIR}/assets/models"
+        "${MODEL_OUTPUT_DIR}"
     VERBATIM
 )
 
@@ -37,7 +45,7 @@ add_executable(Engine
     ${ENGINE_SOURCES}
     third_party/glad/src/gl.c
 )
-add_dependencies(Engine copy_shaders)
+add_dependencies(Engine copy_shaders copy_models)
 
 target_sources(Engine PRIVATE
     third_party/imgui/imgui.cpp
@@ -65,6 +73,7 @@ target_link_libraries(Engine PRIVATE
 
 target_compile_definitions(Engine PRIVATE
     ENGINE_SHADER_DIR="${SHADER_OUTPUT_DIR}"
+    ENGINE_MODEL_DIR="${MODEL_OUTPUT_DIR}"
     IMGUI_ENABLED
 )
 
