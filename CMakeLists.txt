@@ -65,10 +65,11 @@ target_link_libraries(Engine PRIVATE
 
 target_compile_definitions(Engine PRIVATE
     ENGINE_SHADER_DIR="${SHADER_OUTPUT_DIR}"
+    IMGUI_ENABLED
 )
 
 if(WIN32)
-    target_link_libraries(Engine PRIVATE opengl32 gdi32)
+    target_link_libraries(Engine PRIVATE opengl32 gdi32 winmm)
 endif()
 
 if(MINGW)
