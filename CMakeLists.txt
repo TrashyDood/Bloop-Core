@@ -74,7 +74,8 @@ target_link_libraries(Engine PRIVATE
 target_compile_definitions(Engine PRIVATE
     ENGINE_SHADER_DIR="${SHADER_OUTPUT_DIR}"
     ENGINE_MODEL_DIR="${MODEL_OUTPUT_DIR}"
-    IMGUI_ENABLED
+    DISABLE_GRAPHICS=1
+    ENABLE_OPENGL=1
 )
 
 if(WIN32)
