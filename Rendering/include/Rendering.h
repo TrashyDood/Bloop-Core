@@ -8,6 +8,8 @@
 
 #define DEFAULT_ASPECT_RATIO Rendering::DefaultAspectRatio
 #define ASPECT_RATIO(window) Shared::GetWindowAspectRatio(window)
+#define SHADER_FILE(filename) (ENGINE_SHADER_DIR "/" filename)
+#define MODEL_FILE(filename) (ENGINE_MODEL_DIR "/" filename)
 
 namespace Rendering
 {
@@ -34,22 +36,24 @@ namespace Rendering
     {
         Vector3f position{};
         Vector3f normal{};
-        Vector2f textureCoordinates{};
+        Vector2f UV{};
         Color4f color = Colors::White;
 
         Vertex() = default;
         Vertex(Vector3f position, Vector3f normal = {}, Vector2f textureCoordinates = {}, Color4f color = Colors::White)
-            : position(position), normal(normal), textureCoordinates(textureCoordinates), color(color) {}
+            : position(position), normal(normal), UV(textureCoordinates), color(color) {}
     };
 
     using MeshVertices = std::vector<Vertex>;
     using MeshIndices = std::vector<std::uint32_t>;
 
-    bool LoadShaderSource(const char *filename, std::string &outSource);
+    bool ReadFileToEnd(const char *filename, std::string &outSource);
+
     bool CompileShader(GLenum type, const char *source, ResourceHandle &outShader);
     bool LinkShaders(ResourceHandle &outShaderProgram, const ResourceHandle *shaders, std::size_t shadersCount);
     bool CreateShaderProgram(ResourceHandle &outShaderProgram, const ShaderSource *sources, std::size_t sourcesCount);
 
+    bool ParseMeshSource(const char *source, MeshVertices &outVertices, MeshIndices &outIndices);
     bool CreateMeshBuffers(ResourceHandle &vertexArray, ResourceHandle &vertexBuffer,
         ResourceHandle &indexBuffer, const MeshVertices &vertices, const MeshIndices &indices = {});
 }
