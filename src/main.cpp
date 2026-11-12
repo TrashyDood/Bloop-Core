@@ -12,19 +12,21 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <cstdlib>
+#include <cstddef>
 #include <array>
 #include <cmath>
+#include <string>
 
-#define IMGUI_FRAME_START                                                                                              \
-    ImGui_ImplOpenGL3_NewFrame();                                                                                      \
-    ImGui_ImplGlfw_NewFrame();                                                                                         \
+#define IMGUI_DRAW_START         \
+    ImGui_ImplOpenGL3_NewFrame();\
+    ImGui_ImplGlfw_NewFrame();   \
     ImGui::NewFrame();
 
-#define IMGUI_FRAME_END                                                                                                \
-    ImGui::Render();                                                                                                   \
+#define IMGUI_DRAW_END                                     \
+    ImGui::Render();                                       \
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-struct MeshObject { Rendering::Mesh &mesh; Shared::Transform transform; };
+struct MeshObject { Rendering::MeshResource *mesh; Engine::Transform transform; bool animates; };
 struct MeshGeometry { Rendering::MeshVertices vertices; Rendering::MeshIndices indices; };
 
 #pragma region Global Constants
@@ -73,12 +75,16 @@ const MeshGeometry PyramidGeometry{
 };
 #pragma endregion
 
-class DemoScene : public Scene
+class DemoScene : public Engine::Scene
 {
-    Rendering::Shader shader;
     Rendering::FlyingCamera camera;
-    Rendering::Mesh cubeMesh{CubeGeometry.vertices, CubeGeometry.indices};
-    Rendering::Mesh pyramidMesh{PyramidGeometry.vertices, PyramidGeometry.indices};
+    SharedList<Rendering::MeshResource> meshes{
+        std::make_shared<Rendering::MeshResource>(CubeGeometry.vertices, CubeGeometry.indices),
+        std::make_shared<Rendering::MeshResource>(PyramidGeometry.vertices, PyramidGeometry.indices)
+    };
+    Rendering::ShaderResource shader = Rendering::ShaderResource(
+        {{SHADER_FILE("vertex.glsl"), Rendering::VertexShader, true},
+        {SHADER_FILE("fragment.glsl"), Rendering::FragmentShader, true}});
 
     GLint modelMatrixUniform,
         viewMatrixUniform,
@@ -87,16 +93,10 @@ class DemoScene : public Scene
     double lastCursorX = 0.0, lastCursorY = 0.0;
     bool orbiting = false, wireframeEnabled = true;
 
-    std::array<MeshObject, 4> sceneObjects{{
-        {cubeMesh, {{4.f, 0.f, 0.f}}},
-        {cubeMesh, {{2.f, 0.f, 0.f}}},
-        {pyramidMesh, {{0.f, 0.f, 0.f}}},
-        {pyramidMesh, {{-2.f, 0.f, 0.f}}}
-    }};
+    std::vector<MeshObject> sceneObjects;
 
     // IMGUI
-    bool imguiInitialized = false,
-        imguiWindowEnabled = true;
+    bool imguiInitialized = false;
     // IMGUI
 
 #pragma region Input Handlers
@@ -132,14 +132,46 @@ class DemoScene : public Scene
     }
 #pragma endregion
 
+#pragma region Helper Funcs
+    MeshObject *SpawnSceneObject(const Vector3f &position, const std::size_t meshType)
+    {
+        if (meshType >= meshes.size())
+            return nullptr;
+
+        sceneObjects.push_back({meshes[meshType].get(), {position}});
+        return &sceneObjects[sceneObjects.size() - 1];
+    }
+
+    void RemoveSceneObject(const std::size_t objectIndex)
+    {
+        if (sceneObjects.size() > 0)
+        sceneObjects.erase(sceneObjects.begin() + objectIndex);
+    }
+
+    bool &GetVSync() { return GetConfig().vsyncEnabled; }
+    void SetVSync(const bool newValue)
+    {
+        auto &enabled = GetConfig().vsyncEnabled;
+        if (newValue == enabled) return;
+        enabled = newValue;
+        glfwSwapInterval(enabled ? 1 : 0);
+    }
+#pragma endregion
+
     int InitResources()
     {
         using namespace Rendering;
 
-        shader = Shader({{"vertex.glsl", VertexShader, true},
-                         {"fragment.glsl", FragmentShader, true}});
+        Rendering::MeshVertices vertices;
+        Rendering::MeshIndices indices;
+        if (Rendering::ParseMeshSource(MODEL_FILE("crystal.obj"), vertices, indices))
+            meshes.push_back(std::make_shared<Rendering::MeshResource>(vertices, indices));
 
-        if (!InitializeResources({&shader, &cubeMesh, &pyramidMesh}))
+        std::vector<IResourceOwner *> resources{&shader};
+        for (const auto &mesh : meshes)
+            resources.push_back(mesh.get());
+
+        if (!InitializeResources(resources))
         {
             LOG_ERROR("Failed to initialize resources.\n");
             return EXIT_FAILURE;
@@ -180,8 +212,7 @@ class DemoScene : public Scene
         GetInput().BindKey([this](const InputCode &, const KeyAction &action)
         {
             if (action != Pressed) return;
-            GetConfig().enableVSync = !GetConfig().enableVSync;
-            glfwSwapInterval(GetConfig().enableVSync ? 1 : 0);
+            SetVSync(!GetVSync());
         }, KeyCode::V);
 
         GetInput().BindKey([this](const InputCode &, const KeyAction &action)
@@ -249,13 +280,26 @@ class DemoScene : public Scene
         return EXIT_SUCCESS;
     }
 
+    void DrawImguiVector(const Vector3f &vector)
+    {
+        ImGui::TextColored({1.f, 0.3f, 0.3f, 1.f}, "X %.2f", vector.x);
+        ImGui::SameLine();
+        ImGui::TextColored({0.3f, 1.f, 0.3f, 1.f}, "Y %.2f", vector.y);
+        ImGui::SameLine();
+        ImGui::TextColored({0.3f, 0.5f, 1.f, 1.f}, "Z %.2f", vector.z);
+    }
+
     void DrawImgui()
     {
         static float targetFramerate = 1.f / GetConfig().targetTimeStep.count();
-        static bool invalidTargetFramerate = false;
-        const float framerate = 1.f / std::max(0.0000000001f, GetSceneTime().deltaTime);
+        static Vector3f spawnPosition{0.f, 0.f, 0.f};
+        static int spawnMeshType = 0;
+        static bool invalidTargetFramerate = false,
+            enabled = true;
 
-        ImGui::Begin("Scene Context", &imguiWindowEnabled);
+        const float framerate = 1.f / std::max(SMALL_NUMBER, GetSceneTime().deltaTime);
+
+        ImGui::Begin("Scene Context", &enabled);
         ImGui::SeparatorText("Info");
 
         ImGui::Text("Framerate: %.1f FPS", framerate);
@@ -263,18 +307,10 @@ class DemoScene : public Scene
         const Vector3f direction = camera.GetTransform().GetForward();
         ImGui::TextUnformatted("Camera position:");
         ImGui::SameLine();
-        ImGui::TextColored({1.f, 0.3f, 0.3f, 1.f}, "X %.2f", position.x);
-        ImGui::SameLine();
-        ImGui::TextColored({0.3f, 1.f, 0.3f, 1.f}, "Y %.2f", position.y);
-        ImGui::SameLine();
-        ImGui::TextColored({0.3f, 0.5f, 1.f, 1.f}, "Z %.2f", position.z);
+        DrawImguiVector(position);
         ImGui::TextUnformatted("Camera facing:");
         ImGui::SameLine();
-        ImGui::TextColored({1.f, 0.3f, 0.3f, 1.f}, "X %.2f", direction.x);
-        ImGui::SameLine();
-        ImGui::TextColored({0.3f, 1.f, 0.3f, 1.f}, "Y %.2f", direction.y);
-        ImGui::SameLine();
-        ImGui::TextColored({0.3f, 0.5f, 1.f, 1.f}, "Z %.2f", direction.z);
+        DrawImguiVector(direction);
         ImGui::Text("Camera distance: %.2f", camera.GetOrbitDistance());
 
         if (ImGui::Button("Reset camera (R)"))
@@ -284,41 +320,103 @@ class DemoScene : public Scene
         }
 
         ImGui::Spacing();
-        ImGui::SeparatorText("Settings");
-
+        ImGui::SeparatorText("Graphical Settings");
         bool isOrthographic = camera.GetIsOrthographic();
         if (ImGui::Checkbox("Orthographic (G)", &isOrthographic))
             camera.SetIsOrthographic(isOrthographic);
         ImGui::Checkbox("Wireframe (F)", &wireframeEnabled);
 
-        if (ImGui::Checkbox("VSync (V)", &GetConfig().enableVSync))
+        if (ImGui::Checkbox("VSync (V)", &GetConfig().vsyncEnabled))
         {
-            glfwSwapInterval(GetConfig().enableVSync ? 1 : 0);
-            if (GetConfig().enableVSync)
+            glfwSwapInterval(GetConfig().vsyncEnabled ? 1 : 0);
+            if (GetConfig().vsyncEnabled)
                 GetConfig().targetTimeStep = std::chrono::duration<double>::zero();
         }
 
-        ImGui::BeginDisabled(GetConfig().enableVSync);
+        ImGui::BeginDisabled(GetConfig().vsyncEnabled);
         ImGui::SetNextItemWidth(100.f);
         ImGui::InputFloat("Target framerate", &targetFramerate, 1.f, 10.f, "%.1f");
         ImGui::EndDisabled();
 
         invalidTargetFramerate =
-            !GetConfig().enableVSync && (!std::isfinite(targetFramerate) || targetFramerate <= 0.f);
+            !GetConfig().vsyncEnabled && (!std::isfinite(targetFramerate) || targetFramerate <= 0.f);
         if (!invalidTargetFramerate)
         {
             GetConfig().targetTimeStep =
-                GetConfig().enableVSync
+                GetConfig().vsyncEnabled
                 ? std::chrono::duration<double>::zero()
                 : std::chrono::duration<double>(1.0 / targetFramerate);
         }
 
         if (invalidTargetFramerate)
             ImGui::TextUnformatted("Target framerate must be greater than zero.");
+
+        ImGui::Spacing();
+        ImGui::SeparatorText("Scene Objects");
+        if (ImGui::BeginChild("SceneObjectList", ImVec2(0.f, 200.f), ImGuiChildFlags_Borders,
+                ImGuiWindowFlags_AlwaysVerticalScrollbar))
+        {
+            for (std::size_t i = 0; i < sceneObjects.size(); ++i)
+            {
+                ImGui::PushID(static_cast<int>(i));
+                MeshObject &object = sceneObjects[i];
+                std::size_t meshIndex = 0;
+                while (meshIndex < meshes.size() && object.mesh != meshes[meshIndex].get())
+                    ++meshIndex;
+                const Vector3f &objectPosition = object.transform.GetPosition();
+                if (meshIndex < meshes.size())
+                    ImGui::BulletText("%zu: MeshResource %zu", i + 1, meshIndex + 1);
+                else
+                    ImGui::BulletText("%zu: Unknown", i + 1);
+                ImGui::SameLine();
+                ImGui::Checkbox("Animate", &object.animates);
+                ImGui::SameLine();
+                DrawImguiVector(objectPosition);
+                ImGui::SameLine();
+                if (ImGui::SmallButton("Remove"))
+                {
+                    RemoveSceneObject(i);
+                    ImGui::PopID();
+                    break;
+                }
+                ImGui::PopID();
+            }
+        }
+        ImGui::EndChild();
+        if (meshes.empty())
+        {
+            ImGui::TextUnformatted("No meshes available");
+        }
+        else
+        {
+            if (spawnMeshType < 0 || static_cast<std::size_t>(spawnMeshType) >= meshes.size())
+                spawnMeshType = 0;
+
+            const std::string preview = "MeshResource " + std::to_string(spawnMeshType + 1);
+            if (ImGui::BeginCombo("MeshResource", preview.c_str()))
+            {
+                for (std::size_t meshIndex = 0; meshIndex < meshes.size(); ++meshIndex)
+                {
+                    const std::string label = "MeshResource " + std::to_string(meshIndex + 1);
+                    const bool selected = spawnMeshType == static_cast<int>(meshIndex);
+                    if (ImGui::Selectable(label.c_str(), selected))
+                        spawnMeshType = static_cast<int>(meshIndex);
+                    if (selected)
+                        ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+        }
+        ImGui::InputFloat3("Position", glm::value_ptr(spawnPosition));
+        ImGui::BeginDisabled(meshes.empty());
+        if (ImGui::Button("Spawn Object"))
+            SpawnSceneObject(spawnPosition, static_cast<std::size_t>(spawnMeshType));
+        ImGui::EndDisabled();
+
         ImGui::End();
     }
 
-    int OnDraw(const SceneTime &time) override
+    int OnDraw(const Engine::SceneTime &time) override
     {
         using namespace Engine;
 
@@ -335,31 +433,33 @@ class DemoScene : public Scene
         glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, glm::value_ptr(viewMatrix));
         glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
 
+        // Animate every other object in creation order.
         const float pulseScale = 1.f + glm::sin(time.elapsedTime) * 0.5f;
+        for (auto &meshObject : sceneObjects)
+        {
+            if (!meshObject.animates)
+                continue;
 
-        sceneObjects[0].transform.RotateEuler({0.f, 1.f * time.deltaTime, 0.f});
-        sceneObjects[0].transform.Translate({0.f, glm::sin(time.elapsedTime) * time.deltaTime, 0.f});
-        sceneObjects[0].transform.SetScale({pulseScale, pulseScale, pulseScale});
-
-        sceneObjects[2].transform.RotateEuler({0.f, 1.f * time.deltaTime, 0.f});
-        sceneObjects[2].transform.Translate({0.f, glm::sin(time.elapsedTime) * time.deltaTime, 0.f});
-        sceneObjects[2].transform.SetScale({pulseScale, pulseScale, pulseScale});
+            meshObject.transform.RotateEuler({0.f, time.deltaTime, 0.f});
+            meshObject.transform.Translate({0.f, glm::sin(time.elapsedTime) * time.deltaTime, 0.f});
+            meshObject.transform.SetScale({pulseScale, pulseScale, pulseScale});
+        }
 
         glPolygonMode(GL_FRONT_AND_BACK, wireframeEnabled ? GL_LINE : GL_FILL);
-
-        for (auto& meshObject : sceneObjects)
+        
+        for (auto &meshObject : sceneObjects)
         {
             const Matrix4f modelMatrix = meshObject.transform.GetTransformMatrix();
             glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, glm::value_ptr(modelMatrix));
-            meshObject.mesh.Draw();
+            meshObject.mesh->Draw();
         }
 
         if (!imguiInitialized && InitImgui() != EXIT_SUCCESS)
             return EXIT_SUCCESS;
 
-        IMGUI_FRAME_START
+        IMGUI_DRAW_START
         DrawImgui();
-        IMGUI_FRAME_END
+        IMGUI_DRAW_END
 
         return EXIT_SUCCESS;
     }
@@ -384,9 +484,9 @@ int main()
     if (result == EXIT_SUCCESS)
     {
         DemoScene scene;
-        SceneConfig config{
+        Engine::SceneConfig config{
             .targetTimeStep = 0.0333333s,
-            .enableVSync = false
+            .vsyncEnabled = true
         };
         result = scene.Start(*window, config);
     }
