@@ -1,21 +1,7 @@
 {
   "version": "2.0.0",
   "tasks": [
-    {
-      "label": "Run Engine",
-      "type": "process",
-      "command": "${workspaceFolder}\\build\\Engine.exe",
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated",
-        "close": false
-      },
-      "problemMatcher": []
-    },
-    {
+    { // MSYS SETUP
       "label": "MSYS2: Set Up Environment",
       "dependsOn": [
         "MSYS2: Update",
@@ -24,7 +10,7 @@
       ],
       "dependsOrder": "sequence"
     },
-    {
+    { // MSYS UPDATE
       "label": "MSYS2: Update",
       "type": "shell",
       "command": "call \"${config:msys2.root}\\msys2_shell.cmd\" -ucrt64 -defterm -no-start -here -c \"pacman -Syu\"",
@@ -32,10 +18,7 @@
         "cwd": "${workspaceFolder}",
         "shell": {
           "executable": "cmd.exe",
-          "args": [
-            "/d",
-            "/c"
-          ]
+          "args": ["/d", "/c"]
         }
       },
       "presentation": {
@@ -46,7 +29,7 @@
       },
       "problemMatcher": []
     },
-    {
+    { // MSYS UCRT64 DEPENDENCIES
       "label": "MSYS2: Install UCRT64 Dependencies",
       "type": "shell",
       "command": "call \"${config:msys2.root}\\msys2_shell.cmd\" -ucrt64 -defterm -no-start -here -c \"pacman -S --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-pkgconf\"",
@@ -54,10 +37,7 @@
         "cwd": "${workspaceFolder}",
         "shell": {
           "executable": "cmd.exe",
-          "args": [
-            "/d",
-            "/c"
-          ]
+          "args": ["/d", "/c"]
         }
       },
       "presentation": {
@@ -68,18 +48,15 @@
       },
       "problemMatcher": []
     },
-    {
+    { // MSYS2 OPENGL DEPENDENCIES
       "label": "MSYS2: Install OpenGL Dependencies",
       "type": "shell",
-      "command": "call \"${config:msys2.root}\\msys2_shell.cmd\" -ucrt64 -defterm -no-start -here -c \"pacman -S --needed mingw-w64-ucrt-x86_64-glfw mingw-w64-ucrt-x86_64-glm mingw-w64-ucrt-x86_64-python-glad mingw-w64-x86_64-glslang\"",
+      "command": "call \"${config:msys2.root}\\msys2_shell.cmd\" -ucrt64 -defterm -no-start -here -c \"pacman -S --needed mingw-w64-ucrt-x86_64-glfw mingw-w64-ucrt-x86_64-glm mingw-w64-ucrt-x86_64-python-glad mingw-w64-ucrt-x86_64-glslang\"",
       "options": {
         "cwd": "${workspaceFolder}",
         "shell": {
           "executable": "cmd.exe",
-          "args": [
-            "/d",
-            "/c"
-          ]
+          "args": ["/d", "/c"]
         }
       },
       "presentation": {
@@ -90,7 +67,7 @@
       },
       "problemMatcher": []
     },
-    {
+    { // MSYS2 GENERATE GLAD
       "label": "MSYS2: Generate GLAD",
       "type": "shell",
       "command": "call \"${config:msys2.root}\\msys2_shell.cmd\" -ucrt64 -defterm -no-start -here -c \"glad --api gl:core=3.3 --out-path third_party/glad c --loader\"",
@@ -98,10 +75,7 @@
         "cwd": "${workspaceFolder}",
         "shell": {
           "executable": "cmd.exe",
-          "args": [
-            "/d",
-            "/c"
-          ]
+          "args": ["/d", "/c"]
         }
       },
       "presentation": {
@@ -112,70 +86,42 @@
       },
       "problemMatcher": []
     },
-    {
-      "label": "MSYS2: CMake Configure",
-      "type": "shell",
-      "command": "call \"${config:msys2.root}\\msys2_shell.cmd\" -ucrt64 -defterm -no-start -here -c \"cmake --preset default\"",
-      "options": {
-        "cwd": "${workspaceFolder}",
-        "shell": {
-          "executable": "cmd.exe",
-          "args": [
-            "/d",
-            "/c"
-          ]
-        }
-      },
-      "presentation": {
-        "group": "msys2",
-        "reveal": "always",
-        "panel": "dedicated",
-        "close": false
-      },
+    { // CMAKE CONFIG
+      "label": "CMake: Configure",
+      "type": "cmake",
+      "command": "configure",
+      "preset": "default",
       "problemMatcher": []
     },
-    {
-      "label": "MSYS2: Build Engine",
-      "type": "shell",
-      "command": "call \"${config:msys2.root}\\msys2_shell.cmd\" -ucrt64 -defterm -no-start -here -c \"cmake --preset default && cmake --build --preset default\"",
+    { // CMAKE BUILD
+      "label": "CMake: Build",
+      "type": "cmake",
+      "command": "build",
+      "preset": "default",
+      "dependsOn": "CMake: Configure",
       "group": {
         "kind": "build",
         "isDefault": true
       },
-      "options": {
-        "cwd": "${workspaceFolder}",
-        "shell": {
-          "executable": "cmd.exe",
-          "args": [
-            "/d",
-            "/c"
-          ]
-        }
-      },
-      "presentation": {
-        "group": "msys2",
-        "reveal": "always",
-        "panel": "dedicated",
-        "close": false
-      },
       "problemMatcher": []
     },
-    {
-      "label": "MSYS2: Run Tests",
-      "type": "shell",
-      "command": "call \"${config:msys2.root}\\msys2_shell.cmd\" -ucrt64 -defterm -no-start -here -c \"cmake --preset default && cmake --build --preset default && ctest --test-dir build --output-on-failure\"",
+    { // CMAKE TEST
+      "label": "CMake: Run Tests",
+      "type": "cmake",
+      "command": "test",
+      "preset": "default",
+      "dependsOn": "CMake: Build",
+      "problemMatcher": []
+    },
+    { // RUN ENGINE
+      "label": "Run Engine",
+      "type": "process",
+      "command": "${command:cmake.launchTargetPath}",
       "options": {
-        "cwd": "${workspaceFolder}",
-        "shell": {
-          "executable": "cmd.exe",
-          "args": [
-            "/d",
-            "/c"
-          ]
-        }
+        "cwd": "${workspaceFolder}"
       },
+      "dependsOn": "CMake: Build",
       "presentation": {
-        "group": "msys2",
         "reveal": "always",
         "panel": "dedicated",
         "close": false

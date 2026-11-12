@@ -1,10 +1,15 @@
 {
+  "C_Cpp.clang_format_style": "file",
   "cmake.configurePreset": "default",
   "cmake.buildPreset": "default",
+  "cmake.testPreset": "default",
   "cmake.configureOnOpen": false,
+  "cmake.cmakePath": "C:\\msys2\\ucrt64\\bin\\cmake.exe",
+  "cmake.environment": {
+    "PATH": "C:\\msys2\\ucrt64\\bin;${env:PATH}"
+  },
   "glslLsp.diagnostics.glslang.targetEnv": "opengl",
   "[cpp]": {
     "editor.defaultFormatter": "ms-vscode.cpptools"
   },
-  "C_Cpp.clang_format_style": "file"
 }

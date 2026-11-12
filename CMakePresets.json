@@ -8,13 +8,14 @@
   "configurePresets": [
     {
       "name": "default",
-      "displayName": "MSYS2 UCRT64",
+      "displayName": "MSYS2 UCRT64 (Ninja)",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build",
       "cacheVariables": {
         "CMAKE_C_COMPILER": "gcc",
         "CMAKE_CXX_COMPILER": "g++",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "BUILD_TESTING": "ON"
       }
     }
   ],
@@ -23,6 +24,15 @@
       "name": "default",
       "configurePreset": "default",
       "jobs": 8
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "default",
+      "configurePreset": "default",
+      "output": {
+        "outputOnFailure": true
+      }
     }
   ]
 }

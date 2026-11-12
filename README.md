@@ -8,17 +8,13 @@ Controls: WASD to move, Q/E vertically, mouse buttons to orbit, scroll to zoom, 
 
 This project uses CMake and is configured for MSYS2 UCRT64 on Windows.
 
-1. Set `msys2.root` in your VS Code user settings to your MSYS2 installation path.
-2. Run **MSYS2: Set Up Environment** to install the required tools and libraries.
-3. Run **MSYS2: Build Engine** to configure and build.
-4. Run **Run Engine** to launch.
+1. Install the recommended VS Code extensions when prompted.
+2. Set `msys2.root` in your VS Code user settings to your MSYS2 installation folder (for example, `C:\msys2`). CMake Tools uses that installation directly; no environment variable or global `PATH` change is required. If MSYS2 is installed elsewhere, update `cmake.cmakePath` and the MSYS2 `PATH` entry in `.vscode/settings.json` to match.
+3. Run **MSYS2: Set Up Environment** once to install the required tools and libraries.
+4. Run **CMake: Configure** to configure the `default` preset.
+5. Press **Ctrl+Shift+B** or run **CMake: Build** to build.
+6. Run **Run Engine** to build and launch the selected CMake launch target.
 
 ## Run unit tests
 
-Configure the project with the default preset, then build and run the test target:
-
-```sh
-cmake --preset default
-cmake --build --preset default --target EngineTests
-ctest --test-dir build --output-on-failure
-```
+Run **CMake: Run Tests** to build the project and run the tests from the `default` CTest preset. CMake Tools also exposes the discovered tests in its Test Explorer.
