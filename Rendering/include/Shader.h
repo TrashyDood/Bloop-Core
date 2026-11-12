@@ -9,7 +9,7 @@
 
 namespace Rendering
 {
-    class Shader : public IResourceOwner
+    class ShaderResource : public IResourceOwner
     {
         ResourceHandle shaderProgram = 0;
         std::vector<ShaderSource> sources;
@@ -20,25 +20,25 @@ namespace Rendering
         [[nodiscard]] const ShaderSource &GetSource(std::size_t index) const { return sources.at(index); }
         [[nodiscard]] const std::vector<ShaderSource> &GetSources() const { return sources; }
         [[nodiscard]] bool HasSources() const { return !sources.empty(); }
+        [[nodiscard]] bool IsInitialized() const override { return shaderProgram != 0; }
 
         [[nodiscard]]
         bool GetUniformLocation(const std::string &name, GLint &location) const;
         [[nodiscard]]
         bool TryGetAttributeLocation(const std::string &name, GLint &location) const;
 
-        [[nodiscard]] bool IsInitialized() const override { return shaderProgram != 0; }
+        explicit ShaderResource(std::vector<ShaderSource> sources) : sources(std::move(sources)) {}
 
-        Shader(const Shader &) = delete;
-        Shader &operator=(const Shader &) = delete;
-
-        Shader() = default;
-
-        explicit Shader(std::vector<ShaderSource> sources) : sources(std::move(sources)) {}
-        ~Shader() { ReleaseResources(); }
-
-        Shader(Shader &&other) noexcept
+        // Transfers the program handle, leaving the source without ownership.
+        ShaderResource(ShaderResource &&other) noexcept
             : shaderProgram(std::exchange(other.shaderProgram, 0)), sources(std::move(other.sources)) {}
-        Shader &operator=(Shader &&other) noexcept;
+        // Releases this program before taking ownership of the source's.
+        ShaderResource &operator=(ShaderResource &&other) noexcept;
+
+        ~ShaderResource() { ReleaseResources(); }
+
+        ShaderResource(const ShaderResource &) = delete;
+        ShaderResource &operator=(const ShaderResource &) = delete;
 
         void Use() const { glUseProgram(shaderProgram); }
         bool InitializeResources() override;

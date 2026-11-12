@@ -5,7 +5,31 @@
 #include <limits>
 #include <utility>
 
-void Rendering::Mesh::ReleaseResources() noexcept
+Rendering::MeshResource::MeshResource(MeshResource &&other) noexcept
+    : IResourceOwner(std::move(other)),
+      vertexArray(std::exchange(other.vertexArray, 0)),
+      vertexBuffer(std::exchange(other.vertexBuffer, 0)),
+      indexBuffer(std::exchange(other.indexBuffer, 0)),
+      vertices(std::move(other.vertices)),
+      indices(std::move(other.indices)) { }
+
+Rendering::MeshResource &Rendering::MeshResource::operator=(MeshResource &&other) noexcept
+{
+    if (this != &other)
+    {
+        ReleaseResources();
+        IResourceOwner::operator=(std::move(other));
+        vertexArray = std::exchange(other.vertexArray, 0);
+        vertexBuffer = std::exchange(other.vertexBuffer, 0);
+        indexBuffer = std::exchange(other.indexBuffer, 0);
+        vertices = std::move(other.vertices);
+        indices = std::move(other.indices);
+    }
+
+    return *this;
+}
+
+void Rendering::MeshResource::ReleaseResources() noexcept
 {
     if (vertexArray != 0)
         glDeleteVertexArrays(1, &vertexArray);
@@ -19,7 +43,7 @@ void Rendering::Mesh::ReleaseResources() noexcept
     indexBuffer = 0;
 }
 
-bool Rendering::Mesh::InitializeResources()
+bool Rendering::MeshResource::InitializeResources()
 {
     if (!IResourceOwner::InitializeResources())
         return false;
@@ -39,7 +63,7 @@ bool Rendering::Mesh::InitializeResources()
     return CreateMeshBuffers(vertexArray, vertexBuffer, indexBuffer, vertices, indices);
 }
 
-bool Rendering::Mesh::Draw() const
+bool Rendering::MeshResource::Draw() const
 {
     if (!IsInitialized())
     {

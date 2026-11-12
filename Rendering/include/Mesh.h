@@ -9,7 +9,7 @@
 namespace Rendering
 {
     // Represents a mesh in OpenGL, managing its vertex array, vertex buffer, and index buffer.
-    class Mesh : public IResourceOwner
+    class MeshResource : public IResourceOwner
     {
         ResourceHandle vertexArray = 0;
         ResourceHandle vertexBuffer = 0;
@@ -23,19 +23,22 @@ namespace Rendering
         [[nodiscard]] ResourceHandle GetVertexArray() const { return vertexArray; }
         [[nodiscard]] ResourceHandle GetVertexBuffer() const { return vertexBuffer; }
         [[nodiscard]] ResourceHandle GetIndexBuffer() const { return indexBuffer; }
-
         [[nodiscard]] bool IsInitialized() const override { return vertexArray != 0 && vertexBuffer != 0 && (indices.empty() || indexBuffer != 0); }
 
-        Mesh() = default;
-        explicit Mesh(const MeshVertices &vertices, const MeshIndices &indices = {})
+        explicit MeshResource(const MeshVertices &vertices, const MeshIndices &indices = {})
             : vertices(vertices), indices(indices) {}
-        explicit Mesh(MeshVertices &&vertices, MeshIndices &&indices = {})
+        explicit MeshResource(MeshVertices &&vertices, MeshIndices &&indices = {})
             : vertices(std::move(vertices)), indices(std::move(indices)) {}
 
-        virtual ~Mesh() { ReleaseResources(); }
+        // Transfers mesh data and OpenGL handles, leaving the source empty.
+        MeshResource(MeshResource &&other) noexcept;
+        // Releases this mesh's handles before taking ownership of the source's.
+        MeshResource &operator=(MeshResource &&other) noexcept;
 
-        Mesh(const Mesh &) = delete;
-        Mesh &operator=(const Mesh &) = delete;
+        virtual ~MeshResource() { ReleaseResources(); }
+
+        MeshResource(const MeshResource &) = delete;
+        MeshResource &operator=(const MeshResource &) = delete;
 
         bool InitializeResources() override;
         bool Draw() const;
