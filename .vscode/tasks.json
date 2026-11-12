@@ -86,6 +86,21 @@
       },
       "problemMatcher": []
     },
+    {
+      "label": "MSYS2: Sync CMake Tools Paths",
+      "type": "process",
+      "command": "powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}\\.vscode\\sync-msys2-cmake-settings.ps1",
+        "-Msys2Root",
+        "${config:msys2.root}"
+      ],
+      "problemMatcher": []
+    },
     { // CMAKE CONFIG
       "label": "CMake: Configure",
       "type": "cmake",

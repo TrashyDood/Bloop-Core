@@ -11,10 +11,12 @@
 
 #include <glm/gtc/type_ptr.hpp>
 
-#include <cstdlib>
-#include <cstddef>
+#include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstddef>
+#include <cstdlib>
+#include <limits>
 #include <string>
 
 #define IMGUI_DRAW_START         \
@@ -280,26 +282,42 @@ class DemoScene : public Engine::Scene
         return EXIT_SUCCESS;
     }
 
-    void DrawImguiVector(const Vector3f &vector)
-    {
-        ImGui::TextColored({1.f, 0.3f, 0.3f, 1.f}, "X %.2f", vector.x);
-        ImGui::SameLine();
-        ImGui::TextColored({0.3f, 1.f, 0.3f, 1.f}, "Y %.2f", vector.y);
-        ImGui::SameLine();
-        ImGui::TextColored({0.3f, 0.5f, 1.f, 1.f}, "Z %.2f", vector.z);
-    }
-
     void DrawImgui()
     {
-        static float targetFramerate = 1.f / GetConfig().targetTimeStep.count();
         static Vector3f spawnPosition{0.f, 0.f, 0.f};
         static int spawnMeshType = 0;
-        static bool invalidTargetFramerate = false,
-            enabled = true;
+        static bool enabled = true;
+
+        static float targetFramerate = [](const double targetTimeStep)
+        {
+            if (!std::isfinite(targetTimeStep) || targetTimeStep <= 0.0)
+                return 30.f;
+
+            const double framerate = 1.0 / targetTimeStep;
+            if (!std::isfinite(framerate) || framerate <= 0.0 ||
+                framerate > std::numeric_limits<float>::max())
+                return 30.f;
+
+            return static_cast<float>(framerate);
+        }(GetConfig().targetTimeStep.count());
+
+        auto drawVector = [](const Vector3f &vector)
+        {
+            ImGui::TextColored({1.f, 0.3f, 0.3f, 1.f}, "X %.2f", vector.x);
+            ImGui::SameLine();
+            ImGui::TextColored({0.3f, 1.f, 0.3f, 1.f}, "Y %.2f", vector.y);
+            ImGui::SameLine();
+            ImGui::TextColored({0.3f, 0.5f, 1.f, 1.f}, "Z %.2f", vector.z);
+        };
 
         const float framerate = 1.f / std::max(SMALL_NUMBER, GetSceneTime().deltaTime);
 
-        ImGui::Begin("Scene Context", &enabled);
+        if (!ImGui::Begin("Scene Context", &enabled))
+        {
+            ImGui::End();
+            return;
+        }
+
         ImGui::SeparatorText("Info");
 
         ImGui::Text("Framerate: %.1f FPS", framerate);
@@ -307,10 +325,10 @@ class DemoScene : public Engine::Scene
         const Vector3f direction = camera.GetTransform().GetForward();
         ImGui::TextUnformatted("Camera position:");
         ImGui::SameLine();
-        DrawImguiVector(position);
+        drawVector(position);
         ImGui::TextUnformatted("Camera facing:");
         ImGui::SameLine();
-        DrawImguiVector(direction);
+        drawVector(direction);
         ImGui::Text("Camera distance: %.2f", camera.GetOrbitDistance());
 
         if (ImGui::Button("Reset camera (R)"))
@@ -326,30 +344,27 @@ class DemoScene : public Engine::Scene
             camera.SetIsOrthographic(isOrthographic);
         ImGui::Checkbox("Wireframe (F)", &wireframeEnabled);
 
-        if (ImGui::Checkbox("VSync (V)", &GetConfig().vsyncEnabled))
-        {
-            glfwSwapInterval(GetConfig().vsyncEnabled ? 1 : 0);
-            if (GetConfig().vsyncEnabled)
-                GetConfig().targetTimeStep = std::chrono::duration<double>::zero();
-        }
+        bool vsyncEnabled = GetVSync();
+        if (ImGui::Checkbox("VSync (V)", &vsyncEnabled))
+            SetVSync(vsyncEnabled);
 
-        ImGui::BeginDisabled(GetConfig().vsyncEnabled);
+        ImGui::BeginDisabled(vsyncEnabled);
         ImGui::SetNextItemWidth(100.f);
         ImGui::InputFloat("Target framerate", &targetFramerate, 1.f, 10.f, "%.1f");
         ImGui::EndDisabled();
 
-        invalidTargetFramerate =
-            !GetConfig().vsyncEnabled && (!std::isfinite(targetFramerate) || targetFramerate <= 0.f);
+        const bool invalidTargetFramerate =
+            !vsyncEnabled && (!std::isfinite(targetFramerate) || targetFramerate <= 0.f);
         if (!invalidTargetFramerate)
         {
             GetConfig().targetTimeStep =
-                GetConfig().vsyncEnabled
+                vsyncEnabled
                 ? std::chrono::duration<double>::zero()
                 : std::chrono::duration<double>(1.0 / targetFramerate);
         }
 
         if (invalidTargetFramerate)
-            ImGui::TextUnformatted("Target framerate must be greater than zero.");
+            ImGui::TextUnformatted("Target framerate must be finite and greater than zero.");
 
         ImGui::Spacing();
         ImGui::SeparatorText("Scene Objects");
@@ -365,13 +380,13 @@ class DemoScene : public Engine::Scene
                     ++meshIndex;
                 const Vector3f &objectPosition = object.transform.GetPosition();
                 if (meshIndex < meshes.size())
-                    ImGui::BulletText("%zu: MeshResource %zu", i + 1, meshIndex + 1);
+                    ImGui::BulletText("%zu: Mesh %zu", i + 1, meshIndex + 1);
                 else
                     ImGui::BulletText("%zu: Unknown", i + 1);
                 ImGui::SameLine();
                 ImGui::Checkbox("Animate", &object.animates);
                 ImGui::SameLine();
-                DrawImguiVector(objectPosition);
+                drawVector(objectPosition);
                 ImGui::SameLine();
                 if (ImGui::SmallButton("Remove"))
                 {
@@ -392,12 +407,12 @@ class DemoScene : public Engine::Scene
             if (spawnMeshType < 0 || static_cast<std::size_t>(spawnMeshType) >= meshes.size())
                 spawnMeshType = 0;
 
-            const std::string preview = "MeshResource " + std::to_string(spawnMeshType + 1);
-            if (ImGui::BeginCombo("MeshResource", preview.c_str()))
+            const std::string preview = "Mesh " + std::to_string(spawnMeshType + 1);
+            if (ImGui::BeginCombo("Mesh", preview.c_str()))
             {
                 for (std::size_t meshIndex = 0; meshIndex < meshes.size(); ++meshIndex)
                 {
-                    const std::string label = "MeshResource " + std::to_string(meshIndex + 1);
+                    const std::string label = "Mesh " + std::to_string(meshIndex + 1);
                     const bool selected = spawnMeshType == static_cast<int>(meshIndex);
                     if (ImGui::Selectable(label.c_str(), selected))
                         spawnMeshType = static_cast<int>(meshIndex);
