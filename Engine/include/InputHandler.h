@@ -4,7 +4,6 @@
 #include "Shared.h"
 
 #include <GLFW/glfw3.h>
-#include <optional>
 #include <unordered_map>
 
 namespace Engine

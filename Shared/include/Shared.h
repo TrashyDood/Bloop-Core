@@ -2,8 +2,10 @@
 
 #include <chrono>
 #include <stdexcept>
+#include <stddef.h>
+#include <memory>
+#include <vector>
 
-#pragma region Windows Timer Resolution
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
 #define SHARED_DEFINED_WIN32_LEAN_AND_MEAN
@@ -44,7 +46,6 @@ struct TimerResolution
 };
 
 #endif
-#pragma endregion
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -65,6 +66,9 @@ using Matrix3f = glm::mat3;
 using Quaternionf = glm::quat;
 using Matrix4f = glm::mat4;
 using TimeDuration = std::chrono::duration<double>;
+
+template<typename T>
+using SharedList = std::vector<std::shared_ptr<T>>;
 
 namespace Utils
 {
