@@ -101,7 +101,6 @@ class DemoScene : public Engine::Scene
 public:
     explicit DemoScene(Graphics::GlfwHost &graphicsHost) : graphicsHost(graphicsHost) {}
 
-private:
 #pragma region Input Handlers
     void OnCursorPosition(const double x, const double y) override
     {
@@ -144,10 +143,10 @@ private:
     {
         using namespace Graphics;
 
-        Graphics::MeshVertices vertices;
-        Graphics::MeshIndices indices;
-        if (Graphics::ParseMeshSource(MODEL_FILE("crystal.obj"), vertices, indices))
-            meshes.push_back(std::make_shared<Graphics::MeshResource>(vertices, indices));
+        MeshVertices vertices;
+        MeshIndices indices;
+        if (ParseMeshSource(MODEL_FILE("crystal.obj"), vertices, indices))
+            meshes.push_back(std::make_shared<MeshResource>(vertices, indices));
 
         std::vector<IResourceOwner *> resources{&shader};
         for (const auto &mesh : meshes)
@@ -217,11 +216,12 @@ private:
     int OnStart() override
     {
         using namespace Engine;
+        using namespace Graphics;
 
-        Graphics::MeshVertices vertices;
-        Graphics::MeshIndices indices;
-        Graphics::ParseMeshSource(MODEL_FILE("torus.obj"), vertices, indices);
-        meshes.push_back(std::make_shared<Graphics::MeshResource>(vertices, indices));
+        MeshVertices vertices;
+        MeshIndices indices;
+        ParseMeshSource(MODEL_FILE("torus.obj"), vertices, indices);
+        meshes.push_back(std::make_shared<MeshResource>(vertices, indices));
 
         if (InitResources() != EXIT_SUCCESS)
             return EXIT_FAILURE;

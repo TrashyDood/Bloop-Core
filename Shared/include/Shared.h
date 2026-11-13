@@ -54,6 +54,7 @@ struct TimerResolution
 
 using namespace std::chrono_literals;
 
+// Allow for shared ownership of a collection of objects of type T.
 template<typename T>
 using SharedList = std::vector<std::shared_ptr<T>>;
 using Vector2f = glm::vec2;
