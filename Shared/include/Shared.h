@@ -1,5 +1,7 @@
 #pragma once
 
+#include "InputCodes.h"
+
 #include <chrono>
 #include <stdexcept>
 #include <stddef.h>
@@ -26,8 +28,6 @@
 #undef SHARED_DEFINED_WIN32_LEAN_AND_MEAN
 #endif
 
-#define SMALL_NUMBER 1e-6f
-
 struct TimerResolution
 {
     bool active;
@@ -44,19 +44,18 @@ struct TimerResolution
             timeEndPeriod(1);
     }
 };
-
 #endif
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
-#include <glad/gl.h>
-#include <GLFW/glfw3.h>
 
-#define CHECK_GL_ERRORS() Utils::CheckOpenGLErrors()
-#define LOG_ERROR(msg, ...) Utils::WriteError(msg, ##__VA_ARGS__)
+#define LOG_ERROR(msg, ...) WriteError(msg, ##__VA_ARGS__)
+#define SMALL_NUMBER 1e-6f
 
 using namespace std::chrono_literals;
 
+template<typename T>
+using SharedList = std::vector<std::shared_ptr<T>>;
 using Vector2f = glm::vec2;
 using Vector3f = glm::vec3;
 using Vector4f = glm::vec4;
@@ -67,27 +66,7 @@ using Quaternionf = glm::quat;
 using Matrix4f = glm::mat4;
 using TimeDuration = std::chrono::duration<double>;
 
-template<typename T>
-using SharedList = std::vector<std::shared_ptr<T>>;
-
-namespace Utils
-{
-    void CheckOpenGLErrors();
-    void WriteError(const char *msg, ...);
-}
-
-namespace Shared
-{
-    [[nodiscard]] float GetWindowAspectRatio(GLFWwindow &window);
-    int SetupWindow(GLFWwindow *&outWindow, const int width = 800, const int height = 600, const char *title = "Engine Window");
-
-    template <typename T>
-    bool GetWindowUserPointer(GLFWwindow &window, T *&outPointer)
-    {
-        outPointer = static_cast<T *>(glfwGetWindowUserPointer(&window));
-        return outPointer != nullptr;
-    }
-}
+void WriteError(const char *msg, ...);
 
 namespace Colors
 {

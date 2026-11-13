@@ -1,9 +1,15 @@
-#include "Camera.h"
 #include "EventHandler.h"
 #include "InputHandler.h"
+#include "Scene.h"
+#include "Transform.h"
+#if defined(ENABLE_GRAPHICS) && ENABLE_GRAPHICS
+#include "Camera.h"
+#include "GlfwInput.h"
+#endif
 
 #include <atomic>
 #include <cmath>
+#include <cstdlib>
 #include <exception>
 #include <iostream>
 #include <string>
@@ -35,7 +41,7 @@ namespace
 
     void TestTransformDefaultsAndComposition()
     {
-        Engine::Transform transform;
+        Transform transform;
         Require(NearlyEqual(transform.GetPosition(), Vector3f{0.0f}), "Transform starts at the origin");
         Require(NearlyEqual(transform.GetScale(), Vector3f{1.0f}), "Transform starts with unit scale");
 
@@ -54,7 +60,7 @@ namespace
 
     void TestTransformRotation()
     {
-        Engine::Transform transform;
+        Transform transform;
         transform.SetRotation(glm::angleAxis(glm::half_pi<float>(), Vector3f{0.0f, 0.0f, 1.0f}));
 
         Require(NearlyEqual(transform.GetRight(), Vector3f{0.0f, 1.0f, 0.0f}),
@@ -65,7 +71,7 @@ namespace
 
     void TestTransformRejectsParallelLookDirection()
     {
-        Engine::Transform transform;
+        Transform transform;
         transform.SetRotation(glm::angleAxis(0.5f, Vector3f{0.0f, 1.0f, 0.0f}));
         const Quaternionf originalRotation = transform.GetRotation();
 
@@ -75,10 +81,11 @@ namespace
                 "Parallel look direction and up vectors leave rotation unchanged");
     }
 
+#if defined(ENABLE_GRAPHICS) && ENABLE_GRAPHICS
     void TestCameraOrthographicProjection()
     {
-        Engine::Transform transform;
-        Rendering::Camera camera(transform);
+        Transform transform;
+        Graphics::Camera camera(transform);
         camera.SetIsOrthographic(true);
         camera.SetOrthographicSize(4.0f);
 
@@ -89,8 +96,8 @@ namespace
 
     void TestCameraPerspectiveProjection()
     {
-        Engine::Transform transform;
-        Rendering::Camera camera(transform);
+        Transform transform;
+        Graphics::Camera camera(transform);
         camera.SetIsOrthographic(false);
 
         const Matrix4f projection = camera.GetProjectionMatrix(2.0f);
@@ -100,9 +107,9 @@ namespace
 
     void TestCameraViewMatrix()
     {
-        Engine::Transform transform;
+        Transform transform;
         transform.SetPosition({0.0f, 0.0f, 3.0f});
-        Rendering::Camera camera(transform);
+        Graphics::Camera camera(transform);
 
         const Vector4f cameraPositionInView =
             camera.GetViewMatrix() * Vector4f{transform.GetPosition(), 1.0f};
@@ -111,6 +118,38 @@ namespace
                     NearlyEqual(cameraPositionInView.z, 0.0f),
                 "View matrix maps camera position to the origin");
     }
+
+    void TestGlfwInputTranslation()
+    {
+        Require(Graphics::ToSharedKeyCode(GLFW_KEY_A) == KeyCode::A,
+                "GLFW letters map to engine key codes");
+        Require(Graphics::ToSharedKeyCode(GLFW_KEY_7) == KeyCode::Num7,
+                "GLFW digits map to engine key codes");
+        Require(Graphics::ToSharedKeyCode(GLFW_KEY_F25) == KeyCode::F25,
+                "GLFW function keys map to engine key codes");
+        Require(Graphics::ToSharedKeyCode(GLFW_KEY_KP_8) == KeyCode::Keypad8,
+                "GLFW keypad digits map to engine key codes");
+        Require(Graphics::ToSharedKeyCode(GLFW_KEY_ESCAPE) == KeyCode::Escape,
+                "GLFW special keys map to engine key codes");
+        Require(Graphics::ToSharedKeyCode(-999) == KeyCode::Unknown,
+                "Unrecognized GLFW keys map to Unknown");
+
+        Require(Graphics::ToSharedMouseButton(GLFW_MOUSE_BUTTON_1) == MouseKeyCode::Button1,
+                "GLFW mouse buttons map to engine button codes");
+        Require(Graphics::ToSharedMouseButton(GLFW_MOUSE_BUTTON_8) == MouseKeyCode::Button8,
+                "GLFW's highest mouse button maps to the engine code");
+        Require(Graphics::ToSharedMouseButton(99) == MouseKeyCode::Unknown,
+                "Unrecognized GLFW mouse buttons map to Unknown");
+
+        Require(Graphics::ToSharedKeyAction(GLFW_PRESS) == Pressed,
+                "GLFW press maps to Engine::Pressed");
+        Require(Graphics::ToSharedKeyAction(GLFW_RELEASE) == Released,
+                "GLFW release maps to Engine::Released");
+        Require(Graphics::ToSharedKeyAction(GLFW_REPEAT) == Held,
+                "GLFW repeat maps to Engine::Held");
+        Require(!Graphics::ToSharedKeyAction(-999), "Unrecognized GLFW actions are rejected");
+    }
+#endif
 
     void Increment(int &value)
     {
@@ -327,6 +366,62 @@ namespace
                 "Axis2 combines horizontal and vertical input");
     }
 
+    class LifecycleScene : public Engine::Scene
+    {
+    public:
+        int starts = 0;
+        int ticks = 0;
+        int stops = 0;
+        int keyEvents = 0;
+        bool tickObservedRunning = false;
+
+    protected:
+        int OnStart() override
+        {
+            ++starts;
+            GetInput().BindKey(
+                [this](const Engine::InputCode &, const Engine::KeyAction &) { ++keyEvents; },
+                Engine::KeyCode::Space);
+            return EXIT_SUCCESS;
+        }
+
+        int OnMainTick(const Engine::Scene::SceneTime &) override
+        {
+            ++ticks;
+            tickObservedRunning = GetIsRunning();
+            return EXIT_SUCCESS;
+        }
+
+        void OnStop(const int) override { ++stops; }
+    };
+
+    void TestSceneLifecycleAndRunHooks()
+    {
+        LifecycleScene scene;
+        Engine::Scene::SceneConfig config;
+        int eventPumps = 0;
+        int presents = 0;
+        int continueChecks = 0;
+        const Engine::Scene::SceneRunHooks hooks{
+            [&]
+            {
+                ++eventPumps;
+                scene.DispatchKeyEvent(Engine::KeyCode::Space, Engine::Pressed);
+            },
+            [&] { ++presents; },
+            [&] { ++continueChecks; return false; }
+        };
+
+        Require(scene.Run(config, hooks) == EXIT_SUCCESS, "Scene runner returns the tick result");
+        Require(scene.starts == 1 && scene.ticks == 1 && scene.stops == 1,
+                "Scene runner owns scene lifecycle and runs one frame");
+        Require(eventPumps == 1 && presents == 1 && continueChecks == 1,
+                "Scene runner invokes platform hooks around the frame");
+        Require(scene.keyEvents == 1, "Scene receives input during the pre-tick hook");
+        Require(scene.tickObservedRunning && scene.GetState() == Engine::Scene::State::Stopped,
+                "Scene transitions through running to stopped");
+    }
+
     using Test = std::pair<const char *, void (*)()>;
 }
 
@@ -336,9 +431,12 @@ int main()
         {"transform defaults and composition", TestTransformDefaultsAndComposition},
         {"transform rotation", TestTransformRotation},
         {"transform rejects parallel look direction", TestTransformRejectsParallelLookDirection},
+#if defined(ENABLE_GRAPHICS) && ENABLE_GRAPHICS
         {"orthographic camera projection", TestCameraOrthographicProjection},
         {"perspective camera projection", TestCameraPerspectiveProjection},
         {"camera view matrix", TestCameraViewMatrix},
+        {"GLFW input translation", TestGlfwInputTranslation},
+#endif
         {"event registration and removal", TestEventHandlerRegistrationAndRemoval},
         {"event duplicate lambdas", TestEventHandlerAllowsDuplicateLambdas},
         {"event concurrent invocation", TestEventHandlerConcurrentInvocation},
@@ -349,6 +447,7 @@ int main()
         {"input mouse-any binding", TestInputHandlerMouseAnyBinding},
         {"input typed any state", TestInputHandlerTypedAnyState},
         {"input 2D axis", TestInputHandlerAxis2},
+        {"scene lifecycle and run hooks", TestSceneLifecycleAndRunHooks},
     };
 
     int failures = 0;

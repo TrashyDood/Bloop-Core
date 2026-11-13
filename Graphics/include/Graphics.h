@@ -6,12 +6,13 @@
 #include <cstddef>
 #include <string>
 
-#define DEFAULT_ASPECT_RATIO Rendering::DefaultAspectRatio
-#define ASPECT_RATIO(window) Shared::GetWindowAspectRatio(window)
+#include <glad/gl.h>
+
+#define DEFAULT_ASPECT_RATIO Graphics::DefaultAspectRatio
 #define SHADER_FILE(filename) (ENGINE_SHADER_DIR "/" filename)
 #define MODEL_FILE(filename) (ENGINE_MODEL_DIR "/" filename)
 
-namespace Rendering
+namespace Graphics
 {
     using ResourceHandle = GLuint;
 
@@ -46,6 +47,8 @@ namespace Rendering
 
     using MeshVertices = std::vector<Vertex>;
     using MeshIndices = std::vector<std::uint32_t>;
+
+    void CheckGLErrors();
 
     bool ReadFileToEnd(const char *filename, std::string &outSource);
 

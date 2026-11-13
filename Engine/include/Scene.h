@@ -1,53 +1,87 @@
 #pragma once
 
-#include "Shared.h"
-#include "Transform.h"
 #include "InputHandler.h"
+#include "Shared.h"
 
-#include <GLFW/glfw3.h>
+#include <cstdlib>
+#include <functional>
 
 namespace Engine
 {
-    struct SceneConfig
-    {
-        TimeDuration targetTimeStep = 0.0000001s;
-        bool vsyncEnabled = true;
-    };
-
-    struct SceneTime
-    {
-        float deltaTime = 0.0f;
-        float elapsedTime = 0.0f;
-    };
-
     class Scene
     {
-        bool isRunning = false;
+    public:
+        struct SceneConfig
+        {
+            TimeDuration targetTimeStep = 0.0000001s;
+        };
 
-        GLFWwindow *window;
-        SceneConfig *config;
+        struct SceneTime
+        {
+            float deltaTime = 0.0f;
+            float elapsedTime = 0.0f;
+        };
+
+        struct SceneRunHooks
+        {
+            std::function<void()> preTick;
+            std::function<void()> postTick;
+            std::function<bool()> shouldContinue;
+        };
+
+        enum class State
+        {
+            Stopped,
+            Running,
+            Stopping
+        };
+
+    private:
+        State state = State::Stopped;
+        SceneConfig *config = nullptr;
 
         SceneTime sceneTime;
         InputHandler input;
 
-        static void HandleKeyEvent(GLFWwindow *window, int key, int scancode, int action, int modifiers);
-        static void HandleMouseButtonEvent(GLFWwindow *window, int button, int action, int modifiers);
-        int Start(GLFWwindow *window, SceneConfig *config);
+        int Start(SceneConfig &config);
+        int Tick();
+        void Stop(const int exitCode);
 
     protected:
         [[nodiscard]] const SceneTime &GetSceneTime() const { return sceneTime; }
         [[nodiscard]] InputHandler &GetInput() { return input; }
 
         virtual int OnStart() = 0;
-        virtual int OnDraw(const SceneTime &time) = 0;
-        virtual int OnUpdate(const SceneTime &time) { return EXIT_SUCCESS; }
+        virtual int OnMainTick(const SceneTime &time) = 0;
+        virtual void OnCursorPosition(double, double) {}
+        virtual void OnScroll(double, double) {}
         virtual void OnStop(const int exitCode) {}
 
     public:
-        [[nodiscard]] GLFWwindow &GetWindow() const { return *window; }
+        [[nodiscard]] State GetState() const { return state; }
         [[nodiscard]] SceneConfig &GetConfig() const { return *config; }
+        [[nodiscard]] bool GetIsRunning() const { return GetState() == State::Running; }
 
         virtual ~Scene() = default;
-        int Start(GLFWwindow &window, SceneConfig &config);
+
+        int Run(SceneConfig &config, const SceneRunHooks &hooks = {});
+        void RequestStop()
+        {
+            if (state == State::Running)
+                state = State::Stopping;
+        }
+
+        void DispatchKeyEvent(const KeyCode key, const KeyAction action)
+        {
+            input.OnKeyStateChanged(key, action);
+        }
+
+        void DispatchMouseButtonEvent(const MouseKeyCode button, const KeyAction action)
+        {
+            input.OnKeyStateChanged(button, action);
+        }
+
+        void DispatchCursorPosition(const double x, const double y) { OnCursorPosition(x, y); }
+        void DispatchScroll(const double xOffset, const double yOffset) { OnScroll(xOffset, yOffset); }
     };
 }

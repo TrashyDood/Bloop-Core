@@ -1,7 +1,7 @@
 #include "IResourceOwner.h"
 #include "Shared.h"
 
-bool Rendering::InitializeResources(IResourceOwner *owners[], std::size_t count)
+bool Graphics::InitializeResources(IResourceOwner *owners[], std::size_t count)
 {
     if (count != 0 && owners == nullptr)
     {

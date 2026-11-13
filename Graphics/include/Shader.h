@@ -1,13 +1,13 @@
 #pragma once
 
-#include "Rendering.h"
+#include "Graphics.h"
 #include "Shared.h"
 #include "IResourceOwner.h"
 
 #include <utility>
 #include <vector>
 
-namespace Rendering
+namespace Graphics
 {
     class ShaderResource : public IResourceOwner
     {

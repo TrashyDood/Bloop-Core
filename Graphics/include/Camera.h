@@ -1,20 +1,20 @@
 #pragma once
 
-#include "Rendering.h"
+#include "Graphics.h"
 #include "Transform.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 
-namespace Rendering
+namespace Graphics
 {
     class Camera
     {
-        Engine::Transform &transform;
+        Transform &transform;
         bool isOrthographic = false;
         float fieldOfView = 90.f, nearPlane = 0.1f, farPlane = 100.f, orthographicSize = 5.f;
 
     public:
-        Camera(Engine::Transform &transform)
+        Camera(Transform &transform)
             : transform(transform) {}
 
         [[nodiscard]] float GetFieldOfView() const { return fieldOfView; }
@@ -23,8 +23,8 @@ namespace Rendering
         [[nodiscard]] bool GetIsOrthographic() const { return isOrthographic; }
         [[nodiscard]] float GetOrthographicSize() const { return orthographicSize; }
 
-        [[nodiscard]] Engine::Transform &GetTransform() { return transform; }
-        [[nodiscard]] const Engine::Transform &GetTransform() const { return transform; }
+        [[nodiscard]] Transform &GetTransform() { return transform; }
+        [[nodiscard]] const Transform &GetTransform() const { return transform; }
 
         [[nodiscard]] Matrix4f GetViewMatrix() const { return transform.GetLookMatrix(); }
         [[nodiscard]] Matrix4f GetProjectionMatrix(const float aspectRatio = DEFAULT_ASPECT_RATIO) const;
@@ -46,7 +46,7 @@ namespace Rendering
             MinimumOrbitDistance = 0.1f,
             OrbitFocusDistance = 3.f;
 
-        Engine::Transform transform;
+        Transform transform;
         Vector3f orbitTarget{0.f};
         bool hasOrbitTarget = false;
 
@@ -110,7 +110,7 @@ namespace Rendering
             const Vector3f pitchAxis = yawRotation * Vectors::v3fRight;
             const Quaternionf pitchRotation = glm::angleAxis(clampedPitchDelta, pitchAxis);
 
-            Engine::Transform orbitTransform = GetTransform();
+            Transform orbitTransform = GetTransform();
             orbitTransform.SetPosition(target + pitchRotation * yawedOffset);
             orbitTransform.SetLookAtPoint(target, Vectors::v3fUp);
 

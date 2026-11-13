@@ -2,11 +2,11 @@
 
 #include "Shared.h"
 #include "IResourceOwner.h"
-#include "Rendering.h"
+#include "Graphics.h"
 
 #include <cstdint>
 
-namespace Rendering
+namespace Graphics
 {
     // Represents a mesh in OpenGL, managing its vertex array, vertex buffer, and index buffer.
     class MeshResource : public IResourceOwner

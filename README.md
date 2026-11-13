@@ -8,6 +8,8 @@ Controls: WASD to move, Q/E vertically, mouse buttons to orbit, scroll to zoom, 
 
 This project uses CMake and is configured for MSYS2 UCRT64 on Windows.
 
+Graphics are disabled by default. Configure with `-DENABLE_GRAPHICS=ON` to build the GLFW/OpenGL `Graphics` library and demo. `Graphics` depends on `Shared`, not `EngineCore`; the demo composes `Graphics` and `EngineCore`. `EngineCore` owns scene timing and lifecycle, with optional hooks for platform event processing and presentation. Without graphics, CMake builds `Shared`, `EngineCore`, and the core tests.
+
 1. Install the recommended VS Code extensions when prompted.
 2. Set `msys2.root` in your VS Code user settings to your MSYS2 installation folder (for example, `C:\msys2`). No environment variable or global `PATH` change is required.
 3. Run **MSYS2: Set Up Environment** once to install the required tools and libraries.

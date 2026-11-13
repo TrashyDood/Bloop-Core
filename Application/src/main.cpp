@@ -1,4 +1,5 @@
 #include "Shared.h"
+#include "GlfwHost.h"
 #include "Transform.h"
 #include "Camera.h"
 #include "Mesh.h"
@@ -28,10 +29,10 @@
     ImGui::Render();                                       \
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-struct MeshObject { Rendering::MeshResource *mesh; Engine::Transform transform; bool animates; };
-struct MeshGeometry { Rendering::MeshVertices vertices; Rendering::MeshIndices indices; };
+#pragma region Demo Mesh Handling
+struct MeshObject { Graphics::MeshResource *mesh; Transform transform; bool animates; };
+struct MeshGeometry { Graphics::MeshVertices vertices; Graphics::MeshIndices indices; };
 
-#pragma region Global Constants
 const MeshGeometry CubeGeometry{
     {
         {{-0.5f, -0.5f, 0.5f}, {}, {}, Colors::Red},
@@ -79,14 +80,14 @@ const MeshGeometry PyramidGeometry{
 
 class DemoScene : public Engine::Scene
 {
-    Rendering::FlyingCamera camera;
-    SharedList<Rendering::MeshResource> meshes{
-        std::make_shared<Rendering::MeshResource>(CubeGeometry.vertices, CubeGeometry.indices),
-        std::make_shared<Rendering::MeshResource>(PyramidGeometry.vertices, PyramidGeometry.indices)
-    };
-    Rendering::ShaderResource shader = Rendering::ShaderResource(
-        {{SHADER_FILE("vertex.glsl"), Rendering::VertexShader, true},
-        {SHADER_FILE("fragment.glsl"), Rendering::FragmentShader, true}});
+    Graphics::GlfwHost &graphicsHost;
+    Graphics::FlyingCamera camera;
+    SharedList<Graphics::MeshResource> meshes{
+        std::make_shared<Graphics::MeshResource>(CubeGeometry.vertices, CubeGeometry.indices),
+        std::make_shared<Graphics::MeshResource>(PyramidGeometry.vertices, PyramidGeometry.indices)};
+    Graphics::ShaderResource shader = Graphics::ShaderResource(
+        {{SHADER_FILE("vertex.glsl"), Graphics::VertexShader, true},
+        {SHADER_FILE("fragment.glsl"), Graphics::FragmentShader, true}});
 
     GLint modelMatrixUniform,
         viewMatrixUniform,
@@ -97,40 +98,28 @@ class DemoScene : public Engine::Scene
 
     std::vector<MeshObject> sceneObjects;
 
-    // IMGUI
-    bool imguiInitialized = false;
-    // IMGUI
+public:
+    explicit DemoScene(Graphics::GlfwHost &graphicsHost) : graphicsHost(graphicsHost) {}
 
+private:
 #pragma region Input Handlers
-    static void HandleCursorPosition(GLFWwindow *window, double x, double y)
+    void OnCursorPosition(const double x, const double y) override
     {
-        DemoScene *scene = nullptr;
-        if (!Shared::GetWindowUserPointer(*window, scene))
-            return;
-
-        if (!scene->orbiting)
-        {
-            scene->orbiting = false;
-            return;
-        }
+        if (!orbiting) { orbiting = false; return; }
 
         const float sensitivity = 0.005f,
-            yawDelta = static_cast<float>(x - scene->lastCursorX) * sensitivity,
-            pitchDelta = static_cast<float>(scene->lastCursorY - y) * sensitivity;
+            yawDelta = static_cast<float>(x - lastCursorX) * sensitivity,
+            pitchDelta = static_cast<float>(lastCursorY - y) * sensitivity;
 
-        scene->camera.Orbit(yawDelta, pitchDelta);
-        scene->lastCursorX = x;
-        scene->lastCursorY = y;
+        camera.Orbit(yawDelta, pitchDelta);
+        lastCursorX = x;
+        lastCursorY = y;
     }
 
-    static void HandleScroll(GLFWwindow *window, double, double yOffset)
+    void OnScroll(double, const double yOffset) override
     {
-        DemoScene *scene = nullptr;
-        if (!Shared::GetWindowUserPointer(*window, scene))
-            return;
-
         constexpr float zoomSensitivity = 0.1f;
-        scene->camera.Zoom(yOffset * zoomSensitivity);
+        camera.Zoom(yOffset * zoomSensitivity);
     }
 #pragma endregion
 
@@ -149,25 +138,16 @@ class DemoScene : public Engine::Scene
         if (sceneObjects.size() > 0)
         sceneObjects.erase(sceneObjects.begin() + objectIndex);
     }
-
-    bool &GetVSync() { return GetConfig().vsyncEnabled; }
-    void SetVSync(const bool newValue)
-    {
-        auto &enabled = GetConfig().vsyncEnabled;
-        if (newValue == enabled) return;
-        enabled = newValue;
-        glfwSwapInterval(enabled ? 1 : 0);
-    }
 #pragma endregion
 
     int InitResources()
     {
-        using namespace Rendering;
+        using namespace Graphics;
 
-        Rendering::MeshVertices vertices;
-        Rendering::MeshIndices indices;
-        if (Rendering::ParseMeshSource(MODEL_FILE("crystal.obj"), vertices, indices))
-            meshes.push_back(std::make_shared<Rendering::MeshResource>(vertices, indices));
+        Graphics::MeshVertices vertices;
+        Graphics::MeshIndices indices;
+        if (Graphics::ParseMeshSource(MODEL_FILE("crystal.obj"), vertices, indices))
+            meshes.push_back(std::make_shared<Graphics::MeshResource>(vertices, indices));
 
         std::vector<IResourceOwner *> resources{&shader};
         for (const auto &mesh : meshes)
@@ -196,7 +176,8 @@ class DemoScene : public Engine::Scene
         
         GetInput().BindKey([this](const InputCode &, const KeyAction &action)
         {
-            glfwSetWindowShouldClose(&GetWindow(), GLFW_TRUE);
+            if (action == Pressed)
+                RequestStop();
         }, KeyCode::Escape);
 
         GetInput().BindKey([this](const InputCode &, const KeyAction &action)
@@ -213,8 +194,8 @@ class DemoScene : public Engine::Scene
 
         GetInput().BindKey([this](const InputCode &, const KeyAction &action)
         {
-            if (action != Pressed) return;
-            SetVSync(!GetVSync());
+            if (action == Pressed)
+                graphicsHost.SetVSyncEnabled(!graphicsHost.IsVSyncEnabled());
         }, KeyCode::V);
 
         GetInput().BindKey([this](const InputCode &, const KeyAction &action)
@@ -229,50 +210,23 @@ class DemoScene : public Engine::Scene
         {
             orbiting = static_cast<bool>(action);
             if (orbiting)
-                glfwGetCursorPos(&GetWindow(), &lastCursorX, &lastCursorY);
+                graphicsHost.GetCursorPosition(lastCursorX, lastCursorY);
         }, MouseKeyCode::Any);
-    }
-
-    int InitImgui()
-    {
-        IMGUI_CHECKVERSION();
-        ImGui::CreateContext();
-        ImGui::StyleColorsDark();
-        ImGuiStyle &style = ImGui::GetStyle();
-        style.Colors[ImGuiCol_TitleBg] = ImVec4(0.12f, 0.12f, 0.12f, 1.f);
-        style.Colors[ImGuiCol_TitleBgActive] = ImVec4(0.18f, 0.18f, 0.18f, 1.f);
-        style.Colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.12f, 0.12f, 0.12f, 0.75f);
-
-        if (!ImGui_ImplGlfw_InitForOpenGL(&GetWindow(), true))
-        {
-            LOG_ERROR("Failed to initialize ImGui GLFW backend.\n");
-            ImGui::DestroyContext();
-            return EXIT_FAILURE;
-        }
-
-        if (!ImGui_ImplOpenGL3_Init("#version 330"))
-        {
-            LOG_ERROR("Failed to initialize ImGui OpenGL backend.\n");
-            ImGui_ImplGlfw_Shutdown();
-            ImGui::DestroyContext();
-            return EXIT_FAILURE;
-        }
-
-        imguiInitialized = true;
-        return EXIT_SUCCESS;
     }
 
     int OnStart() override
     {
         using namespace Engine;
 
+        Graphics::MeshVertices vertices;
+        Graphics::MeshIndices indices;
+        Graphics::ParseMeshSource(MODEL_FILE("torus.obj"), vertices, indices);
+        meshes.push_back(std::make_shared<Graphics::MeshResource>(vertices, indices));
+
         if (InitResources() != EXIT_SUCCESS)
             return EXIT_FAILURE;
 
         BindInput();
-
-        glfwSetCursorPosCallback(&GetWindow(), HandleCursorPosition);
-        glfwSetScrollCallback(&GetWindow(), HandleScroll);
 
         camera.ResetPosition();
 
@@ -286,7 +240,37 @@ class DemoScene : public Engine::Scene
     {
         static Vector3f spawnPosition{0.f, 0.f, 0.f};
         static int spawnMeshType = 0;
-        static bool enabled = true;
+        static bool enabled = true, initialized = false;
+
+        if (!initialized)
+        {
+            IMGUI_CHECKVERSION();
+            ImGui::CreateContext();
+            ImGui::StyleColorsDark();
+            ImGuiStyle &style = ImGui::GetStyle();
+            style.Colors[ImGuiCol_TitleBg] = ImVec4(0.12f, 0.12f, 0.12f, 1.f);
+            style.Colors[ImGuiCol_TitleBgActive] = ImVec4(0.18f, 0.18f, 0.18f, 1.f);
+            style.Colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.12f, 0.12f, 0.12f, 0.75f);
+
+            if (!ImGui_ImplGlfw_InitForOpenGL(&graphicsHost.GetWindow(), true))
+            {
+                LOG_ERROR("Failed to initialize ImGui GLFW backend.\n");
+                ImGui::DestroyContext();
+                return;
+            }
+
+            if (!ImGui_ImplOpenGL3_Init("#version 330"))
+            {
+                LOG_ERROR("Failed to initialize ImGui OpenGL backend.\n");
+                ImGui_ImplGlfw_Shutdown();
+                ImGui::DestroyContext();
+                return;
+            }
+
+            initialized = true;
+        }
+
+        IMGUI_DRAW_START;
 
         static float targetFramerate = [](const double targetTimeStep)
         {
@@ -344,9 +328,9 @@ class DemoScene : public Engine::Scene
             camera.SetIsOrthographic(isOrthographic);
         ImGui::Checkbox("Wireframe (F)", &wireframeEnabled);
 
-        bool vsyncEnabled = GetVSync();
+        bool vsyncEnabled = graphicsHost.IsVSyncEnabled();
         if (ImGui::Checkbox("VSync (V)", &vsyncEnabled))
-            SetVSync(vsyncEnabled);
+            graphicsHost.SetVSyncEnabled(vsyncEnabled);
 
         ImGui::BeginDisabled(vsyncEnabled);
         ImGui::SetNextItemWidth(100.f);
@@ -429,9 +413,11 @@ class DemoScene : public Engine::Scene
         ImGui::EndDisabled();
 
         ImGui::End();
+
+        IMGUI_DRAW_END;
     }
 
-    int OnDraw(const Engine::SceneTime &time) override
+    int OnMainTick(const Engine::Scene::SceneTime &time) override
     {
         using namespace Engine;
 
@@ -444,72 +430,67 @@ class DemoScene : public Engine::Scene
 
         // Set the view and projection matrices based on the camera's current state.
         const Matrix4f viewMatrix = camera.GetViewMatrix();
-        const Matrix4f projectionMatrix = camera.GetProjectionMatrix(ASPECT_RATIO(GetWindow()));
+        const Matrix4f projectionMatrix = camera.GetProjectionMatrix(graphicsHost.GetWindowAspectRatio());
+
         glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, glm::value_ptr(viewMatrix));
         glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
 
-        // Animate every other object in creation order.
-        const float pulseScale = 1.f + glm::sin(time.elapsedTime) * 0.5f;
-        for (auto &meshObject : sceneObjects)
-        {
-            if (!meshObject.animates)
-                continue;
-
-            meshObject.transform.RotateEuler({0.f, time.deltaTime, 0.f});
-            meshObject.transform.Translate({0.f, glm::sin(time.elapsedTime) * time.deltaTime, 0.f});
-            meshObject.transform.SetScale({pulseScale, pulseScale, pulseScale});
-        }
-
         glPolygonMode(GL_FRONT_AND_BACK, wireframeEnabled ? GL_LINE : GL_FILL);
-        
+
         for (auto &meshObject : sceneObjects)
         {
+            if (meshObject.animates)
+            {
+                const float pulseScale = 1.f + glm::sin(time.elapsedTime) * 0.5f;
+                meshObject.transform.RotateEuler({0.f, time.deltaTime, 0.f});
+                meshObject.transform.Translate({0.f, glm::sin(time.elapsedTime) * time.deltaTime, 0.f});
+                meshObject.transform.SetScale({pulseScale, pulseScale, pulseScale});
+            }
+
             const Matrix4f modelMatrix = meshObject.transform.GetTransformMatrix();
             glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, glm::value_ptr(modelMatrix));
             meshObject.mesh->Draw();
         }
 
-        if (!imguiInitialized && InitImgui() != EXIT_SUCCESS)
-            return EXIT_SUCCESS;
-
-        IMGUI_DRAW_START
         DrawImgui();
-        IMGUI_DRAW_END
 
         return EXIT_SUCCESS;
     }
 
     void OnStop(const int) override
     {
-        if (!imguiInitialized)
-            return;
-
         ImGui_ImplOpenGL3_Shutdown();
         ImGui_ImplGlfw_Shutdown();
         ImGui::DestroyContext();
-        imguiInitialized = false;
     }
 };
 
 int main()
 {
-    GLFWwindow *window = nullptr;
-    int result = Shared::SetupWindow(window, 1200, 900, "Engine Window");
+    using namespace Engine;
+    using namespace Graphics;
 
-    if (result == EXIT_SUCCESS)
+    GlfwHost host;
+    DemoScene scene(host);
+    WindowConfig windowConfig{1200, 900, "Engine Window", true};
+    InputCallbacks inputCallbacks
     {
-        DemoScene scene;
-        Engine::SceneConfig config{
-            .targetTimeStep = 0.0333333s,
-            .vsyncEnabled = true
-        };
-        result = scene.Start(*window, config);
-    }
+        [&scene](const KeyCode key, const KeyAction action)         { scene.DispatchKeyEvent(key, action); },
+        [&scene](const MouseKeyCode button, const KeyAction action) { scene.DispatchMouseButtonEvent(button, action); },
+        [&scene](const double x, const double y)                    { scene.DispatchCursorPosition(x, y); },
+        [&scene](const double xOffset, const double yOffset)        { scene.DispatchScroll(xOffset, yOffset); }
+    };
 
-    if (window != nullptr)
-        glfwDestroyWindow(window);
+    if (!host.Initialize(windowConfig, inputCallbacks))
+        return EXIT_FAILURE;
 
-    glfwTerminate();
+    Scene::SceneConfig sceneConfig{0.0333333s};
+    const Scene::SceneRunHooks runHooks
+    {
+        [&host] { host.PollEvents(); },
+        [&host] { host.PresentFrame(); },
+        [&host] { return !host.ShouldClose(); }
+    };
 
-    return result;
+    return scene.Run(sceneConfig, runHooks);
 }

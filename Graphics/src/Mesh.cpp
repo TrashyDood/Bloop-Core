@@ -1,11 +1,11 @@
 #include "Mesh.h"
-#include "Rendering.h"
+#include "Graphics.h"
 
 #include <cstddef>
 #include <limits>
 #include <utility>
 
-Rendering::MeshResource::MeshResource(MeshResource &&other) noexcept
+Graphics::MeshResource::MeshResource(MeshResource &&other) noexcept
     : IResourceOwner(std::move(other)),
       vertexArray(std::exchange(other.vertexArray, 0)),
       vertexBuffer(std::exchange(other.vertexBuffer, 0)),
@@ -13,7 +13,7 @@ Rendering::MeshResource::MeshResource(MeshResource &&other) noexcept
       vertices(std::move(other.vertices)),
       indices(std::move(other.indices)) { }
 
-Rendering::MeshResource &Rendering::MeshResource::operator=(MeshResource &&other) noexcept
+Graphics::MeshResource &Graphics::MeshResource::operator=(MeshResource &&other) noexcept
 {
     if (this != &other)
     {
@@ -29,7 +29,7 @@ Rendering::MeshResource &Rendering::MeshResource::operator=(MeshResource &&other
     return *this;
 }
 
-void Rendering::MeshResource::ReleaseResources() noexcept
+void Graphics::MeshResource::ReleaseResources() noexcept
 {
     if (vertexArray != 0)
         glDeleteVertexArrays(1, &vertexArray);
@@ -43,7 +43,7 @@ void Rendering::MeshResource::ReleaseResources() noexcept
     indexBuffer = 0;
 }
 
-bool Rendering::MeshResource::InitializeResources()
+bool Graphics::MeshResource::InitializeResources()
 {
     if (!IResourceOwner::InitializeResources())
         return false;
@@ -63,7 +63,7 @@ bool Rendering::MeshResource::InitializeResources()
     return CreateMeshBuffers(vertexArray, vertexBuffer, indexBuffer, vertices, indices);
 }
 
-bool Rendering::MeshResource::Draw() const
+bool Graphics::MeshResource::Draw() const
 {
     if (!IsInitialized())
     {

@@ -2,19 +2,19 @@
 
 #include <utility>
 
-bool Rendering::ShaderResource::GetUniformLocation(const std::string &name, GLint &location) const
+bool Graphics::ShaderResource::GetUniformLocation(const std::string &name, GLint &location) const
 {
     location = glGetUniformLocation(shaderProgram, name.c_str());
     return location != -1;
 }
 
-bool Rendering::ShaderResource::TryGetAttributeLocation(const std::string &name, GLint &location) const
+bool Graphics::ShaderResource::TryGetAttributeLocation(const std::string &name, GLint &location) const
 {
     location = glGetAttribLocation(shaderProgram, name.c_str());
     return location != -1;
 }
 
-Rendering::ShaderResource &Rendering::ShaderResource::operator=(ShaderResource &&other) noexcept
+Graphics::ShaderResource &Graphics::ShaderResource::operator=(ShaderResource &&other) noexcept
 {
     if (this != &other)
     {
@@ -26,14 +26,14 @@ Rendering::ShaderResource &Rendering::ShaderResource::operator=(ShaderResource &
     return *this;
 }
 
-void Rendering::ShaderResource::ReleaseResources() noexcept
+void Graphics::ShaderResource::ReleaseResources() noexcept
 {
     if (shaderProgram != 0)
         glDeleteProgram(shaderProgram);
     shaderProgram = 0;
 }
 
-bool Rendering::ShaderResource::InitializeResources()
+bool Graphics::ShaderResource::InitializeResources()
 {
     if (!IResourceOwner::InitializeResources())
         return false;

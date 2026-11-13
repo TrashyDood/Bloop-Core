@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <vector>
 
-namespace Rendering
+namespace Graphics
 {
     class IResourceOwner
     {

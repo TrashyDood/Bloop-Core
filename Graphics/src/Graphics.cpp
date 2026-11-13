@@ -1,4 +1,4 @@
-#include "Rendering.h"
+#include "Graphics.h"
 
 #include <array>
 #include <cstdio>
@@ -7,7 +7,13 @@
 #include <vector>
 #include <cmath>
 
-bool Rendering::ReadFileToEnd(const char *filename, std::string &outSource)
+void Graphics::CheckGLErrors()
+{
+    for (GLenum error = glGetError(); error != GL_NO_ERROR; error = glGetError())
+        LOG_ERROR("OpenGL error: 0x%X\n", error);
+}
+
+bool Graphics::ReadFileToEnd(const char *filename, std::string &outSource)
 {
     if (filename == nullptr)
     {
@@ -35,7 +41,7 @@ bool Rendering::ReadFileToEnd(const char *filename, std::string &outSource)
     return true;
 }
 
-bool Rendering::CompileShader(GLenum type, const char *source, ResourceHandle &outShader)
+bool Graphics::CompileShader(GLenum type, const char *source, ResourceHandle &outShader)
 {
     outShader = 0;
     if (source == nullptr)
@@ -69,7 +75,7 @@ bool Rendering::CompileShader(GLenum type, const char *source, ResourceHandle &o
     return true;
 }
 
-bool Rendering::LinkShaders(ResourceHandle &shaderProgram, const ResourceHandle *shaders, std::size_t shadersCount)
+bool Graphics::LinkShaders(ResourceHandle &shaderProgram, const ResourceHandle *shaders, std::size_t shadersCount)
 {
     if (shaders == nullptr || shadersCount == 0)
     {
@@ -116,7 +122,7 @@ bool Rendering::LinkShaders(ResourceHandle &shaderProgram, const ResourceHandle 
     return true;
 }
 
-bool Rendering::CreateShaderProgram(
+bool Graphics::CreateShaderProgram(
     ResourceHandle &outShaderProgram, const ShaderSource *sources, std::size_t sourcesCount)
 {
     outShaderProgram = 0;
@@ -163,7 +169,7 @@ bool Rendering::CreateShaderProgram(
     return linkSucceeded;
 }
 
-bool Rendering::ParseMeshSource(const char *path, MeshVertices &outVertices, MeshIndices &outIndices)
+bool Graphics::ParseMeshSource(const char *path, MeshVertices &outVertices, MeshIndices &outIndices)
 {
     FILE *file = fopen(path, "r");
     if (file == NULL)
@@ -260,7 +266,7 @@ bool Rendering::ParseMeshSource(const char *path, MeshVertices &outVertices, Mes
     return !outIndices.empty();
 }
 
-    bool Rendering::CreateMeshBuffers(ResourceHandle & outVertexArray, ResourceHandle & outVertexBuffer,
+    bool Graphics::CreateMeshBuffers(ResourceHandle & outVertexArray, ResourceHandle & outVertexBuffer,
         ResourceHandle & outIndexBuffer, const MeshVertices &vertices, const MeshIndices &indices)
     {
         outVertexArray = 0;
