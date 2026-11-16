@@ -20,6 +20,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdlib>
+#include <filesystem>
 #include <limits>
 #include <map>
 #include <memory>
@@ -60,7 +61,9 @@ class DemoScene : public Engine::Scene
 
     double lastCursorX = 0.0, lastCursorY = 0.0;
     bool orbiting = false, wireframeEnabled = true, isSimulating = true;
-    bool imguiInitialized = false;
+    ImGuiContext *imguiContext = nullptr;
+    bool imguiGlfwInitialized = false;
+    bool imguiOpenGLInitialized = false;
 
     SharedList<SceneObject> sceneObjects;
     std::vector<std::vector<Vector3f>> objectOffsets;
@@ -301,11 +304,11 @@ public:
     {
         LOG_SCOPE;
 
-        if (imguiInitialized)
+        if (imguiContext != nullptr && imguiGlfwInitialized && imguiOpenGLInitialized)
             return true;
 
         IMGUI_CHECKVERSION();
-        ImGui::CreateContext();
+        imguiContext = ImGui::CreateContext();
         ImGui::StyleColorsDark();
         ImGuiStyle &style = ImGui::GetStyle();
         style.Colors[ImGuiCol_TitleBg] = ImVec4(0.12f, 0.12f, 0.12f, 1.f);
@@ -315,22 +318,53 @@ public:
         if (!ImGui_ImplGlfw_InitForOpenGL(&windowHost.GetWindow(), true))
         {
             LOG_ERROR("Failed to initialize ImGui GLFW backend.\n");
-            ImGui::DestroyContext();
+            ShutdownImGui();
             return false;
         }
+        imguiGlfwInitialized = true;
 
         if (!ImGui_ImplOpenGL3_Init("#version 330"))
         {
             LOG_ERROR("Failed to initialize ImGui OpenGL backend.\n");
-            ImGui_ImplGlfw_Shutdown();
-            ImGui::DestroyContext();
+            ShutdownImGui();
             return false;
         }
+        imguiOpenGLInitialized = true;
 
         LOG_INFO("ImGui initialized.\n");
-
-        imguiInitialized = true;
         return true;
+    }
+
+    void ShutdownImGui()
+    {
+        if (imguiContext != nullptr)
+            ImGui::SetCurrentContext(imguiContext);
+
+        if (imguiOpenGLInitialized)
+        {
+            if (ImGui::GetCurrentContext() != nullptr &&
+                ImGui::GetIO().BackendRendererUserData != nullptr)
+                ImGui_ImplOpenGL3_Shutdown();
+            else
+                LOG_ERROR("ImGui OpenGL backend state is missing during shutdown.\n");
+            imguiOpenGLInitialized = false;
+        }
+
+        if (imguiGlfwInitialized)
+        {
+            if (ImGui::GetCurrentContext() != nullptr &&
+                ImGui::GetIO().BackendPlatformUserData != nullptr)
+                ImGui_ImplGlfw_Shutdown();
+            else
+                LOG_ERROR("ImGui GLFW backend state is missing during shutdown.\n");
+            imguiGlfwInitialized = false;
+        }
+
+        if (imguiContext != nullptr)
+        {
+            ImGui::DestroyContext(imguiContext);
+            imguiContext = nullptr;
+        }
     }
 
     static void DrawLogWindow(LogHandler *logHandler = nullptr)
@@ -726,15 +760,11 @@ public:
     void OnStop(const Int32) override
     {
         LOG_SCOPE;
-        if (!imguiInitialized)
+        if (imguiContext == nullptr && !imguiGlfwInitialized && !imguiOpenGLInitialized)
             return;
 
-        LOG_INFO("Stopping...\n");
-
-        ImGui_ImplOpenGL3_Shutdown();
-        ImGui_ImplGlfw_Shutdown();
-        ImGui::DestroyContext();
-        imguiInitialized = false;
+        LOG_INFO("Shutting down ImGui.\n");
+        ShutdownImGui();
     }
 };
 
