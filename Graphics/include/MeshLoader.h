@@ -13,4 +13,7 @@ namespace Graphics
     bool LoadMeshFile(
         const char *path, std::vector<std::string> &outNames,
         std::vector<MeshVertices> &outVertices, std::vector<MeshIndices> &outIndices);
+    bool LoadMeshFileObjLoader(
+        const char *path, std::vector<std::string> &outNames,
+        std::vector<MeshVertices> &outVertices, std::vector<MeshIndices> &outIndices);
 }

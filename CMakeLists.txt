@@ -89,6 +89,9 @@ if(BUILD_GRAPHICS)
         third_party/glad/include
         ${GLFW_INCLUDE_DIRS}
     )
+    target_include_directories(Graphics PRIVATE
+        third_party/obj_loader
+    )
     target_link_libraries(Graphics PUBLIC
         Shared
         "${GLFW_STATIC_LIBRARY}"
@@ -122,7 +125,6 @@ if(BUILD_ENGINE AND BUILD_GRAPHICS)
     target_include_directories(EngineDemo PRIVATE
         third_party/imgui
         third_party/imgui/backends
-        third_party/fast_obj_reader
     )
     target_link_libraries(EngineDemo PRIVATE Graphics Engine)
 

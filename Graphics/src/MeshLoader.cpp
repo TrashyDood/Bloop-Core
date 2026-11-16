@@ -1,7 +1,11 @@
 #include "MeshLoader.h"
 
+#include "OBJ_Loader.h"
+
 #include <cstdio>
 #include <fstream>
+#include <limits>
+#include <memory>
 #include <sstream>
 #include <utility>
 
@@ -134,4 +138,48 @@ bool Graphics::LoadMeshFile(
     outIndices.clear();
     LOG_ERROR("Failed to parse mesh: source '%s' has invalid, unsupported, or unreadable OBJ data.\n", path);
     return false;
+}
+
+bool Graphics::LoadMeshFileObjLoader(
+    const char *path, std::vector<std::string> &outNames,
+    std::vector<MeshVertices> &outVertices, std::vector<MeshIndices> &outIndices)
+{
+    outNames.clear();
+    outVertices.clear();
+    outIndices.clear();
+
+    objl::Loader loader;
+    if (!loader.LoadFile(path) || loader.LoadedMeshes.empty())
+    {
+        LOG_ERROR("Failed to load mesh with OBJ_Loader: '%s'.\n", path);
+        return false;
+    }
+
+    for (const objl::Mesh &sourceMesh : loader.LoadedMeshes)
+    {
+        if (sourceMesh.Vertices.empty() || sourceMesh.Indices.empty())
+            continue;
+
+        outNames.emplace_back(sourceMesh.MeshName);
+        MeshVertices vertices;
+        vertices.reserve(sourceMesh.Vertices.size());
+        for (const objl::Vertex &vertex : sourceMesh.Vertices)
+        {
+            vertices.emplace_back(
+                Vector3f(vertex.Position.X, vertex.Position.Y, vertex.Position.Z),
+                Vector3f(vertex.Normal.X, vertex.Normal.Y, vertex.Normal.Z),
+                Vector2f(vertex.TextureCoordinate.X, vertex.TextureCoordinate.Y));
+        }
+
+        outVertices.emplace_back(std::move(vertices));
+        outIndices.emplace_back(sourceMesh.Indices.begin(), sourceMesh.Indices.end());
+    }
+
+    if (outVertices.empty())
+    {
+        LOG_ERROR("Failed to load mesh with OBJ_Loader: '%s' contains no meshes.\n", path);
+        return false;
+    }
+
+    return true;
 }

@@ -28,7 +28,6 @@
 #include <vector>
 
 #include <stb_image.h>
-#include "fast_obj.h"
 
 #define IMGUI_DRAW_START         \
     ImGui_ImplOpenGL3_NewFrame();\
@@ -112,12 +111,19 @@ public:
         // Find and load all .obj mesh files in the scene's model directory.
         for (auto &file : IOUtils::FindMatchingFiles(MODEL_DIR, std::regex(".*\\.obj")))
         {
+            std::vector<std::string> objectNames;
+            std::vector<MeshVertices> objectVertices;
+            std::vector<MeshIndices> objectIndices;
+            
             if (useCustomOBJLoader)
             {
-                std::vector<std::string> objectNames;
-                std::vector<MeshVertices> objectVertices;
-                std::vector<MeshIndices> objectIndices;
                 if (LoadMeshFile(file.string().c_str(), objectNames, objectVertices, objectIndices))
+                    for (std::size_t i = 0; i < objectVertices.size(); ++i)
+                        meshes.emplace_back(std::move(objectVertices[i]), std::move(objectIndices[i]));
+            }
+            else
+            {
+                if (LoadMeshFileObjLoader(file.string().c_str(), objectNames, objectVertices, objectIndices))
                     for (std::size_t i = 0; i < objectVertices.size(); ++i)
                         meshes.emplace_back(std::move(objectVertices[i]), std::move(objectIndices[i]));
             }
