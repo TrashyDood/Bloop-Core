@@ -1,3 +1,4 @@
+#include "LogHandler.h"
 #include "EventHandler.h"
 #include "Transform.h"
 #ifdef ENGINE_ENABLED
@@ -12,12 +13,19 @@
 #include <atomic>
 #include <cmath>
 #include <cstdlib>
+#include <cstdio>
 #include <exception>
 #include <iostream>
 #include <string>
 #include <thread>
 #include <utility>
 #include <vector>
+
+#ifdef _WIN32
+#include <io.h>
+#else
+#include <unistd.h>
+#endif
 
 namespace
 {
@@ -47,6 +55,112 @@ namespace
     {
         if (!condition)
             throw std::runtime_error(message);
+    }
+
+    int GetFileDescriptor(FILE *file)
+    {
+#ifdef _WIN32
+        return _fileno(file);
+#else
+        return fileno(file);
+#endif
+    }
+
+    int DuplicateDescriptor(int descriptor)
+    {
+#ifdef _WIN32
+        return _dup(descriptor);
+#else
+        return dup(descriptor);
+#endif
+    }
+
+    int ReplaceDescriptor(int source, int target)
+    {
+#ifdef _WIN32
+        return _dup2(source, target);
+#else
+        return dup2(source, target);
+#endif
+    }
+
+    void CloseDescriptor(int descriptor)
+    {
+#ifdef _WIN32
+        _close(descriptor);
+#else
+        close(descriptor);
+#endif
+    }
+
+    void TestLogHandlerFormatting()
+    {
+        LOG_SCOPE;
+        LogHandler &logHandler = StaticLogHandler();
+        logHandler.ClearLogEntries();
+
+        FILE *capture = std::tmpfile();
+        Require(capture != nullptr, "Log handler test creates a temporary file");
+
+        std::fflush(stderr);
+        const int stderrDescriptor = GetFileDescriptor(stderr);
+        const int savedStderr = DuplicateDescriptor(stderrDescriptor);
+        if (savedStderr == -1)
+        {
+            std::fclose(capture);
+            throw std::runtime_error("Log handler test duplicates stderr");
+        }
+
+        if (ReplaceDescriptor(GetFileDescriptor(capture), stderrDescriptor) == -1)
+        {
+            CloseDescriptor(savedStderr);
+            std::fclose(capture);
+            throw std::runtime_error("Log handler test redirects stderr");
+        }
+
+        LOG_INFO("message %d\n", 7);
+        const std::vector<LogHandler::LogEntry> defaultPriorityEntries = logHandler.GetLogEntries();
+        LOG_ERROR_WITH_PRIORITY(5, "priority %d\n", 8);
+        const std::vector<LogHandler::LogEntry> explicitPriorityEntries = logHandler.GetLogEntries();
+        logHandler.ClearLogEntries();
+
+        for (int i = 0; i <= 1000; ++i)
+            LOG_WARNING("entry %d\n", i);
+
+        const std::vector<LogHandler::LogEntry> entries = logHandler.GetLogEntries();
+        logHandler.ClearLogEntries();
+
+        std::fflush(stderr);
+        const int restoreResult = ReplaceDescriptor(savedStderr, stderrDescriptor);
+        CloseDescriptor(savedStderr);
+        if (restoreResult == -1)
+        {
+            std::fclose(capture);
+            throw std::runtime_error("Log handler test restores stderr");
+        }
+
+        std::rewind(capture);
+        char buffer[256];
+        const std::size_t outputSize = std::fread(buffer, 1, sizeof(buffer), capture);
+        std::fclose(capture);
+
+        const std::string output(buffer, outputSize);
+        Require(!output.empty() && output[0] == '[' &&
+                    output.find("] [INFO]   message 7\n") != std::string::npos,
+                "Log handler formats timestamp, level, depth, and message");
+        Require(defaultPriorityEntries.size() == 1 && defaultPriorityEntries[0].priority == 0 &&
+                    defaultPriorityEntries[0].depth == 1 &&
+                    explicitPriorityEntries.back().priority == 5 &&
+                    explicitPriorityEntries.back().depth == 1,
+                "Log macros use scope depth and support explicit priorities");
+        Require(entries.size() == 1000 && entries.front().message == "entry 1\n" &&
+                    entries.back().message == "entry 1000\n",
+                "Log handler retains the most recent 1,000 formatted entries");
+        Require(entries.back().level == LogHandler::Warning && entries.back().priority == 0 &&
+                    entries.back().timestamp != std::chrono::system_clock::time_point{} &&
+                    !entries.back().timestampText.empty(),
+                "Stored log entries preserve metadata and timestamp");
+        Require(logHandler.GetLogEntries().empty(), "Log handler clears stored entries");
     }
 
     void TestTransformDefaultsAndComposition()
@@ -387,7 +501,7 @@ namespace
         bool tickObservedRunning = false;
 
     protected:
-        int OnStart() override
+        Int32 OnStart() override
         {
             ++starts;
             GetInput().BindKey(
@@ -396,14 +510,14 @@ namespace
             return EXIT_SUCCESS;
         }
 
-        int OnMainTick(const Engine::Scene::SceneTime &) override
+        Int32 OnMainTick(const Engine::Scene::SceneTime &) override
         {
             ++ticks;
             tickObservedRunning = GetIsRunning();
             return EXIT_SUCCESS;
         }
 
-        void OnStop(const int) override { ++stops; }
+        void OnStop(const Int32) override { ++stops; }
     };
 
     void TestSceneLifecycleAndRunHooks()
@@ -440,6 +554,7 @@ namespace
 int main()
 {
     const std::vector<Test> tests{
+        {"log handler formatting", TestLogHandlerFormatting},
         {"transform defaults and composition", TestTransformDefaultsAndComposition},
         {"transform rotation", TestTransformRotation},
         {"transform rejects parallel look direction", TestTransformRejectsParallelLookDirection},

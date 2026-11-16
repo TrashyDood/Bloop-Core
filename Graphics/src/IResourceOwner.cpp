@@ -1,4 +1,5 @@
 #include "IResourceOwner.h"
+#include "LogHandler.h"
 #include "Shared.h"
 
 bool Graphics::InitializeResources(ResourceOwner *owners[], std::size_t count)

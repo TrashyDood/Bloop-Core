@@ -1,5 +1,6 @@
 #include "Mesh.h"
 #include "Graphics.h"
+#include "LogHandler.h"
 
 #include <cstddef>
 #include <limits>
@@ -76,6 +77,7 @@ bool Graphics::MeshResource::InitializeResources()
         return false;
     }
 
+    LOG_INFO("Initialized mesh: %zu vertices, %zu indices.\n", vertices.size(), indices.size());
     return true;
 }
 
@@ -130,6 +132,7 @@ bool Graphics::MeshResource::DrawInstanced(const Vector3f offsets[], const std::
         return false;
     }
 
+    // Upload the instance offsets to the instance buffer and configure the vertex attribute for instancing.
     glBindVertexArray(vertexArray);
     glBindBuffer(GL_ARRAY_BUFFER, instanceBuffer);
     glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(offsetCount * sizeof(Vector3f)), offsets, GL_STREAM_DRAW);
@@ -137,6 +140,7 @@ bool Graphics::MeshResource::DrawInstanced(const Vector3f offsets[], const std::
     glEnableVertexAttribArray(4);
     glVertexAttribDivisor(4, 1);
 
+    // Draw the mesh instances using the instance buffer.
     if (indices.empty())
     {
         glDrawArraysInstanced(
@@ -149,6 +153,7 @@ bool Graphics::MeshResource::DrawInstanced(const Vector3f offsets[], const std::
             static_cast<GLsizei>(offsetCount));
     }
 
+    // Reset the instance buffer state to avoid affecting subsequent draw calls.
     glDisableVertexAttribArray(4);
     glVertexAttribDivisor(4, 0);
     glVertexAttrib3f(4, 0.f, 0.f, 0.f);

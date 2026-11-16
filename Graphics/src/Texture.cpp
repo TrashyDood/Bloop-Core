@@ -1,16 +1,12 @@
 #include "Texture.h"
+#include "LogHandler.h"
 
 #include <limits>
 #include <utility>
 
 Graphics::TextureResource::TextureResource(TextureResource &&other) noexcept
-    : ResourceOwner(std::move(other)),
-      texture(std::exchange(other.texture, 0)),
-      width(std::exchange(other.width, 0)),
-      height(std::exchange(other.height, 0)),
-      pixels(std::move(other.pixels))
-{
-}
+    : ResourceOwner(std::move(other)), texture(std::exchange(other.texture, 0)), width(std::exchange(other.width, 0)),
+      height(std::exchange(other.height, 0)), pixels(std::move(other.pixels)) { }
 
 Graphics::TextureResource &Graphics::TextureResource::operator=(TextureResource &&other) noexcept
 {
@@ -70,6 +66,7 @@ bool Graphics::TextureResource::InitializeResources()
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
     glBindTexture(GL_TEXTURE_2D, 0);
 
+    LOG_INFO("Initialized texture: %d x %d pixels.\n", width, height);
     return true;
 }
 

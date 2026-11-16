@@ -9,17 +9,17 @@ namespace Graphics
     using Input::Pressed;
     using Input::Released;
 
-    KeyCode ToSharedKeyCode(const int key) noexcept
+    KeyCode ToSharedKeyCode(const Int32 key) noexcept
     {
         if (key >= GLFW_KEY_0 && key <= GLFW_KEY_9)
-            return static_cast<KeyCode>(static_cast<int>(KeyCode::Num0) + key - GLFW_KEY_0);
+            return static_cast<KeyCode>(static_cast<Int32>(KeyCode::Num0) + key - GLFW_KEY_0);
         if (key >= GLFW_KEY_A && key <= GLFW_KEY_Z)
-            return static_cast<KeyCode>(static_cast<int>(KeyCode::A) + key - GLFW_KEY_A);
+            return static_cast<KeyCode>(static_cast<Int32>(KeyCode::A) + key - GLFW_KEY_A);
         if (key >= GLFW_KEY_F1 && key <= GLFW_KEY_F25)
-            return static_cast<KeyCode>(static_cast<int>(KeyCode::F1) + key - GLFW_KEY_F1);
+            return static_cast<KeyCode>(static_cast<Int32>(KeyCode::F1) + key - GLFW_KEY_F1);
         if (key >= GLFW_KEY_KP_0 && key <= GLFW_KEY_KP_9)
             return static_cast<KeyCode>(
-                static_cast<int>(KeyCode::Keypad0) + key - GLFW_KEY_KP_0);
+                static_cast<Int32>(KeyCode::Keypad0) + key - GLFW_KEY_KP_0);
 
         switch (key)
         {
@@ -77,16 +77,16 @@ namespace Graphics
         }
     }
 
-    MouseKeyCode ToSharedMouseButton(const int button) noexcept
+    MouseKeyCode ToSharedMouseButton(const Int32 button) noexcept
     {
         if (button >= GLFW_MOUSE_BUTTON_1 && button <= GLFW_MOUSE_BUTTON_8)
             return static_cast<MouseKeyCode>(
-                static_cast<int>(MouseKeyCode::Button1) + button - GLFW_MOUSE_BUTTON_1);
+                static_cast<Int32>(MouseKeyCode::Button1) + button - GLFW_MOUSE_BUTTON_1);
 
         return MouseKeyCode::Unknown;
     }
 
-    std::optional<KeyAction> ToSharedKeyAction(const int action) noexcept
+    std::optional<KeyAction> ToSharedKeyAction(const Int32 action) noexcept
     {
         switch (action)
         {

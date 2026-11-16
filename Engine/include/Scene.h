@@ -46,16 +46,16 @@ namespace Engine
         SceneTime sceneTime;
         InputHandler inputHandler;
 
-        int Start(SceneConfig &config);
-        int Tick();
-        void Stop(const int exitCode);
+        Int32 Start(SceneConfig &config);
+        Int32 Tick();
+        void Stop(const Int32 exitCode);
 
     protected:
-        virtual int OnStart() = 0;
-        virtual int OnMainTick(const SceneTime &time) = 0;
+        virtual Int32 OnStart() = 0;
+        virtual Int32 OnMainTick(const SceneTime &time) = 0;
         virtual void OnCursorPosition(double, double) {}
         virtual void OnScroll(double, double) {}
-        virtual void OnStop(const int exitCode) {}
+        virtual void OnStop(const Int32 exitCode) {}
 
     public:
         [[nodiscard]] const SceneTime &GetTime() const { return sceneTime; }
@@ -66,7 +66,7 @@ namespace Engine
 
         virtual ~Scene() = default;
 
-        int Run(SceneConfig &config, const RunHooks &hooks = {});
+        Int32 Run(SceneConfig &config, const RunHooks &hooks = {});
         void RequestStop();
 
         void DispatchCursorPosition(const double x, const double y) { OnCursorPosition(x, y); }

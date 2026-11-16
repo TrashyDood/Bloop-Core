@@ -1,6 +1,7 @@
 #pragma once
 
 #include "InputCodes.h"
+#include "Shared.h"
 
 #ifndef GLFW_INCLUDE_NONE
 #define GLFW_INCLUDE_NONE
@@ -14,8 +15,8 @@ namespace Graphics
 {
     struct WindowConfig
     {
-        int width = 800;
-        int height = 600;
+        Int32 width = 800;
+        Int32 height = 600;
         const char *title = "Window";
         bool vsyncEnabled = true;
     };

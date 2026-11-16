@@ -4,8 +4,6 @@
 #include "IResourceOwner.h"
 #include "Graphics.h"
 
-#include <cstdint>
-
 namespace Graphics
 {
     // Represents a mesh in OpenGL, managing its vertex array, vertex buffer, and index buffer.
@@ -20,7 +18,7 @@ namespace Graphics
 
     public:
         [[nodiscard]] const std::vector<Vertex> &GetVertices() const { return vertices; }
-        [[nodiscard]] const std::vector<std::uint32_t> &GetIndices() const { return indices; }
+        [[nodiscard]] const std::vector<UInt32> &GetIndices() const { return indices; }
         [[nodiscard]] ResourceHandle GetVertexArray() const { return vertexArray; }
         [[nodiscard]] ResourceHandle GetVertexBuffer() const { return vertexBuffer; }
         [[nodiscard]] ResourceHandle GetIndexBuffer() const { return indexBuffer; }

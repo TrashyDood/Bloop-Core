@@ -10,7 +10,15 @@
 
 #define DEFAULT_ASPECT_RATIO Graphics::DefaultAspectRatio
 #define MAX_MESH_BUFFER_SIZE Graphics::MaxMeshBufferSize
+
 #define SHADER_EXTENSION ".glsl"
+#define PNG_EXTENSION ".png"
+#define OBJ_EXTENSION ".obj"
+
+#define ASSETS_DIR WORKING_DIR / "assets"
+#define MODELS_DIR ASSETS_DIR / "models"
+#define SHADERS_DIR ASSETS_DIR / "shaders"
+#define TEXTURES_DIR ASSETS_DIR / "textures"
 
 namespace Graphics
 {
@@ -47,7 +55,7 @@ namespace Graphics
     };
 
     using MeshVertices = std::vector<Vertex>;
-    using MeshIndices = std::vector<std::uint32_t>;
+    using MeshIndices = std::vector<UInt32>;
 
     ShaderType GetShaderFileType(const std::filesystem::path &file);
     std::string GetShaderGroupName(const std::filesystem::path &file);

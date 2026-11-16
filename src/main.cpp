@@ -1,3 +1,4 @@
+#include "LogHandler.h"
 #include "Shared.h"
 #include "Window.h"
 #include "Transform.h"
@@ -41,7 +42,7 @@
 struct SceneObject
 {
     std::size_t meshIndex;
-    Transform transform;
+    std::size_t offsetIndex;
     std::string name;
     bool animates = true;
 };
@@ -60,14 +61,13 @@ class DemoScene : public Engine::Scene
     double lastCursorX = 0.0, lastCursorY = 0.0;
     bool orbiting = false, wireframeEnabled = true, isSimulating = true;
     bool imguiInitialized = false;
-    bool useCustomOBJLoader = true;
 
     SharedList<SceneObject> sceneObjects;
+    std::vector<std::vector<Vector3f>> objectOffsets;
 
 public:
     explicit DemoScene(Graphics::Window &windowHost) : windowHost(windowHost) {}
 
-#pragma region Input Handlers
     void OnCursorPosition(const double x, const double y) override
     {
         if (!orbiting) { orbiting = false; return; }
@@ -86,80 +86,101 @@ public:
         constexpr float zoomSensitivity = 0.1f;
         camera.Zoom(yOffset * zoomSensitivity);
     }
-#pragma endregion
 
     SceneObject *SpawnSceneObject(const Vector3f &position, const std::size_t meshIndex)
     {
-        if (meshIndex >= meshes.size())
+        if (meshIndex >= meshes.size() || meshIndex >= objectOffsets.size())
             return nullptr;
 
+        const std::size_t offsetIndex = objectOffsets[meshIndex].size();
+        objectOffsets[meshIndex].push_back(position);
         sceneObjects.push_back(std::make_shared<SceneObject>(
-            SceneObject{meshIndex, position, "Unnamed Object"}));
+            SceneObject{meshIndex, offsetIndex, "Unnamed Object", true}));
+
+        LOG_SCOPE;
+        LOG_INFO("Spawned scene object at position (%.2f, %.2f, %.2f) with mesh index %zu.\n",
+            position.x, position.y, position.z, meshIndex);
+
         return sceneObjects.back().get();
     }
 
     void RemoveSceneObject(const std::size_t objectIndex)
     {
-        if (sceneObjects.size() > 0)
+        if (objectIndex >= sceneObjects.size())
+            return;
+
+        const SceneObject &object = *sceneObjects[objectIndex];
+        const std::size_t meshIndex = object.meshIndex;
+        const std::size_t offsetIndex = object.offsetIndex;
+        auto &offsets = objectOffsets[meshIndex];
+        offsets.erase(offsets.begin() + offsetIndex);
+
+        for (const auto &sceneObject : sceneObjects)
+        {
+            if (sceneObject->meshIndex == meshIndex && sceneObject->offsetIndex > offsetIndex)
+                --sceneObject->offsetIndex;
+        }
+
+        LOG_SCOPE;
+        LOG_INFO("Removed scene object '%s' with mesh index %zu and offset index %zu.\n",
+            object.name.c_str(), meshIndex, offsetIndex);
+
         sceneObjects.erase(sceneObjects.begin() + objectIndex);
+    }
+
+    void ClearSceneObjects()
+    {
+        sceneObjects.clear();
+        for (auto &offsets : objectOffsets)
+            offsets.clear();
+
+        LOG_SCOPE;
+        LOG_INFO("Cleared all scene objects.\n");
     }
 
     bool LoadAssets()
     {
+        LOG_SCOPE;
+        LOG_INFO("Loading assets from '%s'.\n", (ASSETS_DIR).string().c_str());
+
         using namespace Graphics;
 
+        const auto modelDir = MODELS_DIR;
+        const auto shaderDir = SHADERS_DIR;
+        const auto textureDir = TEXTURES_DIR;
+        if (!std::filesystem::is_directory(modelDir) ||
+            !std::filesystem::is_directory(shaderDir) ||
+            !std::filesystem::is_directory(textureDir))
+        {
+            const std::string workingDirectory = IOUtils::CurrentDirectory().string();
+            LOG_ERROR("Asset directories were not found from the current working directory '%s'.\n",
+                workingDirectory.c_str());
+            return false;
+        }
+
         // Find and load all .obj mesh files in the scene's model directory.
-        for (auto &file : IOUtils::FindMatchingFiles(MODEL_DIR, std::regex(".*\\.obj")))
+        for (auto &file : IOUtils::FindMatchingFiles(modelDir, std::regex(".*\\.obj", std::regex::icase)))
         {
             std::vector<std::string> objectNames;
             std::vector<MeshVertices> objectVertices;
             std::vector<MeshIndices> objectIndices;
-            
-            if (useCustomOBJLoader)
-            {
-                if (LoadMeshFile(file.string().c_str(), objectNames, objectVertices, objectIndices))
-                    for (std::size_t i = 0; i < objectVertices.size(); ++i)
-                        meshes.emplace_back(std::move(objectVertices[i]), std::move(objectIndices[i]));
-            }
-            else
-            {
-                if (LoadMeshFileObjLoader(file.string().c_str(), objectNames, objectVertices, objectIndices))
-                    for (std::size_t i = 0; i < objectVertices.size(); ++i)
-                        meshes.emplace_back(std::move(objectVertices[i]), std::move(objectIndices[i]));
-            }
+
+            if (LoadMeshFile(file.string().c_str(), objectNames, objectVertices, objectIndices))
+                for (std::size_t i = 0; i < objectVertices.size(); ++i)
+                    meshes.emplace_back(std::move(objectVertices[i]), std::move(objectIndices[i]));
         }
 
-        // Find and load all .glsl shader files in the scene's shader directory, grouping them by name.
-        std::map<std::string, std::vector<ShaderSource>> shaderGroups;
-        for (const auto &file : IOUtils::FindMatchingFiles(SHADER_DIR, std::regex(".*\\.glsl")))
-        {
-            const Graphics::ShaderType type = GetShaderFileType(file);
-            if (type != Graphics::Unknown)
-            {
-                std::string source;
-                if (!IOUtils::ReadFileToEnd(file.string().c_str(), source))
-                    continue;
-                shaderGroups[GetShaderGroupName(file)].push_back({std::move(source), type});
-            }
-        }
-
-        for (auto &[name, sources] : shaderGroups)
-            shaders.emplace_back(std::move(sources));
-
-        if (shaders.empty())
-        {
-            LOG_ERROR("No supported shader files found in '%s'.\n", SHADER_DIR);
-            return false;
-        }
+        if (meshes.empty())
+            LOG_WARNING("No supported mesh files found in '%s'.\n", modelDir.string().c_str());
 
         // Find and load all .png texture files in the scene's texture directory.
-        for (const auto &file : IOUtils::FindMatchingFiles(TEXTURES_DIR, std::regex(".*\\.png", std::regex::icase)))
+        for (const auto &file : IOUtils::FindMatchingFiles(textureDir, std::regex(".*\\.(png|jpg|jpeg)", std::regex::icase)))
         {
             const std::string path = file.string();
-            int width = 0, height = 0;
 
+            int width = 0, height = 0;
             std::unique_ptr<stbi_uc, decltype(&stbi_image_free)> image(
-                stbi_load(path.c_str(), &width, &height, nullptr, STBI_rgb_alpha), stbi_image_free);
+                stbi_load(file.string().c_str(), &width, &height, nullptr, STBI_rgb_alpha), stbi_image_free);
 
             if (!image)
             {
@@ -168,33 +189,74 @@ public:
             }
 
             const auto byteCount = static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4;
-            std::vector<std::uint8_t> rgba(image.get(), image.get() + byteCount);
+            std::vector<UInt8> rgba(image.get(), image.get() + byteCount);
             textures.emplace_back(width, height, std::move(rgba));
         }
+
+        if (textures.empty())
+            LOG_WARNING("No supported texture files found in '%s'.\n", textureDir.string().c_str());
+        else
+            activeTexture = &textures.front();
+
+        // Find and load all .glsl shader files in the scene's shader directory, grouping them by name.
+        std::map<std::string, std::vector<ShaderSource>> shaderGroups;
+        for (const auto &file : IOUtils::FindMatchingFiles(shaderDir, std::regex(".*\\.glsl", std::regex::icase)))
+        {
+            const Graphics::ShaderType type = GetShaderFileType(file);
+            if (type == Graphics::Unknown)
+            {
+                const std::string path = file.string();
+                LOG_WARNING("Skipping shader file with an unrecognized stage: '%s'.\n", path.c_str());
+                continue;
+            }
+
+            std::string source;
+            if (IOUtils::ReadFileToEnd(file.string().c_str(), source))
+                shaderGroups[GetShaderGroupName(file)].push_back({std::move(source), type});
+        }
+
+        for (auto &[name, sources] : shaderGroups)
+        {
+            LOG_INFO("Found shader program '%s' with %zu stage(s).\n", name.c_str(), sources.size());
+            shaders.emplace_back(std::move(sources));
+        }
+
+        if (shaders.empty())
+            LOG_WARNING("No supported shader files found in '%s'.\n", shaderDir.string().c_str());
+        else
+            activeShader = &shaders.front();
 
         return true;
     }
 
     bool InitAssets()
     {
+        LOG_SCOPE;
+        LOG_INFO("Initializing assets.\n");
+
         using namespace Graphics;
 
-        if (!InitializeResources(meshes) || !InitializeResources(shaders) || !InitializeResources(textures))
-        {
-            LOG_ERROR("Failed to initialize resources.\n");
-            return false;
-        }
+        if (!InitializeResources(meshes))
+            LOG_ERROR("Failed to initialize mesh resources.\n");
 
-        activeShader = &shaders.front();
-        activeTexture = &textures.front();
+        if (!InitializeResources(shaders))
+            LOG_ERROR("Failed to initialize shader resources.\n");
+
+        if (!InitializeResources(textures))
+            LOG_ERROR("Failed to initialize texture resources.\n");
+
+        objectOffsets.resize(meshes.size());
 
         return true;
     }
 
     void BindInput()
     {
+        LOG_SCOPE;
+        LOG_INFO("Binding input callbacks.\n");
+
         using namespace Engine;
-        
+
         GetInput().BindKey([this](const InputCode &, const KeyAction &action)
         {
             if (action == Pressed)
@@ -235,10 +297,136 @@ public:
         }, MouseKeyCode::Any);
     }
 
+    bool InitializeImGui()
+    {
+        LOG_SCOPE;
+
+        if (imguiInitialized)
+            return true;
+
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
+        ImGui::StyleColorsDark();
+        ImGuiStyle &style = ImGui::GetStyle();
+        style.Colors[ImGuiCol_TitleBg] = ImVec4(0.12f, 0.12f, 0.12f, 1.f);
+        style.Colors[ImGuiCol_TitleBgActive] = ImVec4(0.18f, 0.18f, 0.18f, 1.f);
+        style.Colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.12f, 0.12f, 0.12f, 0.75f);
+
+        if (!ImGui_ImplGlfw_InitForOpenGL(&windowHost.GetWindow(), true))
+        {
+            LOG_ERROR("Failed to initialize ImGui GLFW backend.\n");
+            ImGui::DestroyContext();
+            return false;
+        }
+
+        if (!ImGui_ImplOpenGL3_Init("#version 330"))
+        {
+            LOG_ERROR("Failed to initialize ImGui OpenGL backend.\n");
+            ImGui_ImplGlfw_Shutdown();
+            ImGui::DestroyContext();
+            return false;
+        }
+
+        LOG_INFO("ImGui initialized.\n");
+
+        imguiInitialized = true;
+        return true;
+    }
+
+    static void DrawLogWindow(LogHandler *logHandler = nullptr)
+    {
+        static bool autoScroll = true,
+            showDate = false,
+            showTime = false;
+
+        if (!logHandler) logHandler = &StaticLogHandler();
+
+        if (!ImGui::Begin("Log"))
+        {
+            ImGui::End();
+            return;
+        }
+
+        if (ImGui::Button("Clear"))
+            logHandler->ClearLogEntries();
+        ImGui::SameLine();
+        ImGui::Checkbox("Auto-scroll", &autoScroll);
+        ImGui::SameLine();
+        ImGui::Checkbox("Date", &showDate);
+        ImGui::SameLine();
+        ImGui::Checkbox("Time", &showTime);
+        ImGui::Separator();
+
+        const auto getTimestampText = [&](const std::string &timestamp)
+        {
+            if (!showDate && !showTime)
+                return std::string{};
+
+            const std::size_t separator = timestamp.find(' ');
+            if (separator == std::string::npos || (showDate && showTime))
+                return timestamp;
+
+            return showDate ? timestamp.substr(0, separator) : timestamp.substr(separator + 1);
+        };
+
+        if (ImGui::BeginChild("LogEntries", ImVec2(0.f, 0.f), ImGuiChildFlags_Borders))
+        {
+            const bool wasAtBottom = ImGui::GetScrollY() >= ImGui::GetScrollMaxY();
+            const std::vector<LogHandler::LogEntry> entries = logHandler->GetLogEntries();
+            if (entries.empty())
+                ImGui::TextDisabled("No log entries.");
+
+            for (std::size_t i = 0; i < entries.size(); ++i)
+            {
+                const LogHandler::LogEntry &entry = entries[i];
+                ImGui::PushID(static_cast<int>(i));
+                ImGui::SetCursorPosX(ImGui::GetCursorPosX() +
+                    static_cast<float>(entry.depth) * ImGui::GetStyle().IndentSpacing);
+
+                const char *levelName = "UNKNOWN";
+                ImVec4 levelColor{0.8f, 0.8f, 0.8f, 1.f};
+                switch (entry.level)
+                {
+                    case LogHandler::Warning:
+                        levelName = "WARNING";
+                        levelColor = {1.f, 0.75f, 0.2f, 1.f};
+                        break;
+                    case LogHandler::Info:
+                        levelName = "INFO";
+                        levelColor = {0.6f, 0.8f, 1.f, 1.f};
+                        break;
+                    case LogHandler::Error:
+                        levelName = "ERROR";
+                        levelColor = {1.f, 0.35f, 0.35f, 1.f};
+                        break;
+                }
+                ImGui::PushStyleColor(ImGuiCol_Text, levelColor);
+                const std::string timestampText = getTimestampText(entry.timestampText);
+                std::string prefix = "[" + std::to_string(i + 1) + "] ";
+                if (!timestampText.empty())
+                    prefix += "[" + timestampText + "] ";
+                prefix += "[" + std::string(levelName) + "]";
+                if (entry.priority >= 1)
+                    prefix += " [P" + std::to_string(static_cast<unsigned int>(entry.priority)) + "]";
+                prefix += " ";
+
+                ImGui::TextWrapped("%s%s", prefix.c_str(), entry.message.c_str());
+                ImGui::PopStyleColor();
+
+                ImGui::PopID();
+            }
+
+            if (autoScroll && wasAtBottom)
+                ImGui::SetScrollHereY(1.f);
+        }
+        ImGui::EndChild();
+        ImGui::End();
+    }
+
     void DrawSceneContextWindow()
     {
         static Vector3f spawnPosition{0.f, 0.f, 0.f};
-        static int spawnMeshIndex = 0;
+        static Int32 spawnMeshIndex = 0;
         static bool enabled = true;
         static float timeScale = GetConfig().timeScale;
 
@@ -263,35 +451,6 @@ public:
             return static_cast<float>(framerate);
         }(GetConfig().targetTimeStep.count());
 
-        if (!imguiInitialized)
-        {
-            IMGUI_CHECKVERSION();
-            ImGui::CreateContext();
-            ImGui::StyleColorsDark();
-            ImGuiStyle &style = ImGui::GetStyle();
-            style.Colors[ImGuiCol_TitleBg] = ImVec4(0.12f, 0.12f, 0.12f, 1.f);
-            style.Colors[ImGuiCol_TitleBgActive] = ImVec4(0.18f, 0.18f, 0.18f, 1.f);
-            style.Colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.12f, 0.12f, 0.12f, 0.75f);
-
-            if (!ImGui_ImplGlfw_InitForOpenGL(&windowHost.GetWindow(), true))
-            {
-                LOG_ERROR("Failed to initialize ImGui GLFW backend.\n");
-                ImGui::DestroyContext();
-                return;
-            }
-
-            if (!ImGui_ImplOpenGL3_Init("#version 330"))
-            {
-                LOG_ERROR("Failed to initialize ImGui OpenGL backend.\n");
-                ImGui_ImplGlfw_Shutdown();
-                ImGui::DestroyContext();
-                return;
-            }
-
-            imguiInitialized = true;
-        }
-
-        IMGUI_DRAW_START;
         if (!ImGui::Begin("Scene Context", &enabled))
         {
             ImGui::End();
@@ -361,7 +520,7 @@ public:
             {
                 ImGui::PushID(static_cast<int>(i));
                 SceneObject &object = *sceneObjects[i];
-                const Vector3f &objectPosition = object.transform.GetPosition();
+                const Vector3f &objectPosition = objectOffsets[object.meshIndex][object.offsetIndex];
                 if (object.meshIndex < meshes.size())
                     ImGui::BulletText("%zu: Mesh %zu", i + 1, object.meshIndex + 1);
                 else
@@ -394,9 +553,9 @@ public:
                 for (std::size_t meshIndex = 0; meshIndex < meshes.size(); ++meshIndex)
                 {
                     const std::string label = "Mesh " + std::to_string(meshIndex + 1);
-                    const bool selected = spawnMeshIndex == static_cast<int>(meshIndex);
+                    const bool selected = spawnMeshIndex == static_cast<Int32>(meshIndex);
                     if (ImGui::Selectable(label.c_str(), selected))
-                        spawnMeshIndex = static_cast<int>(meshIndex);
+                        spawnMeshIndex = static_cast<Int32>(meshIndex);
                     if (selected)
                         ImGui::SetItemDefaultFocus();
                 }
@@ -411,18 +570,23 @@ public:
         ImGui::SameLine();
         ImGui::BeginDisabled(sceneObjects.empty());
         if (ImGui::Button("Clear Objects"))
-            sceneObjects.clear();
+        {
+            ClearSceneObjects();
+            for (std::size_t meshIndex = 0; meshIndex < objectOffsets.size(); ++meshIndex)
+            {
+                auto &offsets = objectOffsets[meshIndex];
+                offsets.clear();
+            }
+        }
         ImGui::EndDisabled();
 
         ImGui::End();
-
-        IMGUI_DRAW_END;
     }
 
-    bool GetUniforms(
-        GLint &outModelMatrixUniform, GLint &outViewMatrixUniform,
+    bool GetUniforms(GLint &outModelMatrixUniform, GLint &outViewMatrixUniform,
         GLint &outProjectionMatrixUniform, GLint &outTextureSamplerUniform)
     {
+        LOG_SCOPE;
         if (activeShader == nullptr)
         {
             LOG_ERROR("Cannot get uniforms: no active shader is selected.\n");
@@ -438,7 +602,7 @@ public:
             if (!activeShader->GetUniformLocation("modelMatrix", modelLocation) ||
                 !activeShader->GetUniformLocation("viewMatrix", viewLocation) ||
                 !activeShader->GetUniformLocation("projectionMatrix", projectionLocation) ||
-                !activeShader->GetUniformLocation("diffuseTexture", textureSamplerLocation))
+                !activeShader->GetUniformLocation("textureSampler", textureSamplerLocation))
             {
                 LOG_ERROR("Required transform, camera, or texture sampler uniforms are missing from the shader program.\n");
                 return false;
@@ -458,29 +622,10 @@ public:
         return true;
     }
 
-    int OnStart() override
+    int DrawScene(const Engine::Scene::SceneTime &time)
     {
-        using namespace Engine;
-        using namespace Graphics;
+        LOG_SCOPE;
 
-        if (!LoadAssets())
-            return EXIT_FAILURE;
-
-        if (!InitAssets())
-            return EXIT_FAILURE;
-
-        BindInput();
-
-        camera.ResetPosition();
-
-        glEnable(GL_DEPTH_TEST);
-        glEnable(GL_CULL_FACE);
-
-        return EXIT_SUCCESS;
-    }
-
-    int OnMainTick(const Engine::Scene::SceneTime &time) override
-    {
         using namespace Engine;
         using namespace Input;
 
@@ -495,9 +640,12 @@ public:
             KeyCode::W, KeyCode::S, moveVector.x, moveVector.y, moveVector.z);
         camera.Move(moveVector, time.deltaTime);
 
-        glUniform1i(textureSamplerUniform, 0);
+        // Bind the active texture to texture unit 0 and set the shader's sampler uniform to use that unit(0).
         if (activeTexture != nullptr)
+        {
+            glUniform1i(textureSamplerUniform, 0);
             activeTexture->Bind(GL_TEXTURE0);
+        }
 
         // Set the view and projection matrices based on the camera's current state.
         const Matrix4f viewMatrix = camera.GetViewMatrix(),
@@ -506,32 +654,82 @@ public:
         glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, glm::value_ptr(viewMatrix));
         glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
 
+        const Matrix4f modelMatrix{1.f};
+        glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, glm::value_ptr(modelMatrix));
         glPolygonMode(GL_FRONT_AND_BACK, wireframeEnabled ? GL_LINE : GL_FILL);
 
-        for (auto &meshObject : sceneObjects)
+        for (std::size_t meshIndex = 0; meshIndex < meshes.size(); ++meshIndex)
         {
-            if (meshObject->animates && isSimulating)
+            auto &offsets = objectOffsets[meshIndex];
+            if (offsets.empty())
+                continue;
+
+            if (isSimulating)
             {
-                const float pulseScale = 1.f + glm::sin(time.elapsedTime) * 0.5f;
-                meshObject->transform.RotateEuler({0.f, time.deltaTime, 0.f});
-                meshObject->transform.Translate({0.f, glm::sin(time.elapsedTime) * time.deltaTime, 0.f});
-                meshObject->transform.SetScale({pulseScale, pulseScale, pulseScale});
+                for (const auto &meshObject : sceneObjects)
+                {
+                    if (meshObject->meshIndex != meshIndex || !meshObject->animates)
+                        continue;
+
+                    offsets[meshObject->offsetIndex].y += glm::sin(time.elapsedTime) * time.deltaTime;
+                }
             }
 
-            const Matrix4f modelMatrix = meshObject->transform.GetTransformMatrix();
-            glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, glm::value_ptr(modelMatrix));
-            meshes[meshObject->meshIndex].Draw();
+            meshes[meshIndex].DrawInstanced(offsets.data(), offsets.size());
         }
-
-        DrawSceneContextWindow();
 
         return EXIT_SUCCESS;
     }
 
-    void OnStop(const int) override
+    Int32 OnStart() override
     {
+        using namespace Engine;
+        using namespace Graphics;
+
+        LOG_INFO("Starting demo scene.\n");
+
+        if (!LoadAssets())
+            LOG_ERROR("Failed to load assets.\n");
+
+        if (!InitAssets())
+            LOG_ERROR("Failed to initialize assets.\n");
+
+        BindInput();
+
+        camera.ResetPosition();
+
+        glEnable(GL_DEPTH_TEST);
+        glEnable(GL_CULL_FACE);
+
+        LOG_INFO("Demo scene initialized.\n");
+
+        return EXIT_SUCCESS;
+    }
+
+    Int32 OnMainTick(const Engine::Scene::SceneTime &time) override
+    {
+        LOG_SCOPE;
+
+        int result = DrawScene(time);
+
+        if (!InitializeImGui())
+            return result;
+
+        IMGUI_DRAW_START;
+        DrawSceneContextWindow();
+        DrawLogWindow();
+        IMGUI_DRAW_END;
+
+        return result;
+    }
+
+    void OnStop(const Int32) override
+    {
+        LOG_SCOPE;
         if (!imguiInitialized)
             return;
+
+        LOG_INFO("Stopping...\n");
 
         ImGui_ImplOpenGL3_Shutdown();
         ImGui_ImplGlfw_Shutdown();

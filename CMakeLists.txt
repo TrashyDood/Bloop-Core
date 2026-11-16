@@ -21,6 +21,7 @@ target_include_directories(Shared PUBLIC
     Shared/include
 )
 target_link_libraries(Shared PUBLIC glm::glm)
+target_compile_definitions(Shared PUBLIC LOGGING_ENABLED)
 
 if(WIN32)
     target_link_libraries(Shared PUBLIC winmm)
@@ -56,6 +57,7 @@ if(BUILD_GRAPHICS)
         "${SHADER_SOURCE_DIR}/*"
     )
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${SHADER_ASSETS})
+    file(REMOVE_RECURSE "${SHADER_OUTPUT_DIR}")
     file(COPY "${SHADER_SOURCE_DIR}" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/assets")
 
     set(MODEL_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/assets/models")
@@ -101,10 +103,6 @@ if(BUILD_GRAPHICS)
     target_compile_definitions(Graphics PUBLIC
         GRAPHICS_ENABLED
         STB_IMAGE_IMPLEMENTATION
-        SHADER_DIR="${SHADER_OUTPUT_DIR}"
-        MODEL_DIR="${MODEL_OUTPUT_DIR}"
-        TEXTURE_DIR="${TEXTURE_OUTPUT_DIR}"
-        TEXTURES_DIR="${TEXTURE_OUTPUT_DIR}"
     )
 
     if(WIN32)

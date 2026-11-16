@@ -1,7 +1,9 @@
 #include "MeshLoader.h"
+#include "LogHandler.h"
 
 #include "OBJ_Loader.h"
 
+#include <cinttypes>
 #include <cstdio>
 #include <fstream>
 #include <limits>
@@ -9,8 +11,7 @@
 #include <sstream>
 #include <utility>
 
-bool Graphics::ParseOBJFile(
-    std::istream &stream, std::vector<std::string> &outNames,
+bool Graphics::ParseOBJFile(std::istream &stream, std::vector<std::string> &outNames,
     std::vector<MeshVertices> &outVertices, std::vector<MeshIndices> &outIndices)
 {
     outNames.clear();
@@ -23,13 +24,13 @@ bool Graphics::ParseOBJFile(
     MeshVertices currentVertices;
     MeshIndices currentIndices;
     std::string currentLine;
-    bool currentValid = true;
+    bool isCurrentValid = true;
 
     const auto flushObject = [&]
     {
-        if (!currentValid || currentIndices.empty())
+        if (!isCurrentValid || currentIndices.empty())
         {
-            if (!currentValid)
+            if (!isCurrentValid)
                 LOG_ERROR("OBJ parser: Skipping invalid OBJ object.\n");
             currentVertices.clear();
             currentIndices.clear();
@@ -44,7 +45,8 @@ bool Graphics::ParseOBJFile(
         currentIndices.clear();
     };
 
-    // Stream >> string = read until whitespace
+    // Stream >> string = read until whitespace for strings
+    // Stream >> float = read until no number for floats
 
     while (std::getline(stream, currentLine))
     {
@@ -54,60 +56,77 @@ bool Graphics::ParseOBJFile(
 
         if (type == "o") // Mark new object found
         {
-            flushObject();
-            currentValid = true;
+            flushObject(); // Flush the previous object before starting a new one
+            isCurrentValid = true;
             currentName.clear();
-            lineStream >> std::ws;
+            lineStream >> std::ws; // Skip whitespace before reading the object name, which may contain spaces
             std::getline(lineStream, currentName);
             continue;
         }
 
+        if (!isCurrentValid) // Skip parsing lines for an invalid object until the next object is found
+            continue;
+
         if (type == "v") // Read vertex position for current object
         {
             Vector3f position;
-            const bool lineValid = static_cast<bool>(lineStream >> position.x >> position.y >> position.z);
-            currentValid = currentValid && lineValid;
-            if (lineValid)
+            if (static_cast<bool>(lineStream >> position.x >> position.y >> position.z))
                 positions.push_back(position);
         }
         else if (type == "vt") // Read vertex texture coordinate/UV for current object
         {
             Vector2f uv;
-            const bool lineValid = static_cast<bool>(lineStream >> uv.x >> uv.y);
-            currentValid = currentValid && lineValid;
-            if (lineValid)
+            if (static_cast<bool>(lineStream >> uv.x >> uv.y))
                 uvs.push_back(uv);
         }
         else if (type == "vn") // Read vertex normal
         {
             Vector3f normal;
-            const bool lineValid = static_cast<bool>(lineStream >> normal.x >> normal.y >> normal.z);
-            currentValid = currentValid && lineValid;
-            if (lineValid)
+            if (static_cast<bool>(lineStream >> normal.x >> normal.y >> normal.z))
                 normals.push_back(normal);
         }
         else if (type == "f") // Read face vertex-indices
         {
-            if (!currentValid)
-                continue;
-
-            for (std::size_t i = 0; i < 3 && currentValid; ++i)
+            // Base index for this face.
+            const auto firstIndex = static_cast<UInt32>(currentVertices.size());
+            std::size_t faceVertexCount = 0;
+            std::string token; // Read each face vertex.
+            while (lineStream >> token)
             {
-                int position, uv, normal;
-                char trailing; // check for trailing characters after the third index which is invalid.
-                std::string token; // read the next vertex index triplet (position/uv/normal)
-                if (!(lineStream >> token) ||
-                    std::sscanf(token.c_str(), "%d/%d/%d%c", &position, &uv, &normal, &trailing) != 3 ||
-                    position <= 0 || uv <= 0 || normal <= 0 || static_cast<std::size_t>(position) > positions.size() ||
-                    static_cast<std::size_t>(uv) > uvs.size() || static_cast<std::size_t>(normal) > normals.size())
+                if (token[0] == '#') // Trailing comment found, skip the rest of the line
+                    break;
+                if (faceVertexCount == 4)
                 {
-                    currentValid = false;
+                    isCurrentValid = false;
                     break;
                 }
 
-                currentVertices.emplace_back(positions[position - 1], normals[normal - 1], uvs[uv - 1]);
-                currentIndices.push_back(static_cast<std::uint32_t>(currentVertices.size() - 1));
+                char trailing;
+                Int32 positionIndex, uvIndex, normalIndex;
+                if (std::sscanf(token.c_str(), "%" SCNd32 "/%" SCNd32 "/%" SCNd32 "%c",
+                        &positionIndex, &uvIndex, &normalIndex, &trailing) != 3 ||
+                    positionIndex <= 0 || uvIndex <= 0 || normalIndex <= 0 || static_cast<std::size_t>(positionIndex) > positions.size() ||
+                    static_cast<std::size_t>(uvIndex) > uvs.size() || static_cast<std::size_t>(normalIndex) > normals.size())
+                {
+                    isCurrentValid = false;
+                    break;
+                }
+
+                currentVertices.emplace_back(positions[positionIndex - 1], normals[normalIndex - 1], uvs[uvIndex - 1]);
+                ++faceVertexCount;
             }
+
+            if (faceVertexCount < 3)
+            {
+                isCurrentValid = false;
+                break;
+            }
+
+            // The first three corners form the first triangle.
+            currentIndices.insert(currentIndices.end(), {firstIndex, firstIndex + 1, firstIndex + 2});
+            if (faceVertexCount == 4)
+                // The second triangle shares the quad's first and third corners.
+                currentIndices.insert(currentIndices.end(), {firstIndex, firstIndex + 2, firstIndex + 3});
         }
     }
 

@@ -1,5 +1,7 @@
 #include "Graphics.h"
+#include "LogHandler.h"
 
+#include <cinttypes>
 #include <cmath>
 
 Graphics::ShaderType Graphics::GetShaderFileType(const std::filesystem::path &file)
@@ -95,6 +97,11 @@ bool Graphics::LinkShaders(ResourceHandle &shaderProgram, const ResourceHandle *
     for (std::size_t i = 0; i < shadersCount; ++i)
         glAttachShader(shaderProgram, shaders[i]);
 
+    glBindAttribLocation(shaderProgram, 0, "vertex_position");
+    glBindAttribLocation(shaderProgram, 1, "vertex_normal");
+    glBindAttribLocation(shaderProgram, 2, "vertex_uv");
+    glBindAttribLocation(shaderProgram, 3, "vertex_color");
+    glBindAttribLocation(shaderProgram, 4, "instance_offset");
     glLinkProgram(shaderProgram);
 
     GLint success = GL_FALSE;
@@ -160,7 +167,7 @@ bool Graphics::CreateMeshBuffers(ResourceHandle &outVertexArray, ResourceHandle 
     outIndexBuffer = 0;
 
     if (vertices.size() > MaxMeshBufferSize / sizeof(Vertex) ||
-        indices.size() > MaxMeshBufferSize / sizeof(std::uint32_t) ||
+        indices.size() > MaxMeshBufferSize / sizeof(UInt32) ||
         sizeof(Vertex) > static_cast<std::size_t>(std::numeric_limits<GLsizei>::max()))
     {
         LOG_ERROR("Cannot create mesh buffers: vertex data, index data, or vertex stride exceeds OpenGL limits.\n");
@@ -170,8 +177,8 @@ bool Graphics::CreateMeshBuffers(ResourceHandle &outVertexArray, ResourceHandle 
     for (std::size_t i = 0; i < indices.size(); ++i)
         if (indices[i] >= vertices.size())
         {
-            LOG_ERROR(
-                "Cannot create mesh buffers: index %u at position %zu is outside the vertex range.\n", indices[i], i);
+            LOG_ERROR("Cannot create mesh buffers: index %" PRIu32 " at position %zu is outside the vertex range.\n",
+                indices[i], i);
             return false;
         }
 
@@ -186,8 +193,7 @@ bool Graphics::CreateMeshBuffers(ResourceHandle &outVertexArray, ResourceHandle 
 
     if (newVertexArray == 0 || newVertexBuffer == 0 || (!indices.empty() && newIndexBuffer == 0))
     {
-        LOG_ERROR(
-            "Cannot create mesh buffers: OpenGL failed to allocate the required vertex array or buffer objects.\n");
+        LOG_ERROR("Cannot create mesh buffers: OpenGL failed to allocate the required vertex array or buffer objects.\n");
         if (newVertexArray != 0)
             glDeleteVertexArrays(1, &newVertexArray);
         if (newIndexBuffer != 0)
@@ -205,7 +211,7 @@ bool Graphics::CreateMeshBuffers(ResourceHandle &outVertexArray, ResourceHandle 
     if (!indices.empty())
     {
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, newIndexBuffer);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(indices.size() * sizeof(std::uint32_t)),
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(indices.size() * sizeof(UInt32)),
             indices.data(), GL_STATIC_DRAW);
     }
 

@@ -1,17 +1,30 @@
 #include "Window.h"
 #include "GlfwInput.h"
 #include "Graphics.h"
-
-#include <cstdio>
+#include "LogHandler.h"
 
 #include <glad/gl.h>
+
+namespace
+{
+    void LogGlfwError(const char *operation)
+    {
+        const char *description = nullptr;
+        const int error = glfwGetError(&description);
+        LOG_ERROR("%s failed (GLFW error 0x%X): %s\n",
+            operation, static_cast<unsigned int>(error), description != nullptr ? description : "no description");
+    }
+}
 
 namespace Graphics
 {
     bool Window::InitializeWindow(const WindowConfig &config)
     {
         if (glfwInit() != GLFW_TRUE)
+        {
+            LogGlfwError("glfwInit");
             return false;
+        }
         glfwInitialized = true;
 
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -21,14 +34,14 @@ namespace Graphics
         window = glfwCreateWindow(config.width, config.height, config.title, nullptr, nullptr);
         if (window == nullptr)
         {
-            LOG_ERROR("Failed to create GLFW window. Make sure that your graphics drivers are up to date and support OpenGL 3.3 or higher.\n");
+            LogGlfwError("glfwCreateWindow");
             return false;
         }
 
         glfwMakeContextCurrent(window);
         if (gladLoadGL(reinterpret_cast<GLADloadfunc>(glfwGetProcAddress)) == 0)
         {
-            LOG_ERROR("Failed to load OpenGL functions with GLAD. Make sure that your graphics drivers are up to date and support OpenGL 3.3 or higher.\n");
+            LOG_ERROR("Failed to load OpenGL functions with GLAD for the active context.\n");
             return false;
         }
 
@@ -65,7 +78,10 @@ namespace Graphics
     bool Window::Initialize(const WindowConfig &windowConfig, const InputCallbacks &callbacks)
     {
         if (window != nullptr)
+        {
+            LOG_ERROR("Window initialization rejected: a window is already active.\n");
             return false;
+        }
 
         inputCallbacks = callbacks;
         vsyncEnabled = windowConfig.vsyncEnabled;
@@ -77,6 +93,8 @@ namespace Graphics
 
         SetVSyncEnabled(vsyncEnabled);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        LOG_INFO("Initialized GLFW window (%d x %d, VSync %s).\n",
+            windowConfig.width, windowConfig.height, vsyncEnabled ? "on" : "off");
         return true;
     }
 

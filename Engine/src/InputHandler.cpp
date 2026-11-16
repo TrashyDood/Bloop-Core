@@ -26,7 +26,7 @@ namespace Engine
 
         eventAction = static_cast<KeyAction>(action + (wasHeld && action == Pressed));
         isHeld = static_cast<bool>(action);
-        const int heldCountChange = static_cast<int>(isHeld) - static_cast<int>(wasHeld);
+        const Int32 heldCountChange = static_cast<Int32>(isHeld) - static_cast<Int32>(wasHeld);
 
         GetWildcardState(wildcardKey).heldKeyCount += heldCountChange;
         if (wildcardKey != Input::AnyInput)

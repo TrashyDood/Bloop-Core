@@ -1,4 +1,5 @@
 #include "Shader.h"
+#include "LogHandler.h"
 
 #include <utility>
 
@@ -51,5 +52,9 @@ bool Graphics::ShaderResource::InitializeResources()
         return false;
     }
 
-    return CreateShaderProgram(sources.data(), sources.size(), shaderProgram);
+    if (!CreateShaderProgram(sources.data(), sources.size(), shaderProgram))
+        return false;
+
+    LOG_INFO("Initialized shader program with %zu stage(s).\n", sources.size());
+    return true;
 }

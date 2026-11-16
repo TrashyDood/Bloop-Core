@@ -2,6 +2,7 @@
 
 #include "EventHandler.h"
 #include "InputCodes.h"
+#include "Shared.h"
 
 #include <unordered_map>
 
@@ -26,7 +27,7 @@ namespace Engine
         using KeyCallback = KeyEventHandler::EventCallback;
 
     private:
-        struct WildcardState { int heldKeyCount = 0; KeyEventHandler eventHandler; };
+        struct WildcardState { Int32 heldKeyCount = 0; KeyEventHandler eventHandler; };
         struct KeyState { bool isHeld = false; KeyEventHandler eventHandler; };
 
         std::unordered_map<Input::InputCode, KeyState> keyStates;

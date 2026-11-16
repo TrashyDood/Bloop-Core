@@ -1,3 +1,4 @@
+#include "LogHandler.h"
 #include "Shared.h"
 
 #include <cstdarg>
@@ -8,14 +9,6 @@
 
 namespace IOUtils
 {
-    void WriteError(const char *msg, ...)
-    {
-        va_list args;
-        va_start(args, msg);
-        std::vfprintf(stderr, msg, args);
-        va_end(args);
-    }
-
     std::vector<std::filesystem::path> FindMatchingFiles(const std::filesystem::path &folder,
         const std::regex &filenamePattern)
     {
