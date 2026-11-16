@@ -6,10 +6,11 @@
 #include <utility>
 
 Graphics::MeshResource::MeshResource(MeshResource &&other) noexcept
-    : IResourceOwner(std::move(other)),
+    : ResourceOwner(std::move(other)),
       vertexArray(std::exchange(other.vertexArray, 0)),
       vertexBuffer(std::exchange(other.vertexBuffer, 0)),
       indexBuffer(std::exchange(other.indexBuffer, 0)),
+      instanceBuffer(std::exchange(other.instanceBuffer, 0)),
       vertices(std::move(other.vertices)),
       indices(std::move(other.indices)) { }
 
@@ -18,10 +19,11 @@ Graphics::MeshResource &Graphics::MeshResource::operator=(MeshResource &&other) 
     if (this != &other)
     {
         ReleaseResources();
-        IResourceOwner::operator=(std::move(other));
+        ResourceOwner::operator=(std::move(other));
         vertexArray = std::exchange(other.vertexArray, 0);
         vertexBuffer = std::exchange(other.vertexBuffer, 0);
         indexBuffer = std::exchange(other.indexBuffer, 0);
+        instanceBuffer = std::exchange(other.instanceBuffer, 0);
         vertices = std::move(other.vertices);
         indices = std::move(other.indices);
     }
@@ -35,20 +37,23 @@ void Graphics::MeshResource::ReleaseResources() noexcept
         glDeleteVertexArrays(1, &vertexArray);
     if (indexBuffer != 0)
         glDeleteBuffers(1, &indexBuffer);
+    if (instanceBuffer != 0)
+        glDeleteBuffers(1, &instanceBuffer);
     if (vertexBuffer != 0)
         glDeleteBuffers(1, &vertexBuffer);
 
     vertexArray = 0;
     vertexBuffer = 0;
     indexBuffer = 0;
+    instanceBuffer = 0;
 }
 
 bool Graphics::MeshResource::InitializeResources()
 {
-    if (!IResourceOwner::InitializeResources())
+    if (!ResourceOwner::InitializeResources())
         return false;
 
-    if (vertexArray != 0 || vertexBuffer != 0 || indexBuffer != 0)
+    if (vertexArray != 0 || vertexBuffer != 0 || indexBuffer != 0 || instanceBuffer != 0)
     {
         LOG_ERROR("Cannot initialize mesh: OpenGL resource handles are already assigned.\n");
         return false;
@@ -60,7 +65,18 @@ bool Graphics::MeshResource::InitializeResources()
         return false;
     }
 
-    return CreateMeshBuffers(vertexArray, vertexBuffer, indexBuffer, vertices, indices);
+    if (!CreateMeshBuffers(vertexArray, vertexBuffer, indexBuffer, vertices, indices))
+        return false;
+
+    glGenBuffers(1, &instanceBuffer);
+    if (instanceBuffer == 0)
+    {
+        LOG_ERROR("Cannot initialize mesh: OpenGL failed to allocate the instance buffer.\n");
+        ReleaseResources();
+        return false;
+    }
+
+    return true;
 }
 
 bool Graphics::MeshResource::Draw() const
@@ -85,5 +101,58 @@ bool Graphics::MeshResource::Draw() const
         glDrawElements(GL_TRIANGLES, (GLsizei)(indices.size()), GL_UNSIGNED_INT, nullptr);
     glBindVertexArray(0);
 
+    return true;
+}
+
+bool Graphics::MeshResource::DrawInstanced(const Vector3f offsets[], const std::size_t offsetCount) const
+{
+    if (!IsInitialized())
+    {
+        LOG_ERROR("Cannot draw mesh instances: mesh is not initialized.\n");
+        return false;
+    }
+
+    if (offsetCount == 0)
+        return true;
+
+    if (offsets == nullptr)
+    {
+        LOG_ERROR("Cannot draw mesh instances: offset array is null.\n");
+        return false;
+    }
+
+    const std::size_t drawCount = indices.empty() ? vertices.size() : indices.size();
+    if (drawCount > static_cast<std::size_t>(std::numeric_limits<GLsizei>::max()) ||
+        offsetCount > static_cast<std::size_t>(std::numeric_limits<GLsizei>::max()) ||
+        offsetCount > MaxMeshBufferSize / sizeof(Vector3f))
+    {
+        LOG_ERROR("Cannot draw mesh instances: draw or instance count exceeds OpenGL limits.\n");
+        return false;
+    }
+
+    glBindVertexArray(vertexArray);
+    glBindBuffer(GL_ARRAY_BUFFER, instanceBuffer);
+    glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(offsetCount * sizeof(Vector3f)), offsets, GL_STREAM_DRAW);
+    glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, static_cast<GLsizei>(sizeof(Vector3f)), nullptr);
+    glEnableVertexAttribArray(4);
+    glVertexAttribDivisor(4, 1);
+
+    if (indices.empty())
+    {
+        glDrawArraysInstanced(
+            GL_TRIANGLES, 0, static_cast<GLsizei>(vertices.size()), static_cast<GLsizei>(offsetCount));
+    }
+    else
+    {
+        glDrawElementsInstanced(
+            GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT, nullptr,
+            static_cast<GLsizei>(offsetCount));
+    }
+
+    glDisableVertexAttribArray(4);
+    glVertexAttribDivisor(4, 0);
+    glVertexAttrib3f(4, 0.f, 0.f, 0.f);
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
     return true;
 }

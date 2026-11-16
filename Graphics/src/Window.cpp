@@ -1,4 +1,4 @@
-#include "GlfwHost.h"
+#include "Window.h"
 #include "GlfwInput.h"
 #include "Graphics.h"
 
@@ -8,7 +8,7 @@
 
 namespace Graphics
 {
-    bool GlfwHost::InitializeWindow(const WindowConfig &config)
+    bool Window::InitializeWindow(const WindowConfig &config)
     {
         if (glfwInit() != GLFW_TRUE)
             return false;
@@ -45,7 +45,7 @@ namespace Graphics
         return true;
     }
 
-    void GlfwHost::Shutdown() noexcept
+    void Window::Shutdown() noexcept
     {
         if (window != nullptr)
         {
@@ -62,7 +62,7 @@ namespace Graphics
         }
     }
 
-    bool GlfwHost::Initialize(const WindowConfig &windowConfig, const InputCallbacks &callbacks)
+    bool Window::Initialize(const WindowConfig &windowConfig, const InputCallbacks &callbacks)
     {
         if (window != nullptr)
             return false;
@@ -80,16 +80,16 @@ namespace Graphics
         return true;
     }
 
-    void GlfwHost::PresentFrame()
+    void Window::PresentFrame() const
     {
         CheckGLErrors();
         glfwSwapBuffers(window);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
 
-    void GlfwHost::HandleKeyEvent(GLFWwindow *window, int key, int, int action, int)
+    void Window::HandleKeyEvent(GLFWwindow *window, int key, int, int action, int)
     {
-        GlfwHost *host = GetHost(window);
+        Window *host = GetHost(window);
         if (host == nullptr)
             return;
 
@@ -98,9 +98,9 @@ namespace Graphics
             host->inputCallbacks.onKey(ToSharedKeyCode(key), *translatedAction);
     }
 
-    void GlfwHost::HandleMouseButtonEvent(GLFWwindow *window, int button, int action, int)
+    void Window::HandleMouseButtonEvent(GLFWwindow *window, int button, int action, int)
     {
-        GlfwHost *host = GetHost(window);
+        Window *host = GetHost(window);
         if (host == nullptr)
             return;
 
@@ -109,33 +109,33 @@ namespace Graphics
             host->inputCallbacks.onMouseButton(ToSharedMouseButton(button), *translatedAction);
     }
 
-    void GlfwHost::HandleCursorPosition(GLFWwindow *window, double x, double y)
+    void Window::HandleCursorPosition(GLFWwindow *window, double x, double y)
     {
-        GlfwHost *host = GetHost(window);
+        Window *host = GetHost(window);
         if (host != nullptr && host->inputCallbacks.onCursorPosition)
             host->inputCallbacks.onCursorPosition(x, y);
     }
 
-    void GlfwHost::HandleScroll(GLFWwindow *window, double xOffset, double yOffset)
+    void Window::HandleScroll(GLFWwindow *window, double xOffset, double yOffset)
     {
-        GlfwHost *host = GetHost(window);
+        Window *host = GetHost(window);
         if (host != nullptr && host->inputCallbacks.onScroll)
             host->inputCallbacks.onScroll(xOffset, yOffset);
     }
 
-    void GlfwHost::HandleFramebufferSize(GLFWwindow *, int width, int height)
+    void Window::HandleFramebufferSize(GLFWwindow *, int width, int height)
     {
         glViewport(0, 0, width, height);
     }
 
-    float GlfwHost::GetWindowAspectRatio() const
+    float Window::GetWindowAspectRatio() const
     {
         int width = 0, height = 0;
         glfwGetFramebufferSize(&GetWindow(), &width, &height);
         return static_cast<float>(glm::max(width, 1)) / static_cast<float>(glm::max(height, 1));
     }
 
-    void GlfwHost::SetVSyncEnabled(const bool enabled)
+    void Window::SetVSyncEnabled(const bool enabled)
     {
         vsyncEnabled = enabled;
         if (window != nullptr)

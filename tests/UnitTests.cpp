@@ -1,8 +1,10 @@
 #include "EventHandler.h"
+#include "Transform.h"
+#ifdef ENGINE_ENABLED
 #include "InputHandler.h"
 #include "Scene.h"
-#include "Transform.h"
-#if defined(ENABLE_GRAPHICS) && ENABLE_GRAPHICS
+#endif
+#ifdef GRAPHICS_ENABLED
 #include "Camera.h"
 #include "GlfwInput.h"
 #endif
@@ -19,6 +21,14 @@
 
 namespace
 {
+#ifdef GRAPHICS_ENABLED
+    using Input::KeyCode;
+    using Input::MouseKeyCode;
+    using Input::Held;
+    using Input::Pressed;
+    using Input::Released;
+#endif
+
     constexpr float Tolerance = 1e-4f;
 
     bool NearlyEqual(float actual, float expected)
@@ -81,7 +91,7 @@ namespace
                 "Parallel look direction and up vectors leave rotation unchanged");
     }
 
-#if defined(ENABLE_GRAPHICS) && ENABLE_GRAPHICS
+#ifdef GRAPHICS_ENABLED
     void TestCameraOrthographicProjection()
     {
         Transform transform;
@@ -213,6 +223,7 @@ namespace
         Require(value == 4000, "Event supports concurrent invocation");
     }
 
+#ifdef ENGINE_ENABLED
     void TestInputHandlerKeyStateTransitions()
     {
         Engine::InputHandler input;
@@ -402,11 +413,11 @@ namespace
         int eventPumps = 0;
         int presents = 0;
         int continueChecks = 0;
-        const Engine::Scene::SceneRunHooks hooks{
+        const Engine::Scene::RunHooks hooks{
             [&]
             {
                 ++eventPumps;
-                scene.DispatchKeyEvent(Engine::KeyCode::Space, Engine::Pressed);
+                scene.GetInput().OnKeyStateChanged(Engine::KeyCode::Space, Engine::Pressed);
             },
             [&] { ++presents; },
             [&] { ++continueChecks; return false; }
@@ -421,6 +432,7 @@ namespace
         Require(scene.tickObservedRunning && scene.GetState() == Engine::Scene::State::Stopped,
                 "Scene transitions through running to stopped");
     }
+#endif
 
     using Test = std::pair<const char *, void (*)()>;
 }
@@ -431,7 +443,7 @@ int main()
         {"transform defaults and composition", TestTransformDefaultsAndComposition},
         {"transform rotation", TestTransformRotation},
         {"transform rejects parallel look direction", TestTransformRejectsParallelLookDirection},
-#if defined(ENABLE_GRAPHICS) && ENABLE_GRAPHICS
+#ifdef GRAPHICS_ENABLED
         {"orthographic camera projection", TestCameraOrthographicProjection},
         {"perspective camera projection", TestCameraPerspectiveProjection},
         {"camera view matrix", TestCameraViewMatrix},
@@ -440,6 +452,7 @@ int main()
         {"event registration and removal", TestEventHandlerRegistrationAndRemoval},
         {"event duplicate lambdas", TestEventHandlerAllowsDuplicateLambdas},
         {"event concurrent invocation", TestEventHandlerConcurrentInvocation},
+#ifdef ENGINE_ENABLED
         {"input key state transitions", TestInputHandlerKeyStateTransitions},
         {"input callback unbinding", TestInputHandlerUnbindsKeyCallback},
         {"input mouse binding and state", TestInputHandlerMouseBindingAndState},
@@ -448,6 +461,7 @@ int main()
         {"input typed any state", TestInputHandlerTypedAnyState},
         {"input 2D axis", TestInputHandlerAxis2},
         {"scene lifecycle and run hooks", TestSceneLifecycleAndRunHooks},
+#endif
     };
 
     int failures = 0;

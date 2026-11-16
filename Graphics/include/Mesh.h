@@ -9,11 +9,12 @@
 namespace Graphics
 {
     // Represents a mesh in OpenGL, managing its vertex array, vertex buffer, and index buffer.
-    class MeshResource : public IResourceOwner
+    class MeshResource : public ResourceOwner
     {
         ResourceHandle vertexArray = 0;
         ResourceHandle vertexBuffer = 0;
         ResourceHandle indexBuffer = 0;
+        ResourceHandle instanceBuffer = 0;
         MeshVertices vertices;
         MeshIndices indices;
 
@@ -23,7 +24,11 @@ namespace Graphics
         [[nodiscard]] ResourceHandle GetVertexArray() const { return vertexArray; }
         [[nodiscard]] ResourceHandle GetVertexBuffer() const { return vertexBuffer; }
         [[nodiscard]] ResourceHandle GetIndexBuffer() const { return indexBuffer; }
-        [[nodiscard]] bool IsInitialized() const override { return vertexArray != 0 && vertexBuffer != 0 && (indices.empty() || indexBuffer != 0); }
+        [[nodiscard]] bool IsInitialized() const override
+        {
+            return vertexArray != 0 && vertexBuffer != 0 && instanceBuffer != 0 &&
+                (indices.empty() || indexBuffer != 0);
+        }
 
         explicit MeshResource(const MeshVertices &vertices, const MeshIndices &indices = {})
             : vertices(vertices), indices(indices) {}
@@ -42,6 +47,7 @@ namespace Graphics
 
         bool InitializeResources() override;
         bool Draw() const;
+        bool DrawInstanced(const Vector3f offsets[], std::size_t offsetCount) const;
 
       private:
         void ReleaseResources() noexcept override;

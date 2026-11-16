@@ -8,7 +8,7 @@ Controls: WASD to move, Q/E vertically, mouse buttons to orbit, scroll to zoom, 
 
 This project uses CMake and is configured for MSYS2 UCRT64 on Windows.
 
-Graphics are disabled by default. Configure with `-DENABLE_GRAPHICS=ON` to build the GLFW/OpenGL `Graphics` library and demo. `Graphics` depends on `Shared`, not `EngineCore`; the demo composes `Graphics` and `EngineCore`. `EngineCore` owns scene timing and lifecycle, with optional hooks for platform event processing and presentation. Without graphics, CMake builds `Shared`, `EngineCore`, and the core tests.
+The default VS Code CMake preset builds both the `Engine` and `Graphics` libraries, plus the `EngineDemo` GLFW/OpenGL application. Both libraries use `Shared` for common logic. Set `BUILD_ENGINE` and `BUILD_GRAPHICS` independently to choose which libraries to build; `EngineDemo` is built only when both are enabled. Graphics dependencies are installed by the setup task below. The `Engine` library owns scene timing and lifecycle, with optional hooks for platform event processing and presentation.
 
 1. Install the recommended VS Code extensions when prompted.
 2. Set `msys2.root` in your VS Code user settings to your MSYS2 installation folder (for example, `C:\msys2`). No environment variable or global `PATH` change is required.
@@ -20,4 +20,12 @@ Graphics are disabled by default. Configure with `-DENABLE_GRAPHICS=ON` to build
 
 ## Run unit tests
 
-Run **CMake: Run Tests** to build the project and run the tests from the `default` CTest preset. CMake Tools also exposes the discovered tests in its Test Explorer.
+Run **CMake: Run Core Tests** to configure, build, and run the core unit tests without requiring Graphics or GLFW. From a terminal, use:
+
+```powershell
+cmake --preset tests
+cmake --build --preset tests
+ctest --preset tests
+```
+
+The existing **CMake: Run Tests** task still runs tests with the `default` preset, which also builds Graphics and includes its input/camera tests when enabled.

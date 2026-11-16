@@ -15,7 +15,18 @@
         "CMAKE_C_COMPILER": "gcc",
         "CMAKE_CXX_COMPILER": "g++",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "BUILD_TESTING": "ON"
+        "BUILD_TESTING": "ON",
+        "BUILD_ENGINE": "ON",
+        "BUILD_GRAPHICS": "ON"
+      }
+    },
+    {
+      "name": "tests",
+      "displayName": "Core tests (without Graphics)",
+      "inherits": "default",
+      "binaryDir": "${sourceDir}/build/tests",
+      "cacheVariables": {
+        "BUILD_GRAPHICS": "OFF"
       }
     }
   ],
@@ -24,12 +35,24 @@
       "name": "default",
       "configurePreset": "default",
       "jobs": 8
+    },
+    {
+      "name": "tests",
+      "configurePreset": "tests",
+      "jobs": 8
     }
   ],
   "testPresets": [
     {
       "name": "default",
       "configurePreset": "default",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "tests",
+      "configurePreset": "tests",
       "output": {
         "outputOnFailure": true
       }

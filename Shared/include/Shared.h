@@ -1,11 +1,11 @@
 #pragma once
 
-#include "InputCodes.h"
-
 #include <chrono>
+#include <filesystem>
+#include <regex>
 #include <stdexcept>
-#include <stddef.h>
 #include <memory>
+#include <string>
 #include <vector>
 
 #ifdef _WIN32
@@ -49,14 +49,17 @@ struct TimerResolution
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-#define LOG_ERROR(msg, ...) WriteError(msg, ##__VA_ARGS__)
+#define LOG_ERROR(msg, ...) IOUtils::WriteError(msg, ##__VA_ARGS__)
 #define SMALL_NUMBER 1e-6f
 
 using namespace std::chrono_literals;
 
-// Allow for shared ownership of a collection of objects of type T.
 template<typename T>
 using SharedList = std::vector<std::shared_ptr<T>>;
+
+template<typename T>
+using UniqueList = std::vector<std::unique_ptr<T>>;
+
 using Vector2f = glm::vec2;
 using Vector3f = glm::vec3;
 using Vector4f = glm::vec4;
@@ -67,7 +70,12 @@ using Quaternionf = glm::quat;
 using Matrix4f = glm::mat4;
 using TimeDuration = std::chrono::duration<double>;
 
-void WriteError(const char *msg, ...);
+namespace IOUtils
+{
+    void WriteError(const char *msg, ...);
+    bool ReadFileToEnd(const char *filename, std::string &outContents);
+    std::vector<std::filesystem::path> FindMatchingFiles(const std::filesystem::path &folder, const std::regex &filenamePattern);
+}
 
 namespace Colors
 {

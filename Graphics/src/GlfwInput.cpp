@@ -2,6 +2,13 @@
 
 namespace Graphics
 {
+    using Input::KeyCode;
+    using Input::KeyAction;
+    using Input::MouseKeyCode;
+    using Input::Held;
+    using Input::Pressed;
+    using Input::Released;
+
     KeyCode ToSharedKeyCode(const int key) noexcept
     {
         if (key >= GLFW_KEY_0 && key <= GLFW_KEY_9)

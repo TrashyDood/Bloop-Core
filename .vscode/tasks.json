@@ -6,7 +6,8 @@
       "dependsOn": [
         "MSYS2: Update",
         "MSYS2: Install UCRT64 Dependencies",
-        "MSYS2: Install OpenGL Dependencies"
+        "MSYS2: Install OpenGL Dependencies",
+        "MSYS2: Install stb"
       ],
       "dependsOrder": "sequence"
     },
@@ -67,6 +68,25 @@
       },
       "problemMatcher": []
     },
+    { // MSYS2 STB IMAGE DEPENDENCY
+      "label": "MSYS2: Install stb",
+      "type": "shell",
+      "command": "call \"${config:msys2.root}\\msys2_shell.cmd\" -ucrt64 -defterm -no-start -here -c \"pacman -S --needed mingw-w64-ucrt-x86_64-stb\"",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "shell": {
+          "executable": "cmd.exe",
+          "args": ["/d", "/c"]
+        }
+      },
+      "presentation": {
+        "group": "msys2",
+        "reveal": "always",
+        "panel": "dedicated",
+        "close": false
+      },
+      "problemMatcher": []
+    },
     { // MSYS2 GENERATE GLAD
       "label": "MSYS2: Generate GLAD",
       "type": "shell",
@@ -86,7 +106,7 @@
       },
       "problemMatcher": []
     },
-    {
+    { // MSYS CMAKE SYNC TOOLS
       "label": "MSYS2: Sync CMake Tools Paths",
       "type": "process",
       "command": "powershell.exe",
@@ -128,10 +148,33 @@
       "dependsOn": "CMake: Build",
       "problemMatcher": []
     },
+    { // CMAKE CONFIGURE TESTS
+      "label": "CMake: Configure Core Tests",
+      "type": "cmake",
+      "command": "configure",
+      "preset": "tests",
+      "problemMatcher": []
+    },
+    { // CMAKE BUILD CORE TESTS
+      "label": "CMake: Build Core Tests",
+      "type": "cmake",
+      "command": "build",
+      "preset": "tests",
+      "dependsOn": "CMake: Configure Core Tests",
+      "problemMatcher": []
+    },
+    { // CMAKE RUN CORE TESTS
+      "label": "CMake: Run Core Tests",
+      "type": "cmake",
+      "command": "test",
+      "preset": "tests",
+      "dependsOn": "CMake: Build Core Tests",
+      "problemMatcher": []
+    },
     { // RUN ENGINE
       "label": "Run Engine",
       "type": "process",
-      "command": "${command:cmake.launchTargetPath}",
+      "command": "build\\EngineDemo.exe",
       "options": {
         "cwd": "${workspaceFolder}"
       },

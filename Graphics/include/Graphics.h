@@ -9,29 +9,16 @@
 #include <glad/gl.h>
 
 #define DEFAULT_ASPECT_RATIO Graphics::DefaultAspectRatio
-#define SHADER_FILE(filename) (ENGINE_SHADER_DIR "/" filename)
-#define MODEL_FILE(filename) (ENGINE_MODEL_DIR "/" filename)
+#define MAX_MESH_BUFFER_SIZE Graphics::MaxMeshBufferSize
+#define SHADER_EXTENSION ".glsl"
 
 namespace Graphics
 {
     using ResourceHandle = GLuint;
 
     inline constexpr float DefaultAspectRatio = 16.0f / 9.0f;
-    static constexpr std::size_t MaxMeshBufferSize = static_cast<std::size_t>(std::numeric_limits<GLsizeiptr>::max());
-
-    enum ShaderType : GLenum
-    {
-        VertexShader = GL_VERTEX_SHADER,
-        FragmentShader = GL_FRAGMENT_SHADER,
-        GeometryShader = GL_GEOMETRY_SHADER
-    };
-
-    struct ShaderSource
-    {
-        const std::string source;
-        const GLenum type;
-        const bool isFile = false;
-    };
+    inline constexpr std::size_t MaxMeshBufferSize =
+        static_cast<std::size_t>(std::numeric_limits<GLsizeiptr>::max());
 
     struct Vertex
     {
@@ -45,18 +32,32 @@ namespace Graphics
             : position(position), normal(normal), UV(textureCoordinates), color(color) {}
     };
 
+    enum ShaderType : GLenum
+    {
+        Unknown = 0,
+        VertexShader = GL_VERTEX_SHADER,
+        FragmentShader = GL_FRAGMENT_SHADER,
+        GeometryShader = GL_GEOMETRY_SHADER
+    };
+
+    struct ShaderSource
+    {
+        const std::string source;
+        const GLenum type;
+    };
+
     using MeshVertices = std::vector<Vertex>;
     using MeshIndices = std::vector<std::uint32_t>;
 
+    ShaderType GetShaderFileType(const std::filesystem::path &file);
+    std::string GetShaderGroupName(const std::filesystem::path &file);
+
     void CheckGLErrors();
 
-    bool ReadFileToEnd(const char *filename, std::string &outSource);
+    bool CompileShader(const GLenum type, const char *source, ResourceHandle &outShader);
+    bool LinkShaders(ResourceHandle &outShaderProgram, const ResourceHandle *shaders, const std::size_t shadersCount);
+    bool CreateShaderProgram(const ShaderSource *sources, const std::size_t sourcesCount, ResourceHandle &outShaderProgram);
 
-    bool CompileShader(GLenum type, const char *source, ResourceHandle &outShader);
-    bool LinkShaders(ResourceHandle &outShaderProgram, const ResourceHandle *shaders, std::size_t shadersCount);
-    bool CreateShaderProgram(ResourceHandle &outShaderProgram, const ShaderSource *sources, std::size_t sourcesCount);
-
-    bool ParseMeshSource(const char *source, MeshVertices &outVertices, MeshIndices &outIndices);
     bool CreateMeshBuffers(ResourceHandle &vertexArray, ResourceHandle &vertexBuffer,
         ResourceHandle &indexBuffer, const MeshVertices &vertices, const MeshIndices &indices = {});
 }

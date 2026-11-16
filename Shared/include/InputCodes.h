@@ -1,5 +1,7 @@
 #pragma once
 
+namespace Input
+{
 using InputCode = int;
 
 inline constexpr InputCode AnyInput = -2;
@@ -17,7 +19,7 @@ inline constexpr InputCode WildcardCode<MouseKeyCode> = AnyInput - 2;
 enum class KeyCode : InputCode
 {
     Any = WildcardCode<KeyCode>,
-    Unknown = 0,
+    Unknown = 1000,
     Space,
     Apostrophe,
     Comma,
@@ -163,3 +165,4 @@ enum KeyAction : int
     Pressed = 1,
     Held = 2
 };
+}

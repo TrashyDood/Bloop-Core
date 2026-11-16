@@ -9,7 +9,7 @@
 
 namespace Graphics
 {
-    class ShaderResource : public IResourceOwner
+    class ShaderResource : public ResourceOwner
     {
         ResourceHandle shaderProgram = 0;
         std::vector<ShaderSource> sources;
@@ -25,13 +25,14 @@ namespace Graphics
         [[nodiscard]]
         bool GetUniformLocation(const std::string &name, GLint &location) const;
         [[nodiscard]]
-        bool TryGetAttributeLocation(const std::string &name, GLint &location) const;
+        bool GetAttributeLocation(const std::string &name, GLint &location) const;
 
         explicit ShaderResource(std::vector<ShaderSource> sources) : sources(std::move(sources)) {}
 
         // Transfers the program handle, leaving the source without ownership.
         ShaderResource(ShaderResource &&other) noexcept
-            : shaderProgram(std::exchange(other.shaderProgram, 0)), sources(std::move(other.sources)) {}
+            : ResourceOwner(std::move(other)), shaderProgram(std::exchange(other.shaderProgram, 0)),
+              sources(std::move(other.sources)) { }
         // Releases this program before taking ownership of the source's.
         ShaderResource &operator=(ShaderResource &&other) noexcept;
 

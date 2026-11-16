@@ -5,19 +5,20 @@
 namespace Engine
 {
 #pragma region Private Getters
-    InputHandler::WildcardState &InputHandler::GetWildcardState(const InputCode &key)
+    InputHandler::WildcardState &InputHandler::GetWildcardState(const Input::InputCode &key)
     {
         return wildcardStates.try_emplace(key).first->second;
     }
 
-    InputHandler::KeyState &InputHandler::GetKeyState(const InputCode &key)
+    InputHandler::KeyState &InputHandler::GetKeyState(const Input::InputCode &key)
     {
         return keyStates.try_emplace(key).first->second;
     }
 
 #pragma endregion
 
-    void InputHandler::OnKeyStateChanged(const InputCode &key, const KeyAction &action, const InputCode &wildcardKey)
+    void InputHandler::OnKeyStateChanged(
+        const Input::InputCode &key, const KeyAction &action, const Input::InputCode &wildcardKey)
     {
         KeyAction eventAction = action;
         bool &isHeld = GetKeyState(key).isHeld;
@@ -28,25 +29,26 @@ namespace Engine
         const int heldCountChange = static_cast<int>(isHeld) - static_cast<int>(wasHeld);
 
         GetWildcardState(wildcardKey).heldKeyCount += heldCountChange;
-        if (wildcardKey != AnyInput)
-            GetWildcardState(AnyInput).heldKeyCount += heldCountChange;
+        if (wildcardKey != Input::AnyInput)
+            GetWildcardState(Input::AnyInput).heldKeyCount += heldCountChange;
 
         GetKeyState(key).eventHandler.Invoke(key, eventAction);
         GetWildcardState(wildcardKey).eventHandler.Invoke(key, eventAction);
         
-        if (wildcardKey != AnyInput)
-            GetWildcardState(AnyInput).eventHandler.Invoke(key, eventAction);
+        if (wildcardKey != Input::AnyInput)
+            GetWildcardState(Input::AnyInput).eventHandler.Invoke(key, eventAction);
     }
 
     InputHandler::KeyEventHandler::BindResult InputHandler::BindKey(
-        KeyCallback callback, const InputCode &key, const InputCode &wildcardKey)
+        KeyCallback callback, const Input::InputCode &key, const Input::InputCode &wildcardKey)
     {
         return (key == wildcardKey)
             ? GetWildcardState(wildcardKey).eventHandler.BindCallback(std::move(callback))
             : GetKeyState(key).eventHandler.BindCallback(std::move(callback));
     }
 
-    bool InputHandler::UnbindKey(CallbackId callbackId, const InputCode &key, const InputCode &wildcardKey)
+    bool InputHandler::UnbindKey(
+        CallbackId callbackId, const Input::InputCode &key, const Input::InputCode &wildcardKey)
     {
         if (key == wildcardKey)
             return GetWildcardState(wildcardKey).eventHandler.UnbindCallback(callbackId);
@@ -55,7 +57,8 @@ namespace Engine
         return state != keyStates.end() && state->second.eventHandler.UnbindCallback(callbackId);
     }
 
-    bool InputHandler::IsKeyHeld(const InputCode &key, const InputCode &wildcardKey) const
+    bool InputHandler::IsKeyHeld(
+        const Input::InputCode &key, const Input::InputCode &wildcardKey) const
     {
         if (key == wildcardKey)
         {
@@ -68,20 +71,23 @@ namespace Engine
     }
 
 #pragma region Axis Queries
-    float InputHandler::GetAxis(const KeyCode &positive, const KeyCode &negative) const
+    float InputHandler::GetAxis(const Input::KeyCode &positive, const Input::KeyCode &negative) const
     {
         return static_cast<float>(IsKeyHeld(positive)) - static_cast<float>(IsKeyHeld(negative));
     }
 
-    void InputHandler::GetAxis2(const KeyCode &right, const KeyCode &left, const KeyCode &up, const KeyCode &down,
-        float &outX, float &outY) const
+    void InputHandler::GetAxis2(
+        const Input::KeyCode &right, const Input::KeyCode &left, const Input::KeyCode &up,
+        const Input::KeyCode &down, float &outX, float &outY) const
     {
         outX = GetAxis(right, left);
         outY = GetAxis(down, up);
     }
 
-    void InputHandler::GetAxis3(const KeyCode &right, const KeyCode &left, const KeyCode &up, const KeyCode &down,
-        const KeyCode &forward, const KeyCode &back, float &outX, float &outY, float &outZ) const
+    void InputHandler::GetAxis3(
+        const Input::KeyCode &right, const Input::KeyCode &left, const Input::KeyCode &up,
+        const Input::KeyCode &down, const Input::KeyCode &forward, const Input::KeyCode &back,
+        float &outX, float &outY, float &outZ) const
     {
         GetAxis2(right, left, up, down, outX, outY);
         outZ = GetAxis(forward, back);

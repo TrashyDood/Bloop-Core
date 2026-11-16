@@ -8,14 +8,15 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-option(ENABLE_GRAPHICS "Build the graphics library and demo application" OFF)
+option(BUILD_ENGINE "Build the engine library" ON)
+option(BUILD_GRAPHICS "Build the graphics library" OFF)
 
 find_package(glm CONFIG REQUIRED)
 
-add_library(Shared STATIC
-    Shared/src/Shared.cpp
-    Shared/src/Transform.cpp
+file(GLOB SHARED_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/Shared/src/*.cpp"
 )
+add_library(Shared STATIC ${SHARED_SOURCES})
 target_include_directories(Shared PUBLIC
     Shared/include
 )
@@ -25,16 +26,23 @@ if(WIN32)
     target_link_libraries(Shared PUBLIC winmm)
 endif()
 
-add_library(EngineCore
-    Engine/src/InputHandler.cpp
-    Engine/src/Scene.cpp
-)
-target_include_directories(EngineCore PUBLIC Engine/include)
-target_link_libraries(EngineCore PUBLIC Shared)
+if(BUILD_ENGINE)
+    file(GLOB ENGINE_SOURCES CONFIGURE_DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/Engine/src/*.cpp"
+    )
+    add_library(Engine STATIC ${ENGINE_SOURCES})
+    target_include_directories(Engine PUBLIC Engine/include)
+    
+    target_link_libraries(Engine PUBLIC Shared)
+        target_compile_definitions(Engine PUBLIC
+        ENGINE_ENABLED
+    )
+endif()
 
-if(ENABLE_GRAPHICS)
+if(BUILD_GRAPHICS)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(GLFW REQUIRED glfw3)
+    pkg_check_modules(STB REQUIRED IMPORTED_TARGET stb)
     find_file(GLFW_STATIC_LIBRARY
         NAMES libglfw3.a
         PATHS ${GLFW_LIBRARY_DIRS}
@@ -42,21 +50,31 @@ if(ENABLE_GRAPHICS)
         REQUIRED
     )
 
+    set(SHADER_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/assets/shaders")
     set(SHADER_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/assets/shaders")
-    add_custom_target(copy_shaders
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${CMAKE_CURRENT_SOURCE_DIR}/assets/shaders"
-            "${SHADER_OUTPUT_DIR}"
-        VERBATIM
+    file(GLOB_RECURSE SHADER_ASSETS CONFIGURE_DEPENDS LIST_DIRECTORIES false
+        "${SHADER_SOURCE_DIR}/*"
     )
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${SHADER_ASSETS})
+    file(COPY "${SHADER_SOURCE_DIR}" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/assets")
 
+    set(MODEL_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/assets/models")
     set(MODEL_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/assets/models")
-    add_custom_target(copy_models
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${CMAKE_CURRENT_SOURCE_DIR}/assets/models"
-            "${MODEL_OUTPUT_DIR}"
-        VERBATIM
+    file(GLOB_RECURSE MODEL_ASSETS CONFIGURE_DEPENDS LIST_DIRECTORIES false
+        "${MODEL_SOURCE_DIR}/*"
     )
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${MODEL_ASSETS})
+    file(REMOVE_RECURSE "${MODEL_OUTPUT_DIR}")
+    file(COPY "${MODEL_SOURCE_DIR}" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/assets")
+
+    set(TEXTURE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/assets/textures")
+    set(TEXTURE_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/assets/textures")
+    file(GLOB_RECURSE TEXTURE_ASSETS CONFIGURE_DEPENDS LIST_DIRECTORIES false
+        "${TEXTURE_SOURCE_DIR}/*"
+    )
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${TEXTURE_ASSETS})
+    file(REMOVE_RECURSE "${TEXTURE_OUTPUT_DIR}")
+    file(COPY "${TEXTURE_SOURCE_DIR}" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/assets")
 
     file(GLOB GRAPHICS_SOURCES CONFIGURE_DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/Graphics/src/*.cpp"
@@ -75,14 +93,25 @@ if(ENABLE_GRAPHICS)
         Shared
         "${GLFW_STATIC_LIBRARY}"
         glm::glm
+        PkgConfig::STB
+    )
+    target_compile_definitions(Graphics PUBLIC
+        GRAPHICS_ENABLED
+        STB_IMAGE_IMPLEMENTATION
+        SHADER_DIR="${SHADER_OUTPUT_DIR}"
+        MODEL_DIR="${MODEL_OUTPUT_DIR}"
+        TEXTURE_DIR="${TEXTURE_OUTPUT_DIR}"
+        TEXTURES_DIR="${TEXTURE_OUTPUT_DIR}"
     )
 
     if(WIN32)
         target_link_libraries(Graphics PUBLIC opengl32 gdi32)
     endif()
+endif()
 
-    add_executable(Engine
-        Application/src/main.cpp
+if(BUILD_ENGINE AND BUILD_GRAPHICS)
+    add_executable(EngineDemo
+        src/main.cpp
         third_party/imgui/imgui.cpp
         third_party/imgui/imgui_draw.cpp
         third_party/imgui/imgui_tables.cpp
@@ -90,35 +119,30 @@ if(ENABLE_GRAPHICS)
         third_party/imgui/backends/imgui_impl_glfw.cpp
         third_party/imgui/backends/imgui_impl_opengl3.cpp
     )
-    add_dependencies(Engine copy_shaders copy_models)
-    target_include_directories(Engine PRIVATE
+    target_include_directories(EngineDemo PRIVATE
         third_party/imgui
         third_party/imgui/backends
+        third_party/fast_obj_reader
     )
-    target_link_libraries(Engine PRIVATE Graphics EngineCore)
-    target_compile_definitions(Engine PRIVATE
-        ENABLE_GRAPHICS=1
-        ENGINE_SHADER_DIR="${SHADER_OUTPUT_DIR}"
-        ENGINE_MODEL_DIR="${MODEL_OUTPUT_DIR}"
-    )
+    target_link_libraries(EngineDemo PRIVATE Graphics Engine)
 
     if(MINGW)
-        target_link_options(Engine PRIVATE -static -static-libgcc -static-libstdc++)
+        target_link_options(EngineDemo PRIVATE -static -static-libgcc -static-libstdc++)
     endif()
 endif()
 
-if(BUILD_TESTING)
+if(BUILD_TESTING AND BUILD_ENGINE)
     add_executable(EngineTests tests/UnitTests.cpp)
-    target_link_libraries(EngineTests PRIVATE EngineCore)
+    target_link_libraries(EngineTests PRIVATE Engine)
 
-    if(ENABLE_GRAPHICS)
+    if(BUILD_GRAPHICS)
         target_sources(EngineTests PRIVATE Graphics/src/Camera.cpp Graphics/src/GlfwInput.cpp)
         target_include_directories(EngineTests PRIVATE
             Graphics/include
             third_party/glad/include
             ${GLFW_INCLUDE_DIRS}
         )
-        target_compile_definitions(EngineTests PRIVATE ENABLE_GRAPHICS=1)
+        target_compile_definitions(EngineTests PRIVATE GRAPHICS_ENABLED)
     endif()
 
     add_test(NAME EngineTests COMMAND EngineTests)

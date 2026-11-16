@@ -12,7 +12,7 @@
 
 namespace Graphics
 {
-    KeyCode ToSharedKeyCode(int glfwKey) noexcept;
-    MouseKeyCode ToSharedMouseButton(int glfwButton) noexcept;
-    std::optional<KeyAction> ToSharedKeyAction(int glfwAction) noexcept;
+    Input::KeyCode ToSharedKeyCode(int glfwKey) noexcept;
+    Input::MouseKeyCode ToSharedMouseButton(int glfwButton) noexcept;
+    std::optional<Input::KeyAction> ToSharedKeyAction(int glfwAction) noexcept;
 }

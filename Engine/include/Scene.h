@@ -13,16 +13,19 @@ namespace Engine
     public:
         struct SceneConfig
         {
-            TimeDuration targetTimeStep = 0.0000001s;
+            TimeDuration targetTimeStep = 0.0166667s;
+            float timeScale = 1.0f;
         };
 
         struct SceneTime
         {
-            float deltaTime = 0.0f;
-            float elapsedTime = 0.0f;
+            float unscaledDeltaTime = 0.f,
+                deltaTime = 0.f,
+                unscaledElapsedTime = 0.f,
+                elapsedTime = 0.f;
         };
 
-        struct SceneRunHooks
+        struct RunHooks
         {
             std::function<void()> preTick;
             std::function<void()> postTick;
@@ -31,9 +34,9 @@ namespace Engine
 
         enum class State
         {
-            Stopped,
-            Running,
-            Stopping
+            Stopped = 0,
+            Running = 1,
+            Stopping = 2
         };
 
     private:
@@ -41,16 +44,13 @@ namespace Engine
         SceneConfig *config = nullptr;
 
         SceneTime sceneTime;
-        InputHandler input;
+        InputHandler inputHandler;
 
         int Start(SceneConfig &config);
         int Tick();
         void Stop(const int exitCode);
 
     protected:
-        [[nodiscard]] const SceneTime &GetSceneTime() const { return sceneTime; }
-        [[nodiscard]] InputHandler &GetInput() { return input; }
-
         virtual int OnStart() = 0;
         virtual int OnMainTick(const SceneTime &time) = 0;
         virtual void OnCursorPosition(double, double) {}
@@ -58,28 +58,16 @@ namespace Engine
         virtual void OnStop(const int exitCode) {}
 
     public:
+        [[nodiscard]] const SceneTime &GetTime() const { return sceneTime; }
+        [[nodiscard]] InputHandler &GetInput() { return inputHandler; }
         [[nodiscard]] State GetState() const { return state; }
         [[nodiscard]] SceneConfig &GetConfig() const { return *config; }
         [[nodiscard]] bool GetIsRunning() const { return GetState() == State::Running; }
 
         virtual ~Scene() = default;
 
-        int Run(SceneConfig &config, const SceneRunHooks &hooks = {});
-        void RequestStop()
-        {
-            if (state == State::Running)
-                state = State::Stopping;
-        }
-
-        void DispatchKeyEvent(const KeyCode key, const KeyAction action)
-        {
-            input.OnKeyStateChanged(key, action);
-        }
-
-        void DispatchMouseButtonEvent(const MouseKeyCode button, const KeyAction action)
-        {
-            input.OnKeyStateChanged(button, action);
-        }
+        int Run(SceneConfig &config, const RunHooks &hooks = {});
+        void RequestStop();
 
         void DispatchCursorPosition(const double x, const double y) { OnCursorPosition(x, y); }
         void DispatchScroll(const double xOffset, const double yOffset) { OnScroll(xOffset, yOffset); }

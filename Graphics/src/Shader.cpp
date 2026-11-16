@@ -8,7 +8,7 @@ bool Graphics::ShaderResource::GetUniformLocation(const std::string &name, GLint
     return location != -1;
 }
 
-bool Graphics::ShaderResource::TryGetAttributeLocation(const std::string &name, GLint &location) const
+bool Graphics::ShaderResource::GetAttributeLocation(const std::string &name, GLint &location) const
 {
     location = glGetAttribLocation(shaderProgram, name.c_str());
     return location != -1;
@@ -19,6 +19,7 @@ Graphics::ShaderResource &Graphics::ShaderResource::operator=(ShaderResource &&o
     if (this != &other)
     {
         ReleaseResources();
+        ResourceOwner::operator=(std::move(other));
         sources = std::move(other.sources);
         shaderProgram = std::exchange(other.shaderProgram, 0);
     }
@@ -35,7 +36,7 @@ void Graphics::ShaderResource::ReleaseResources() noexcept
 
 bool Graphics::ShaderResource::InitializeResources()
 {
-    if (!IResourceOwner::InitializeResources())
+    if (!ResourceOwner::InitializeResources())
         return false;
 
     if (IsInitialized())
@@ -50,5 +51,5 @@ bool Graphics::ShaderResource::InitializeResources()
         return false;
     }
 
-    return CreateShaderProgram(shaderProgram, sources.data(), sources.size());
+    return CreateShaderProgram(sources.data(), sources.size(), shaderProgram);
 }

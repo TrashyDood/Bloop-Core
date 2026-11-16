@@ -4,7 +4,7 @@
 
 namespace Engine
 {
-    int Scene::Run(Scene::SceneConfig &config, const Scene::SceneRunHooks &hooks)
+    int Scene::Run(Scene::SceneConfig &config, const Scene::RunHooks &hooks)
     {
         int exitCode = Start(config);
         if (exitCode == EXIT_SUCCESS)
@@ -16,8 +16,11 @@ namespace Engine
 
                 if (GetIsRunning())
                 {
-                    sceneTime.deltaTime = static_cast<float>(deltaTime.count());
-                    sceneTime.elapsedTime = static_cast<float>(elapsedTime.count());
+                    sceneTime.unscaledDeltaTime = static_cast<float>(deltaTime.count());
+                    sceneTime.deltaTime = sceneTime.unscaledDeltaTime * config.timeScale;
+                    sceneTime.unscaledElapsedTime += sceneTime.unscaledDeltaTime;
+                    sceneTime.elapsedTime += sceneTime.deltaTime;
+
                     exitCode = Tick();
                 }
 
@@ -31,6 +34,12 @@ namespace Engine
 
         Stop(exitCode);
         return exitCode;
+    }
+
+    void Scene::RequestStop()
+    {
+        if (state == State::Running)
+            state = State::Stopping;
     }
 
     int Scene::Start(Scene::SceneConfig &config)

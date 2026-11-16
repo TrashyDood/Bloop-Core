@@ -16,20 +16,20 @@ namespace Graphics
     {
         int width = 800;
         int height = 600;
-        const char *title = "Engine Window";
+        const char *title = "Window";
         bool vsyncEnabled = true;
     };
 
     struct InputCallbacks
     {
-        std::function<void(KeyCode, KeyAction)> onKey;
-        std::function<void(MouseKeyCode, KeyAction)> onMouseButton;
+        std::function<void(Input::KeyCode, Input::KeyAction)> onKey;
+        std::function<void(Input::MouseKeyCode, Input::KeyAction)> onMouseButton;
         std::function<void(double, double)> onCursorPosition;
         std::function<void(double, double)> onScroll;
     };
 
     // Wrapper class for GLFW window management and input handling.
-    class GlfwHost
+    class Window
     {
         GLFWwindow *window = nullptr;
         InputCallbacks inputCallbacks;
@@ -38,7 +38,7 @@ namespace Graphics
 
         bool InitializeWindow(const WindowConfig &config);
 
-        static GlfwHost *GetHost(GLFWwindow *window) { return static_cast<GlfwHost *>(glfwGetWindowUserPointer(window)); }
+        static Window *GetHost(GLFWwindow *window) { return static_cast<Window *>(glfwGetWindowUserPointer(window)); }
         static void HandleKeyEvent(GLFWwindow *window, int key, int scancode, int action, int modifiers);
         static void HandleMouseButtonEvent(GLFWwindow *window, int button, int action, int modifiers);
         static void HandleCursorPosition(GLFWwindow *window, double x, double y);
@@ -46,17 +46,17 @@ namespace Graphics
         static void HandleFramebufferSize(GLFWwindow *window, int width, int height);
 
     public:
-        GlfwHost() = default;
-        GlfwHost(const GlfwHost &) = delete;
-        GlfwHost &operator=(const GlfwHost &) = delete;
+        Window() = default;
+        Window(const Window &) = delete;
+        Window &operator=(const Window &) = delete;
 
-        ~GlfwHost() { Shutdown(); }
+        ~Window() { Shutdown(); }
 
         [[nodiscard]] bool IsVSyncEnabled() const { return vsyncEnabled; }
         [[nodiscard]] GLFWwindow &GetWindow() const { return *window; }
-        [[nodiscard]] bool IsInitialized() const { return glfwInitialized && window != nullptr; }
-        [[nodiscard]] bool IsWindowFocused() const {return window != nullptr && glfwGetWindowAttrib(window, GLFW_FOCUSED) == GLFW_TRUE;}
-        [[nodiscard]] bool ShouldClose() const { return window == nullptr || glfwWindowShouldClose(window); }
+        [[nodiscard]] bool IsInitialized() const { return glfwInitialized && window; }
+        [[nodiscard]] bool IsWindowFocused() const {return window && glfwGetWindowAttrib(window, GLFW_FOCUSED) == GLFW_TRUE;}
+        [[nodiscard]] bool ShouldClose() const { return !window || glfwWindowShouldClose(window); }
         [[nodiscard]] float GetWindowAspectRatio() const;
 
         void GetCursorPosition(double &outX, double &outY) const { glfwGetCursorPos(&GetWindow(), &outX, &outY); }
@@ -64,7 +64,7 @@ namespace Graphics
 
         bool Initialize(const WindowConfig &windowConfig = {}, const InputCallbacks &callbacks = {});
         void Shutdown() noexcept;
-        void PresentFrame();
+        void PresentFrame() const;
         void SetVSyncEnabled(bool enabled);
     };
 }
