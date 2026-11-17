@@ -25,6 +25,14 @@ namespace ImGuiUtils
 {
     class Context
     {
+        enum class LogLevelFilter
+        {
+            All,
+            Info,
+            Warning,
+            Error
+        };
+
         ImGuiContext *imguiContext = nullptr;
         bool imguiGlfwInitialized = false;
         bool imguiOpenGLInitialized = false;
@@ -32,6 +40,7 @@ namespace ImGuiUtils
         bool showDate = false;
         bool showTime = false;
         bool showDepth = false;
+        LogLevelFilter logLevelFilter = LogLevelFilter::All;
 
     public:
         Context() = default;

@@ -18,6 +18,7 @@ bool ImGuiUtils::Context::Initialize(GLFWwindow &window)
         LOG_ERROR("Failed to create ImGui context.\n");
         return false;
     }
+    ImGui::SetCurrentContext(imguiContext);
 
     ImGui::StyleColorsDark();
     ImGuiStyle &style = ImGui::GetStyle();
@@ -80,6 +81,7 @@ void ImGuiUtils::Context::Shutdown()
     {
         ImGui::DestroyContext(imguiContext);
         imguiContext = nullptr;
+        ImGui::SetCurrentContext(nullptr);
     }
 }
 
@@ -95,6 +97,28 @@ void ImGuiUtils::Context::DrawLogWindow(LogHandler *logHandler)
 
     if (ImGui::Button("Clear"))
         logHandler->ClearLogEntries();
+    ImGui::SameLine();
+    const char *filterLabel = "All";
+    switch (logLevelFilter)
+    {
+        case LogLevelFilter::Info: filterLabel = "Info"; break;
+        case LogLevelFilter::Warning: filterLabel = "Warnings"; break;
+        case LogLevelFilter::Error: filterLabel = "Errors"; break;
+        case LogLevelFilter::All: break;
+    }
+    ImGui::SetNextItemWidth(110.f);
+    if (ImGui::BeginCombo("Filter", filterLabel))
+    {
+        if (ImGui::Selectable("All", logLevelFilter == LogLevelFilter::All))
+            logLevelFilter = LogLevelFilter::All;
+        if (ImGui::Selectable("Info", logLevelFilter == LogLevelFilter::Info))
+            logLevelFilter = LogLevelFilter::Info;
+        if (ImGui::Selectable("Warnings", logLevelFilter == LogLevelFilter::Warning))
+            logLevelFilter = LogLevelFilter::Warning;
+        if (ImGui::Selectable("Errors", logLevelFilter == LogLevelFilter::Error))
+            logLevelFilter = LogLevelFilter::Error;
+        ImGui::EndCombo();
+    }
     ImGui::SameLine();
     ImGui::Checkbox("Auto-scroll", &autoScroll);
     ImGui::SameLine();
@@ -124,9 +148,16 @@ void ImGuiUtils::Context::DrawLogWindow(LogHandler *logHandler)
         if (entries.empty())
             ImGui::TextDisabled("No log entries.");
 
+        std::size_t visibleEntryCount = 0;
         for (std::size_t i = 0; i < entries.size(); ++i)
         {
             const LogHandler::LogEntry &entry = entries[i];
+            if ((logLevelFilter == LogLevelFilter::Info && entry.level != LogHandler::Info) ||
+                (logLevelFilter == LogLevelFilter::Warning && entry.level != LogHandler::Warning) ||
+                (logLevelFilter == LogLevelFilter::Error && entry.level != LogHandler::Error))
+                continue;
+
+            ++visibleEntryCount;
             ImGui::PushID(static_cast<int>(i));
             if (showDepth)
                 ImGui::SetCursorPosX(ImGui::GetCursorPosX() +
@@ -167,6 +198,9 @@ void ImGuiUtils::Context::DrawLogWindow(LogHandler *logHandler)
 
             ImGui::PopID();
         }
+
+        if (!entries.empty() && visibleEntryCount == 0)
+            ImGui::TextDisabled("No log entries match this filter.");
 
         if (autoScroll && wasAtBottom)
             ImGui::SetScrollHereY(1.f);
