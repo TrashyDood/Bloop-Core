@@ -10,6 +10,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(BUILD_ENGINE "Build the engine library" ON)
 option(BUILD_GRAPHICS "Build the graphics library" OFF)
+option(BUILD_IMGUI "Build Dear ImGui alongside Graphics" OFF)
 
 find_package(glm CONFIG REQUIRED)
 
@@ -108,23 +109,38 @@ if(BUILD_GRAPHICS)
     if(WIN32)
         target_link_libraries(Graphics PUBLIC opengl32 gdi32)
     endif()
+
+    if(BUILD_IMGUI)
+        target_compile_definitions(Graphics PRIVATE IMGUI_ENABLED)
+        target_include_directories(Graphics PRIVATE
+            third_party/imgui
+            third_party/imgui/backends
+        )
+
+        add_library(ImGui STATIC
+            third_party/imgui/imgui.cpp
+            third_party/imgui/imgui_draw.cpp
+            third_party/imgui/imgui_tables.cpp
+            third_party/imgui/imgui_widgets.cpp
+            third_party/imgui/backends/imgui_impl_glfw.cpp
+            third_party/imgui/backends/imgui_impl_opengl3.cpp
+        )
+        target_include_directories(ImGui PUBLIC
+            third_party/imgui
+            third_party/imgui/backends
+        )
+        target_link_libraries(ImGui PUBLIC Graphics)
+    endif()
 endif()
 
 if(BUILD_ENGINE AND BUILD_GRAPHICS)
-    add_executable(EngineDemo
-        src/main.cpp
-        third_party/imgui/imgui.cpp
-        third_party/imgui/imgui_draw.cpp
-        third_party/imgui/imgui_tables.cpp
-        third_party/imgui/imgui_widgets.cpp
-        third_party/imgui/backends/imgui_impl_glfw.cpp
-        third_party/imgui/backends/imgui_impl_opengl3.cpp
-    )
-    target_include_directories(EngineDemo PRIVATE
-        third_party/imgui
-        third_party/imgui/backends
-    )
+    add_executable(EngineDemo src/main.cpp)
     target_link_libraries(EngineDemo PRIVATE Graphics Engine)
+
+    if(BUILD_IMGUI)
+        target_link_libraries(EngineDemo PRIVATE ImGui)
+        target_compile_definitions(EngineDemo PRIVATE IMGUI_ENABLED)
+    endif()
 
     if(MINGW)
         target_link_options(EngineDemo PRIVATE -static -static-libgcc -static-libstdc++)

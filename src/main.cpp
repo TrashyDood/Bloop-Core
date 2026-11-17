@@ -9,10 +9,6 @@
 #include "Scene.h"
 #include "Texture.h"
 
-#include <imgui.h>
-#include <imgui_impl_glfw.h>
-#include <imgui_impl_opengl3.h>
-
 #include <glm/gtc/type_ptr.hpp>
 
 #include <algorithm>
@@ -31,14 +27,9 @@
 
 #include <stb_image.h>
 
-#define IMGUI_DRAW_START         \
-    ImGui_ImplOpenGL3_NewFrame();\
-    ImGui_ImplGlfw_NewFrame();   \
-    ImGui::NewFrame();
-
-#define IMGUI_DRAW_END                                     \
-    ImGui::Render();                                       \
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+#ifdef IMGUI_ENABLED
+#include "ImGuiUtils.h"
+#endif
 
 struct SceneObject
 {
@@ -61,9 +52,9 @@ class DemoScene : public Engine::Scene
 
     double lastCursorX = 0.0, lastCursorY = 0.0;
     bool orbiting = false, wireframeEnabled = true, isSimulating = true;
-    ImGuiContext *imguiContext = nullptr;
-    bool imguiGlfwInitialized = false;
-    bool imguiOpenGLInitialized = false;
+#ifdef IMGUI_ENABLED
+    ImGuiUtils::Context imgui;
+#endif
 
     SharedList<SceneObject> sceneObjects;
     std::vector<std::vector<Vector3f>> objectOffsets;
@@ -141,44 +132,110 @@ public:
         LOG_INFO("Cleared all scene objects.\n");
     }
 
-    bool LoadAssets()
+    bool LoadShaders()
     {
         LOG_SCOPE;
-        LOG_INFO("Loading assets from '%s'.\n", (ASSETS_DIR).string().c_str());
+        LOG_INFO("Loading shaders from '%s'.\n", (SHADERS_DIR).string().c_str());
 
         using namespace Graphics;
-
-        const auto modelDir = MODELS_DIR;
         const auto shaderDir = SHADERS_DIR;
-        const auto textureDir = TEXTURES_DIR;
-        if (!std::filesystem::is_directory(modelDir) ||
-            !std::filesystem::is_directory(shaderDir) ||
-            !std::filesystem::is_directory(textureDir))
+
+        if (!std::filesystem::is_directory(shaderDir))
         {
-            const std::string workingDirectory = IOUtils::CurrentDirectory().string();
-            LOG_ERROR("Asset directories were not found from the current working directory '%s'.\n",
-                workingDirectory.c_str());
+            LOG_ERROR("Shader directory '%s' does not exist.\n", shaderDir.string().c_str());
             return false;
         }
 
-        // Find and load all .obj mesh files in the scene's model directory.
+        std::map<std::string, std::vector<ShaderSource>> shaderGroups;
+        for (const auto &file : IOUtils::FindMatchingFiles(shaderDir, std::regex(".*\\.glsl", std::regex::icase)))
+        {
+            LOG_SCOPE;
+
+            const Graphics::ShaderType type = GetShaderFileType(file);
+            if (type == Graphics::Unknown)
+            {
+                const std::string path = file.string();
+                LOG_WARNING("Skipping shader file with an unrecognized stage: '%s'.\n", path.c_str());
+                continue;
+            }
+
+            std::string source;
+            if (IOUtils::ReadFileToEnd(file.string().c_str(), source))
+                shaderGroups[GetShaderGroupName(file)].push_back({std::move(source), type});
+        }
+
+        for (auto &[name, sources] : shaderGroups)
+        {
+            LOG_SCOPE;
+            LOG_INFO("Found shader program '%s' with %zu stage(s).\n", name.c_str(), sources.size());
+
+            shaders.emplace_back(std::move(sources));
+        }
+
+        if (shaders.empty())
+        {
+            LOG_ERROR("No supported shader files found in '%s'.\n", shaderDir.string().c_str());
+            return false;
+        }
+
+        activeShader = &shaders.front();
+        return true;
+    }
+
+    bool LoadMeshes()
+    {
+        using namespace Graphics;
+        const auto modelDir = MODELS_DIR;
+
+        LOG_SCOPE;
+        LOG_INFO("Loading meshes from '%s'.\n", modelDir.string().c_str());
+
+        if (!std::filesystem::is_directory(modelDir))
+        {
+            LOG_ERROR("Model directory '%s' does not exist.\n", modelDir.string().c_str());
+            return false;
+        }
+
         for (auto &file : IOUtils::FindMatchingFiles(modelDir, std::regex(".*\\.obj", std::regex::icase)))
         {
+            LOG_SCOPE;
+
             std::vector<std::string> objectNames;
             std::vector<MeshVertices> objectVertices;
             std::vector<MeshIndices> objectIndices;
 
+            LOG_INFO("Loading mesh file '%s'.\n", file.string().c_str());
             if (LoadMeshFile(file.string().c_str(), objectNames, objectVertices, objectIndices))
                 for (std::size_t i = 0; i < objectVertices.size(); ++i)
                     meshes.emplace_back(std::move(objectVertices[i]), std::move(objectIndices[i]));
+            else
+                LOG_ERROR("Failed to load mesh file '%s'.\n", file.string().c_str());
         }
 
         if (meshes.empty())
             LOG_WARNING("No supported mesh files found in '%s'.\n", modelDir.string().c_str());
 
-        // Find and load all .png texture files in the scene's texture directory.
+        return true;
+    }
+
+    bool LoadTextures()
+    {
+        using namespace Graphics;
+        const auto textureDir = TEXTURES_DIR;
+
+        LOG_SCOPE;
+        LOG_INFO("Loading textures from '%s'.\n", textureDir.string().c_str());
+
+        if (!std::filesystem::is_directory(textureDir))
+        {
+            LOG_ERROR("Texture directory '%s' does not exist.\n", textureDir.string().c_str());
+            return false;
+        }
+
         for (const auto &file : IOUtils::FindMatchingFiles(textureDir, std::regex(".*\\.(png|jpg|jpeg)", std::regex::icase)))
         {
+            LOG_SCOPE;
+
             const std::string path = file.string();
 
             int width = 0, height = 0;
@@ -197,39 +254,24 @@ public:
         }
 
         if (textures.empty())
+        {
             LOG_WARNING("No supported texture files found in '%s'.\n", textureDir.string().c_str());
-        else
-            activeTexture = &textures.front();
-
-        // Find and load all .glsl shader files in the scene's shader directory, grouping them by name.
-        std::map<std::string, std::vector<ShaderSource>> shaderGroups;
-        for (const auto &file : IOUtils::FindMatchingFiles(shaderDir, std::regex(".*\\.glsl", std::regex::icase)))
-        {
-            const Graphics::ShaderType type = GetShaderFileType(file);
-            if (type == Graphics::Unknown)
-            {
-                const std::string path = file.string();
-                LOG_WARNING("Skipping shader file with an unrecognized stage: '%s'.\n", path.c_str());
-                continue;
-            }
-
-            std::string source;
-            if (IOUtils::ReadFileToEnd(file.string().c_str(), source))
-                shaderGroups[GetShaderGroupName(file)].push_back({std::move(source), type});
+            return true;
         }
 
-        for (auto &[name, sources] : shaderGroups)
-        {
-            LOG_INFO("Found shader program '%s' with %zu stage(s).\n", name.c_str(), sources.size());
-            shaders.emplace_back(std::move(sources));
-        }
-
-        if (shaders.empty())
-            LOG_WARNING("No supported shader files found in '%s'.\n", shaderDir.string().c_str());
-        else
-            activeShader = &shaders.front();
-
+        activeTexture = &textures.front();
         return true;
+    }
+
+    bool LoadAssets()
+    {
+        LOG_SCOPE;
+        LOG_INFO("Loading assets from '%s'.\n", (ASSETS_DIR).string().c_str());
+
+        const bool shadersLoaded = LoadShaders();
+        const bool meshesLoaded = LoadMeshes();
+        const bool texturesLoaded = LoadTextures();
+        return shadersLoaded && meshesLoaded && texturesLoaded;
     }
 
     bool InitAssets()
@@ -239,13 +281,13 @@ public:
 
         using namespace Graphics;
 
-        if (!InitializeResources(meshes))
+        if (meshes.empty() || !InitializeResources(meshes))
             LOG_ERROR("Failed to initialize mesh resources.\n");
 
-        if (!InitializeResources(shaders))
+        if (shaders.empty() || !InitializeResources(shaders))
             LOG_ERROR("Failed to initialize shader resources.\n");
 
-        if (!InitializeResources(textures))
+        if (textures.empty() || !InitializeResources(textures))
             LOG_ERROR("Failed to initialize texture resources.\n");
 
         objectOffsets.resize(meshes.size());
@@ -300,163 +342,7 @@ public:
         }, MouseKeyCode::Any);
     }
 
-    bool InitializeImGui()
-    {
-        LOG_SCOPE;
-
-        if (imguiContext != nullptr && imguiGlfwInitialized && imguiOpenGLInitialized)
-            return true;
-
-        IMGUI_CHECKVERSION();
-        imguiContext = ImGui::CreateContext();
-        ImGui::StyleColorsDark();
-        ImGuiStyle &style = ImGui::GetStyle();
-        style.Colors[ImGuiCol_TitleBg] = ImVec4(0.12f, 0.12f, 0.12f, 1.f);
-        style.Colors[ImGuiCol_TitleBgActive] = ImVec4(0.18f, 0.18f, 0.18f, 1.f);
-        style.Colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.12f, 0.12f, 0.12f, 0.75f);
-
-        if (!ImGui_ImplGlfw_InitForOpenGL(&windowHost.GetWindow(), true))
-        {
-            LOG_ERROR("Failed to initialize ImGui GLFW backend.\n");
-            ShutdownImGui();
-            return false;
-        }
-        imguiGlfwInitialized = true;
-
-        if (!ImGui_ImplOpenGL3_Init("#version 330"))
-        {
-            LOG_ERROR("Failed to initialize ImGui OpenGL backend.\n");
-            ShutdownImGui();
-            return false;
-        }
-        imguiOpenGLInitialized = true;
-
-        LOG_INFO("ImGui initialized.\n");
-        return true;
-    }
-
-    void ShutdownImGui()
-    {
-        if (imguiContext != nullptr)
-            ImGui::SetCurrentContext(imguiContext);
-
-        if (imguiOpenGLInitialized)
-        {
-            if (ImGui::GetCurrentContext() != nullptr &&
-                ImGui::GetIO().BackendRendererUserData != nullptr)
-                ImGui_ImplOpenGL3_Shutdown();
-            else
-                LOG_ERROR("ImGui OpenGL backend state is missing during shutdown.\n");
-            imguiOpenGLInitialized = false;
-        }
-
-        if (imguiGlfwInitialized)
-        {
-            if (ImGui::GetCurrentContext() != nullptr &&
-                ImGui::GetIO().BackendPlatformUserData != nullptr)
-                ImGui_ImplGlfw_Shutdown();
-            else
-                LOG_ERROR("ImGui GLFW backend state is missing during shutdown.\n");
-            imguiGlfwInitialized = false;
-        }
-
-        if (imguiContext != nullptr)
-        {
-            ImGui::DestroyContext(imguiContext);
-            imguiContext = nullptr;
-        }
-    }
-
-    static void DrawLogWindow(LogHandler *logHandler = nullptr)
-    {
-        static bool autoScroll = true,
-            showDate = false,
-            showTime = false;
-
-        if (!logHandler) logHandler = &StaticLogHandler();
-
-        if (!ImGui::Begin("Log"))
-        {
-            ImGui::End();
-            return;
-        }
-
-        if (ImGui::Button("Clear"))
-            logHandler->ClearLogEntries();
-        ImGui::SameLine();
-        ImGui::Checkbox("Auto-scroll", &autoScroll);
-        ImGui::SameLine();
-        ImGui::Checkbox("Date", &showDate);
-        ImGui::SameLine();
-        ImGui::Checkbox("Time", &showTime);
-        ImGui::Separator();
-
-        const auto getTimestampText = [&](const std::string &timestamp)
-        {
-            if (!showDate && !showTime)
-                return std::string{};
-
-            const std::size_t separator = timestamp.find(' ');
-            if (separator == std::string::npos || (showDate && showTime))
-                return timestamp;
-
-            return showDate ? timestamp.substr(0, separator) : timestamp.substr(separator + 1);
-        };
-
-        if (ImGui::BeginChild("LogEntries", ImVec2(0.f, 0.f), ImGuiChildFlags_Borders))
-        {
-            const bool wasAtBottom = ImGui::GetScrollY() >= ImGui::GetScrollMaxY();
-            const std::vector<LogHandler::LogEntry> entries = logHandler->GetLogEntries();
-            if (entries.empty())
-                ImGui::TextDisabled("No log entries.");
-
-            for (std::size_t i = 0; i < entries.size(); ++i)
-            {
-                const LogHandler::LogEntry &entry = entries[i];
-                ImGui::PushID(static_cast<int>(i));
-                ImGui::SetCursorPosX(ImGui::GetCursorPosX() +
-                    static_cast<float>(entry.depth) * ImGui::GetStyle().IndentSpacing);
-
-                const char *levelName = "UNKNOWN";
-                ImVec4 levelColor{0.8f, 0.8f, 0.8f, 1.f};
-                switch (entry.level)
-                {
-                    case LogHandler::Warning:
-                        levelName = "WARNING";
-                        levelColor = {1.f, 0.75f, 0.2f, 1.f};
-                        break;
-                    case LogHandler::Info:
-                        levelName = "INFO";
-                        levelColor = {0.6f, 0.8f, 1.f, 1.f};
-                        break;
-                    case LogHandler::Error:
-                        levelName = "ERROR";
-                        levelColor = {1.f, 0.35f, 0.35f, 1.f};
-                        break;
-                }
-                ImGui::PushStyleColor(ImGuiCol_Text, levelColor);
-                const std::string timestampText = getTimestampText(entry.timestampText);
-                std::string prefix = "[" + std::to_string(i + 1) + "] ";
-                if (!timestampText.empty())
-                    prefix += "[" + timestampText + "] ";
-                prefix += "[" + std::string(levelName) + "]";
-                if (entry.priority >= 1)
-                    prefix += " [P" + std::to_string(static_cast<unsigned int>(entry.priority)) + "]";
-                prefix += " ";
-
-                ImGui::TextWrapped("%s%s", prefix.c_str(), entry.message.c_str());
-                ImGui::PopStyleColor();
-
-                ImGui::PopID();
-            }
-
-            if (autoScroll && wasAtBottom)
-                ImGui::SetScrollHereY(1.f);
-        }
-        ImGui::EndChild();
-        ImGui::End();
-    }
-
+#ifdef IMGUI_ENABLED
     void DrawSceneContextWindow()
     {
         static Vector3f spawnPosition{0.f, 0.f, 0.f};
@@ -616,6 +502,7 @@ public:
 
         ImGui::End();
     }
+#endif
 
     bool GetUniforms(GLint &outModelMatrixUniform, GLint &outViewMatrixUniform,
         GLint &outProjectionMatrixUniform, GLint &outTextureSamplerUniform)
@@ -723,7 +610,10 @@ public:
         LOG_INFO("Starting demo scene.\n");
 
         if (!LoadAssets())
+        {
             LOG_ERROR("Failed to load assets.\n");
+            return EXIT_FAILURE;
+        }
 
         if (!InitAssets())
             LOG_ERROR("Failed to initialize assets.\n");
@@ -746,13 +636,15 @@ public:
 
         int result = DrawScene(time);
 
-        if (!InitializeImGui())
+#ifdef IMGUI_ENABLED
+        if (!imgui.Initialize(windowHost.GetWindow()))
             return result;
 
         IMGUI_DRAW_START;
         DrawSceneContextWindow();
-        DrawLogWindow();
+        imgui.DrawLogWindow();
         IMGUI_DRAW_END;
+#endif
 
         return result;
     }
@@ -760,11 +652,9 @@ public:
     void OnStop(const Int32) override
     {
         LOG_SCOPE;
-        if (imguiContext == nullptr && !imguiGlfwInitialized && !imguiOpenGLInitialized)
-            return;
-
-        LOG_INFO("Shutting down ImGui.\n");
-        ShutdownImGui();
+#ifdef IMGUI_ENABLED
+        imgui.Shutdown();
+#endif
     }
 };
 

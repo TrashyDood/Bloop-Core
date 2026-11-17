@@ -17,7 +17,8 @@
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "BUILD_TESTING": "ON",
         "BUILD_ENGINE": "ON",
-        "BUILD_GRAPHICS": "ON"
+        "BUILD_GRAPHICS": "ON",
+        "BUILD_IMGUI": "ON"
       }
     },
     {
