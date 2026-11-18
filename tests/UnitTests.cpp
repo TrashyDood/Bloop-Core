@@ -8,13 +8,17 @@
 #ifdef GRAPHICS_ENABLED
 #include "Camera.h"
 #include "GlfwInput.h"
+#include "ResourceUtils.h"
 #endif
 
 #include <atomic>
+#include <chrono>
 #include <cmath>
 #include <cstdlib>
 #include <cstdio>
 #include <exception>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <thread>
@@ -146,7 +150,8 @@ namespace
 
         const std::string output(buffer, outputSize);
         Require(!output.empty() && output[0] == '[' &&
-                    output.find("] [INFO]   message 7\n") != std::string::npos,
+                    output.find("] [INFO] [thread ") != std::string::npos &&
+                    output.find("message 7\n") != std::string::npos,
                 "Log handler formats timestamp, level, depth, and message");
         Require(defaultPriorityEntries.size() == 1 && defaultPriorityEntries[0].priority == 0 &&
                     defaultPriorityEntries[0].depth == 1 &&
@@ -272,6 +277,134 @@ namespace
         Require(Graphics::ToSharedKeyAction(GLFW_REPEAT) == Held,
                 "GLFW repeat maps to Engine::Held");
         Require(!Graphics::ToSharedKeyAction(-999), "Unrecognized GLFW actions are rejected");
+    }
+
+    class TestResourceOwner final : public Graphics::ResourceOwner
+    {
+        int id;
+        bool succeeds;
+        bool initialized = false;
+
+    public:
+        inline static int releaseCount = 0;
+
+        TestResourceOwner(int id, bool succeeds) : id(id), succeeds(succeeds) {}
+        TestResourceOwner(TestResourceOwner &&) noexcept = default;
+        TestResourceOwner &operator=(TestResourceOwner &&) noexcept = default;
+
+        bool IsInitialized() const override { return initialized; }
+        void ReleaseResources() noexcept override
+        {
+            initialized = false;
+            ++releaseCount;
+        }
+        bool InitializeResources() override
+        {
+            initialized = succeeds;
+            return initialized;
+        }
+        int GetId() const { return id; }
+    };
+
+    class TemporaryDirectory
+    {
+        std::filesystem::path path;
+
+    public:
+        TemporaryDirectory()
+        {
+            const auto nonce = std::chrono::steady_clock::now().time_since_epoch().count();
+            path = std::filesystem::temp_directory_path() / ("engine-tests-" + std::to_string(nonce));
+            std::filesystem::create_directories(path);
+        }
+
+        ~TemporaryDirectory()
+        {
+            std::error_code error;
+            std::filesystem::remove_all(path, error);
+        }
+
+        const std::filesystem::path &GetPath() const { return path; }
+    };
+
+    void WriteTextFile(const std::filesystem::path &path, const std::string &contents)
+    {
+        std::filesystem::create_directories(path.parent_path());
+        std::ofstream file(path, std::ios::binary);
+        Require(static_cast<bool>(file), "Test creates an asset file");
+        file << contents;
+        Require(static_cast<bool>(file), "Test writes an asset file");
+    }
+
+    void TestResourceInitializationDropsFailures()
+    {
+        TestResourceOwner::releaseCount = 0;
+        std::vector<TestResourceOwner> owners;
+        owners.emplace_back(1, false);
+        owners.emplace_back(2, true);
+        owners.emplace_back(3, false);
+        owners.emplace_back(4, true);
+
+        Require(!Graphics::InitializeResources(owners),
+                "Resource initialization reports any failed resource");
+        Require(owners.size() == 2 && owners[0].GetId() == 2 && owners[1].GetId() == 4,
+                "Failed resources are removed while successful resources are retained");
+        Require(owners[0].IsInitialized() && owners[1].IsInitialized(),
+                "Initialization continues after a resource fails");
+        Require(TestResourceOwner::releaseCount == 2,
+                "Failed resources are released before removal");
+    }
+
+    void TestResourceLoadersGenerateRelativeNames()
+    {
+        TemporaryDirectory temporaryDirectory;
+        const std::filesystem::path root = temporaryDirectory.GetPath();
+
+        const auto shaderRoot = root / "shaders";
+        WriteTextFile(shaderRoot / "nested" / "program.vert.glsl", "vertex shader");
+        WriteTextFile(shaderRoot / "nested" / "program.frag.glsl", "fragment shader");
+        WriteTextFile(shaderRoot / "other" / "program.vert.glsl", "another vertex shader");
+
+        std::vector<Graphics::ShaderResource> shaders;
+        std::vector<std::string> shaderNames;
+        Require(Graphics::LoadShaderResources(shaders, shaderNames, shaderRoot),
+                "Shader loader finds source groups");
+        Require(shaderNames == std::vector<std::string>{"nested/program", "other/program"},
+                "Shader names include their path relative to the root");
+        Require(shaders.size() == 2 && shaders[0].GetSourceCount() == 2 &&
+                    shaders[1].GetSourceCount() == 1,
+                "Shader files are grouped by relative directory and program name");
+
+        const auto meshRoot = root / "models";
+        WriteTextFile(meshRoot / "nested" / "unnamed.obj",
+            "v 0 0 0\n"
+            "v 1 0 0\n"
+            "v 0 1 0\n"
+            "vt 0 0\n"
+            "vt 1 0\n"
+            "vt 0 1\n"
+            "vn 0 0 1\n"
+            "f 1/1/1 2/2/1 3/3/1\n");
+
+        std::vector<Graphics::MeshResource> meshes;
+        std::vector<std::string> meshNames;
+        Require(Graphics::LoadMeshResources(meshes, meshNames, meshRoot),
+                "Mesh loader finds OBJ resources");
+        Require(meshNames == std::vector<std::string>{"nested/unnamed"},
+                "Unnamed mesh objects use their root-relative file stem");
+
+        const auto textureSource = std::filesystem::current_path() / "assets" / "textures" / "test.png";
+        Require(std::filesystem::is_regular_file(textureSource), "Texture test fixture exists");
+        const auto texturePath = root / "textures" / "nested" / "sample.png";
+        std::filesystem::create_directories(texturePath.parent_path());
+        std::filesystem::copy_file(textureSource, texturePath);
+
+        std::vector<Graphics::Texture2DResource> textures;
+        std::vector<std::string> textureNames;
+        Require(Graphics::LoadTextureResources(textures, textureNames, root / "textures"),
+                "Texture loader finds image resources");
+        Require(textureNames == std::vector<std::string>{"nested/sample"},
+                "Texture names include their path relative to the root");
     }
 #endif
 
@@ -563,6 +696,8 @@ int main()
         {"perspective camera projection", TestCameraPerspectiveProjection},
         {"camera view matrix", TestCameraViewMatrix},
         {"GLFW input translation", TestGlfwInputTranslation},
+        {"resource initialization drops failures", TestResourceInitializationDropsFailures},
+        {"resource loaders generate relative names", TestResourceLoadersGenerateRelativeNames},
 #endif
         {"event registration and removal", TestEventHandlerRegistrationAndRemoval},
         {"event duplicate lambdas", TestEventHandlerAllowsDuplicateLambdas},

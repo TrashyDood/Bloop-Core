@@ -8,6 +8,8 @@
 #include <condition_variable>
 #include <future>
 #include <atomic>
+#include <type_traits>
+#include <utility>
 
 template<typename TValueType>
 using ThreadTask = std::future<TValueType>;
@@ -64,11 +66,16 @@ public:
 	}
 	
 	template<int TParallelForThreadCount, typename TFunc>
-	void For_Parallel(size_t count, TFunc&& func)
+	auto For_Parallel(TFunc&& func, size_t count)
 	{
+		using ReturnType = typename std::result_of<TFunc(uint16_t, uint32_t, uint32_t)>::type;
+
 		size_t chunkSize = (count + TParallelForThreadCount - 1) / TParallelForThreadCount;
-		ThreadTask<void> threadResults[TParallelForThreadCount];
-		uint16_t usedThreads = 0;
+		std::vector<ThreadTask<ReturnType>> tasks;
+
+		if (chunkSize < 1) return tasks;
+
+		tasks.reserve(TParallelForThreadCount);
 
 		for (uint16_t thread = 0; thread < TParallelForThreadCount; thread++)
 		{
@@ -78,17 +85,37 @@ public:
 
 			uint32_t chunkEnd = std::min(chunkStart + chunkSize, count);
 
-			threadResults[thread] = SubmitTask([chunkStart, chunkEnd, thread, &func]()
-			{
-				for (size_t index = chunkStart; index < chunkEnd; index++)
-					func(thread, chunkStart, index);
-			});
+			auto chunkTask = [chunkStart, chunkEnd, thread, func]() mutable {
+				return func(thread, chunkStart, chunkEnd); };
 
-			usedThreads++;
+			tasks.emplace_back(SubmitTask(std::move(chunkTask)));
 		}
 
-		for (int thread = 0; thread < usedThreads; thread++)
-			threadResults[thread].get();
+		return tasks;
+	}
+
+	template<int TParallelForThreadCount, typename TResult, typename TContainer, typename TFunc>
+	auto ForEach_Parallel(TContainer& values, TFunc&& func)
+	{
+		auto chunkFunc = [&values, func = std::forward<TFunc>(func)](
+			uint16_t, uint32_t start, uint32_t end) mutable
+		{
+			if constexpr (std::is_void_v<TResult>)
+			{
+				for (std::size_t i = start; i < end; ++i)
+					func(values[i], i);
+			}
+			else
+			{
+				TResult results{};
+
+				for (std::size_t i = start; i < end; ++i)
+					func(values[i], i, results);
+				return results;
+			}
+		};
+
+		return For_Parallel<TParallelForThreadCount>(std::move(chunkFunc), values.size());
 	}
 
 private:

@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cstdio>
 #include <ctime>
+#include <sstream>
 
 namespace
 {
@@ -52,15 +53,26 @@ void LogHandler::AddLogEntry(LogEntry entry)
 
     entry.timestamp = std::chrono::system_clock::now();
     entry.timestampText = FormatLogTimestamp(entry.timestamp);
+    entry.threadId = std::this_thread::get_id();
+
     if (logEntries.size() >= MaxLogEntries)
         logEntries.pop_front();
+
     logEntries.push_back(std::move(entry));
+
     const LogEntry &storedEntry = logEntries.back();
 
+    std::ostringstream threadIdStream;
+    threadIdStream << storedEntry.threadId;
+
+    const std::string threadIdText = threadIdStream.str();
+
     std::fprintf(stderr, "[%s]", storedEntry.timestampText.c_str());
-    std::fprintf(stderr, " [%s] ", GetLogLevelName(storedEntry.level));
+    std::fprintf(stderr, " [%s] [thread %s] ", GetLogLevelName(storedEntry.level), threadIdText.c_str());
+
     for (std::uint8_t i = 0; i < storedEntry.depth; ++i)
         std::fputs("  ", stderr);
+    
     std::fputs(storedEntry.message.c_str(), stderr);
 }
 

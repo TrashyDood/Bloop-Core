@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <cstddef>
 #include <string>
+#include <string_view>
 
 #include <glad/gl.h>
 
@@ -22,25 +23,35 @@
 
 namespace Graphics
 {
-    using ResourceHandle = GLuint;
-
-    inline constexpr float DefaultAspectRatio = 16.0f / 9.0f;
-    inline constexpr std::size_t MaxMeshBufferSize =
-        static_cast<std::size_t>(std::numeric_limits<GLsizeiptr>::max());
-
-    struct Vertex
+    enum class TextureFormat : GLenum
     {
-        Vector3f position{};
-        Vector3f normal{};
-        Vector2f UV{};
-        Color4f color = Colors::White;
-
-        Vertex() = default;
-        Vertex(Vector3f position, Vector3f normal = {}, Vector2f textureCoordinates = {}, Color4f color = Colors::White)
-            : position(position), normal(normal), UV(textureCoordinates), color(color) {}
+        RGBA8 =     GL_RGBA8,
+        RGB8 =      GL_RGB8,
+        RGBA16F =   GL_RGBA16F,
+        RGB16F =    GL_RGB16F,
+        RGBA32F =   GL_RGBA32F,
+        RGB32F =    GL_RGB32F
     };
 
-    enum ShaderType : GLenum
+    enum class TextureFilter : GLenum
+    {
+        Nearest =               GL_NEAREST,
+        Linear =                GL_LINEAR,
+        NearestMipmapNearest =  GL_NEAREST_MIPMAP_NEAREST,
+        LinearMipmapNearest =   GL_LINEAR_MIPMAP_NEAREST,
+        NearestMipmapLinear =   GL_NEAREST_MIPMAP_LINEAR,
+        LinearMipmapLinear =    GL_LINEAR_MIPMAP_LINEAR
+    };
+
+    enum class TextureWrap : GLenum
+    {
+        Repeat =            GL_REPEAT,
+        MirroredRepeat =    GL_MIRRORED_REPEAT,
+        ClampToEdge =       GL_CLAMP_TO_EDGE,
+        ClampToBorder =     GL_CLAMP_TO_BORDER
+    };
+
+    enum class ShaderType : GLenum
     {
         Unknown = 0,
         VertexShader = GL_VERTEX_SHADER,
@@ -48,24 +59,64 @@ namespace Graphics
         GeometryShader = GL_GEOMETRY_SHADER
     };
 
-    struct ShaderSource
+    struct Vertex
     {
-        const std::string source;
-        const GLenum type;
+        Vector3f position{};
+        Vector3f normal{};
+        Vector2f UV{};
+        Color4f color = Colors::White;
     };
 
-    using MeshVertices = std::vector<Vertex>;
-    using MeshIndices = std::vector<UInt32>;
+    struct ShaderSource
+    {
+        std::string source;
+        ShaderType type;
+    };
+    
+    struct TextureData
+    {
+        std::vector<UInt8>pixels;
+        UInt32 width = 0;
+        UInt32 height = 0;
+        TextureWrap wrapMode =        TextureWrap::Repeat;
+        TextureFilter filterMode =    TextureFilter::Linear;
+        TextureFormat format =        TextureFormat::RGBA8;
+    };
+
+    using MeshVertices =    std::vector<Vertex>;
+    using MeshIndices =     std::vector<UInt32>;
+    using ResourceHandle =  GLuint;
+
+    inline constexpr float DefaultAspectRatio =         16.0f / 9.0f;
+    inline constexpr std::size_t MaxMeshBufferSize =    static_cast<std::size_t>(std::numeric_limits<GLsizeiptr>::max());
+
+    inline constexpr const char *ShaderTypeToString(ShaderType type)
+    {
+        switch (type)
+        {
+            case ShaderType::VertexShader: return "vertex";
+            case ShaderType::FragmentShader: return "fragment";
+            case ShaderType::GeometryShader: return "geometry";
+            default: return "unknown";
+        }
+    }
+
+    inline constexpr ShaderType ShaderTypeFromString(std::string_view stage)
+    {
+        if (stage == ".vert" || stage == ".vs" || stage == ".vertex" ||
+            stage == "vertex" || stage == "vert" || stage == "vs")
+            return ShaderType::VertexShader;
+        if (stage == ".frag" || stage == ".fs" || stage == ".fragment" ||
+            stage == "fragment" || stage == "frag" || stage == "fs")
+            return ShaderType::FragmentShader;
+        if (stage == ".geom" || stage == ".gs" || stage == ".geometry" ||
+            stage == "geometry" || stage == "geom" || stage == "gs")
+            return ShaderType::GeometryShader;
+        return ShaderType::Unknown;
+    }
 
     ShaderType GetShaderFileType(const std::filesystem::path &file);
     std::string GetShaderGroupName(const std::filesystem::path &file);
 
     void CheckGLErrors();
-
-    bool CompileShader(const GLenum type, const char *source, ResourceHandle &outShader);
-    bool LinkShaders(ResourceHandle &outShaderProgram, const ResourceHandle *shaders, const std::size_t shadersCount);
-    bool CreateShaderProgram(const ShaderSource *sources, const std::size_t sourcesCount, ResourceHandle &outShaderProgram);
-
-    bool CreateMeshBuffers(ResourceHandle &vertexArray, ResourceHandle &vertexBuffer,
-        ResourceHandle &indexBuffer, const MeshVertices &vertices, const MeshIndices &indices = {});
 }

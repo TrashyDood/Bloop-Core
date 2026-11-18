@@ -1,5 +1,7 @@
 #pragma once
 
+#include "IOUtils.h"
+
 #include <chrono>
 #include <cstdint>
 #include <filesystem>
@@ -79,13 +81,6 @@ using UInt8 =           std::uint8_t;
 using UInt16 =          std::uint16_t;
 using UInt32 =          std::uint32_t;
 using UInt64 =          std::uint64_t;
-
-namespace IOUtils
-{
-    bool ReadFileToEnd(const char *filename, std::string &outContents);
-    std::vector<std::filesystem::path> FindMatchingFiles(const std::filesystem::path &folder, const std::regex &filenamePattern);
-    inline std::filesystem::path CurrentDirectory() { return std::filesystem::current_path(); }
-}
 
 namespace Colors
 {

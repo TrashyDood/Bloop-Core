@@ -6,9 +6,9 @@ in vec2 fragment_uv;
 
 out vec4 output_color;
 
-const vec3 light_direction = vec3(-0.4, 0.8, 0.6);
-const vec3 light_color = vec3(1.0, 1.0, 1.0);
-const vec3 ambient_color = vec3(0.025, 0.025, 0.025);
+uniform vec3 light_direction = vec3(-0.4, 0.8, 0.6);
+uniform vec3 light_color = vec3(0.996, 0.906, 0.784);
+uniform vec3 ambient_color = vec3(0.025, 0.025, 0.025);
 uniform sampler2D textureSampler;
 
 void main()

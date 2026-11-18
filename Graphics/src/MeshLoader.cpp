@@ -31,7 +31,8 @@ bool Graphics::ParseOBJFile(std::istream &stream, std::vector<std::string> &outN
         if (!isCurrentValid || currentIndices.empty())
         {
             if (!isCurrentValid)
-                LOG_ERROR("OBJ parser: Skipping invalid OBJ object.\n");
+                LOG_WARNING("OBJ parser: skipping invalid object '%s'.\n",
+                    currentName.empty() ? "(unnamed)" : currentName.c_str());
             currentVertices.clear();
             currentIndices.clear();
             return;
@@ -112,7 +113,7 @@ bool Graphics::ParseOBJFile(std::istream &stream, std::vector<std::string> &outN
                     break;
                 }
 
-                currentVertices.emplace_back(positions[positionIndex - 1], normals[normalIndex - 1], uvs[uvIndex - 1]);
+                currentVertices.push_back({positions[positionIndex - 1], normals[normalIndex - 1], uvs[uvIndex - 1]});
                 ++faceVertexCount;
             }
 
@@ -138,6 +139,8 @@ bool Graphics::LoadMeshFile(
     const char *path, std::vector<std::string> &outNames,
     std::vector<MeshVertices> &outVertices, std::vector<MeshIndices> &outIndices)
 {
+    LOG_SCOPE;
+
     outNames.clear();
     outVertices.clear();
     outIndices.clear();
@@ -184,10 +187,10 @@ bool Graphics::LoadMeshFileObjLoader(
         vertices.reserve(sourceMesh.Vertices.size());
         for (const objl::Vertex &vertex : sourceMesh.Vertices)
         {
-            vertices.emplace_back(
+            vertices.push_back({
                 Vector3f(vertex.Position.X, vertex.Position.Y, vertex.Position.Z),
                 Vector3f(vertex.Normal.X, vertex.Normal.Y, vertex.Normal.Z),
-                Vector2f(vertex.TextureCoordinate.X, vertex.TextureCoordinate.Y));
+                Vector2f(vertex.TextureCoordinate.X, vertex.TextureCoordinate.Y)});
         }
 
         outVertices.emplace_back(std::move(vertices));

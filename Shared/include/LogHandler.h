@@ -10,6 +10,7 @@
 #include <mutex>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -54,6 +55,7 @@ public:
         std::string message;
         std::chrono::system_clock::time_point timestamp{};
         std::string timestampText;
+        std::thread::id threadId{};
     };
 
     template<typename... Args>
@@ -102,6 +104,8 @@ inline LogHandler &StaticLogHandler()
     return logHandler;
 }
 
+#define LOG_SCOPE LogHandler::Scope _logScope_
+
 #define LOG_ERROR(msg, ...)                                     LOG_ERROR_WITH_PRIORITY(0, msg, ##__VA_ARGS__)
 #define LOG_WARNING(msg, ...)                                   LOG_WARNING_WITH_PRIORITY(0, msg, ##__VA_ARGS__)
 #define LOG_INFO(msg, ...)                                      LOG_INFO_WITH_PRIORITY(0, msg, ##__VA_ARGS__)
@@ -109,10 +113,6 @@ inline LogHandler &StaticLogHandler()
 #define LOG_ERROR_WITH_PRIORITY(priority, msg, ...)             StaticLogHandler().WriteLog(LogHandler::Error, priority, LogHandler::Scope::CurrentDepth(), msg, ##__VA_ARGS__)
 #define LOG_WARNING_WITH_PRIORITY(priority, msg, ...)           StaticLogHandler().WriteLog(LogHandler::Warning, priority, LogHandler::Scope::CurrentDepth(), msg, ##__VA_ARGS__)
 #define LOG_INFO_WITH_PRIORITY(priority, msg, ...)              StaticLogHandler().WriteLog(LogHandler::Info, priority, LogHandler::Scope::CurrentDepth(), msg, ##__VA_ARGS__)
-
-#define LOG_DETAIL_CONCAT_IMPL(left, right)                     left##right
-#define LOG_DETAIL_CONCAT(left, right)                          LOG_DETAIL_CONCAT_IMPL(left, right)
-#define LOG_SCOPE LogHandler::Scope                             LOG_DETAIL_CONCAT(logScope_, __LINE__)
 #else
 #define LOG_ERROR(msg, ...)
 #define LOG_WARNING(msg, ...)

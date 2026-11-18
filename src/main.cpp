@@ -1,13 +1,11 @@
-#include "LogHandler.h"
 #include "Shared.h"
 #include "Window.h"
 #include "Transform.h"
 #include "Camera.h"
-#include "Mesh.h"
-#include "MeshLoader.h"
-#include "Shader.h"
 #include "Scene.h"
-#include "Texture.h"
+#include "ResourceUtils.h"
+
+#include "LogHandler.h"
 
 #include <glm/gtc/type_ptr.hpp>
 
@@ -24,8 +22,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-
-#include <stb_image.h>
 
 #ifdef IMGUI_ENABLED
 #include "ImGuiUtils.h"
@@ -45,13 +41,13 @@ class DemoScene : public Engine::Scene
     Graphics::FlyingCamera camera;
     std::vector<Graphics::MeshResource> meshes;
     std::vector<Graphics::ShaderResource> shaders;
-    std::vector<Graphics::TextureResource> textures;
+    std::vector<Graphics::Texture2DResource> textures;
 
     Graphics::ShaderResource *activeShader = nullptr;
-    Graphics::TextureResource *activeTexture = nullptr;
+    Graphics::Texture2DResource *activeTexture = nullptr;
 
     double lastCursorX = 0.0, lastCursorY = 0.0;
-    bool orbiting = false, wireframeEnabled = true, isSimulating = true;
+    bool orbiting = false, wireframeEnabled = false, isSimulating = true;
 #ifdef IMGUI_ENABLED
     ImGuiUtils::Context imgui;
 #endif
@@ -130,169 +126,6 @@ public:
 
         LOG_SCOPE;
         LOG_INFO("Cleared all scene objects.\n");
-    }
-
-    bool LoadShaders()
-    {
-        LOG_SCOPE;
-        LOG_INFO("Loading shaders from '%s'.\n", (SHADERS_DIR).string().c_str());
-
-        using namespace Graphics;
-        const auto shaderDir = SHADERS_DIR;
-
-        if (!std::filesystem::is_directory(shaderDir))
-        {
-            LOG_ERROR("Shader directory '%s' does not exist.\n", shaderDir.string().c_str());
-            return false;
-        }
-
-        std::map<std::string, std::vector<ShaderSource>> shaderGroups;
-        for (const auto &file : IOUtils::FindMatchingFiles(shaderDir, std::regex(".*\\.glsl", std::regex::icase)))
-        {
-            LOG_SCOPE;
-
-            const Graphics::ShaderType type = GetShaderFileType(file);
-            if (type == Graphics::Unknown)
-            {
-                const std::string path = file.string();
-                LOG_WARNING("Skipping shader file with an unrecognized stage: '%s'.\n", path.c_str());
-                continue;
-            }
-
-            std::string source;
-            if (IOUtils::ReadFileToEnd(file.string().c_str(), source))
-                shaderGroups[GetShaderGroupName(file)].push_back({std::move(source), type});
-        }
-
-        for (auto &[name, sources] : shaderGroups)
-        {
-            LOG_SCOPE;
-            LOG_INFO("Found shader program '%s' with %zu stage(s).\n", name.c_str(), sources.size());
-
-            shaders.emplace_back(std::move(sources));
-        }
-
-        if (shaders.empty())
-        {
-            LOG_ERROR("No supported shader files found in '%s'.\n", shaderDir.string().c_str());
-            return false;
-        }
-
-        activeShader = &shaders.front();
-        return true;
-    }
-
-    bool LoadMeshes()
-    {
-        using namespace Graphics;
-        const auto modelDir = MODELS_DIR;
-
-        LOG_SCOPE;
-        LOG_INFO("Loading meshes from '%s'.\n", modelDir.string().c_str());
-
-        if (!std::filesystem::is_directory(modelDir))
-        {
-            LOG_ERROR("Model directory '%s' does not exist.\n", modelDir.string().c_str());
-            return false;
-        }
-
-        for (auto &file : IOUtils::FindMatchingFiles(modelDir, std::regex(".*\\.obj", std::regex::icase)))
-        {
-            LOG_SCOPE;
-
-            std::vector<std::string> objectNames;
-            std::vector<MeshVertices> objectVertices;
-            std::vector<MeshIndices> objectIndices;
-
-            LOG_INFO("Loading mesh file '%s'.\n", file.string().c_str());
-            if (LoadMeshFile(file.string().c_str(), objectNames, objectVertices, objectIndices))
-                for (std::size_t i = 0; i < objectVertices.size(); ++i)
-                    meshes.emplace_back(std::move(objectVertices[i]), std::move(objectIndices[i]));
-            else
-                LOG_ERROR("Failed to load mesh file '%s'.\n", file.string().c_str());
-        }
-
-        if (meshes.empty())
-            LOG_WARNING("No supported mesh files found in '%s'.\n", modelDir.string().c_str());
-
-        return true;
-    }
-
-    bool LoadTextures()
-    {
-        using namespace Graphics;
-        const auto textureDir = TEXTURES_DIR;
-
-        LOG_SCOPE;
-        LOG_INFO("Loading textures from '%s'.\n", textureDir.string().c_str());
-
-        if (!std::filesystem::is_directory(textureDir))
-        {
-            LOG_ERROR("Texture directory '%s' does not exist.\n", textureDir.string().c_str());
-            return false;
-        }
-
-        for (const auto &file : IOUtils::FindMatchingFiles(textureDir, std::regex(".*\\.(png|jpg|jpeg)", std::regex::icase)))
-        {
-            LOG_SCOPE;
-
-            const std::string path = file.string();
-
-            int width = 0, height = 0;
-            std::unique_ptr<stbi_uc, decltype(&stbi_image_free)> image(
-                stbi_load(file.string().c_str(), &width, &height, nullptr, STBI_rgb_alpha), stbi_image_free);
-
-            if (!image)
-            {
-                LOG_ERROR("Failed to load texture '%s': %s\n", path.c_str(), stbi_failure_reason());
-                return false;
-            }
-
-            const auto byteCount = static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4;
-            std::vector<UInt8> rgba(image.get(), image.get() + byteCount);
-            textures.emplace_back(width, height, std::move(rgba));
-        }
-
-        if (textures.empty())
-        {
-            LOG_WARNING("No supported texture files found in '%s'.\n", textureDir.string().c_str());
-            return true;
-        }
-
-        activeTexture = &textures.front();
-        return true;
-    }
-
-    bool LoadAssets()
-    {
-        LOG_SCOPE;
-        LOG_INFO("Loading assets from '%s'.\n", (ASSETS_DIR).string().c_str());
-
-        const bool shadersLoaded = LoadShaders();
-        const bool meshesLoaded = LoadMeshes();
-        const bool texturesLoaded = LoadTextures();
-        return shadersLoaded && meshesLoaded && texturesLoaded;
-    }
-
-    bool InitAssets()
-    {
-        LOG_SCOPE;
-        LOG_INFO("Initializing assets.\n");
-
-        using namespace Graphics;
-
-        if (meshes.empty() || !InitializeResources(meshes))
-            LOG_ERROR("Failed to initialize mesh resources.\n");
-
-        if (shaders.empty() || !InitializeResources(shaders))
-            LOG_ERROR("Failed to initialize shader resources.\n");
-
-        if (textures.empty() || !InitializeResources(textures))
-            LOG_ERROR("Failed to initialize texture resources.\n");
-
-        objectOffsets.resize(meshes.size());
-
-        return true;
     }
 
     void BindInput()
@@ -508,7 +341,7 @@ public:
         GLint &outProjectionMatrixUniform, GLint &outTextureSamplerUniform)
     {
         LOG_SCOPE;
-        if (activeShader == nullptr)
+        if (activeShader == nullptr || !activeShader->IsInitialized())
         {
             LOG_ERROR("Cannot get uniforms: no active shader is selected.\n");
             return false;
@@ -525,21 +358,21 @@ public:
                 !activeShader->GetUniformLocation("projectionMatrix", projectionLocation) ||
                 !activeShader->GetUniformLocation("textureSampler", textureSamplerLocation))
             {
-                LOG_ERROR("Required transform, camera, or texture sampler uniforms are missing from the shader program.\n");
+                //LOG_ERROR("Required transform, camera, or texture sampler uniforms are missing from the shader program.\n");
                 return false;
             }
 
-            modelMatrixUniform = modelLocation;
-            viewMatrixUniform = viewLocation;
-            projectionMatrixUniform = projectionLocation;
-            textureSamplerUniform = textureSamplerLocation;
-            cachedShader = activeShader;
+            modelMatrixUniform =        modelLocation;
+            viewMatrixUniform =         viewLocation;
+            projectionMatrixUniform =   projectionLocation;
+            textureSamplerUniform =     textureSamplerLocation;
+            cachedShader =              activeShader;
         }
 
-        outModelMatrixUniform = modelMatrixUniform;
-        outViewMatrixUniform = viewMatrixUniform;
-        outProjectionMatrixUniform = projectionMatrixUniform;
-        outTextureSamplerUniform = textureSamplerUniform;
+        outModelMatrixUniform =         modelMatrixUniform;
+        outViewMatrixUniform =          viewMatrixUniform;
+        outProjectionMatrixUniform =    projectionMatrixUniform;
+        outTextureSamplerUniform =      textureSamplerUniform;
         return true;
     }
 
@@ -609,15 +442,15 @@ public:
 
         LOG_INFO("Starting demo scene.\n");
 
-        if (!LoadAssets())
-        {
-            LOG_ERROR("Failed to load assets.\n");
-            return EXIT_FAILURE;
-        }
+        std::vector<std::string> shaderNames, meshNames, textureNames;
+        if (!LoadAndInitResources(shaders, meshes, textures, shaderNames, meshNames, textureNames, ASSETS_DIR))
+            LOG_WARNING("Some resources failed to initialize or load.\n");
 
-        if (!InitAssets())
-            LOG_ERROR("Failed to initialize assets.\n");
+        activeShader = &shaders.front();
+        activeTexture = &textures.front();
 
+        objectOffsets.resize(meshes.size());
+            
         BindInput();
 
         camera.ResetPosition();
@@ -674,7 +507,7 @@ int main()
         [&demoScene](const double xOffset, const double yOffset)        { demoScene.DispatchScroll(xOffset, yOffset); }
     };
 
-    if (!windowHost.Initialize({1800, 1200, "Bloop Core Engine", true}, inputCallbacks))
+    if (!windowHost.Initialize({1200, 600, "Bloop Core Engine", true}, inputCallbacks))
         return EXIT_FAILURE;
 
     Scene::SceneConfig sceneConfig;

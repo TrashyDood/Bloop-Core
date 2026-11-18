@@ -152,14 +152,9 @@ if(BUILD_TESTING AND BUILD_ENGINE)
     target_link_libraries(EngineTests PRIVATE Engine)
 
     if(BUILD_GRAPHICS)
-        target_sources(EngineTests PRIVATE Graphics/src/Camera.cpp Graphics/src/GlfwInput.cpp)
-        target_include_directories(EngineTests PRIVATE
-            Graphics/include
-            third_party/glad/include
-            ${GLFW_INCLUDE_DIRS}
-        )
-        target_compile_definitions(EngineTests PRIVATE GRAPHICS_ENABLED)
+        target_link_libraries(EngineTests PRIVATE Graphics)
     endif()
 
     add_test(NAME EngineTests COMMAND EngineTests)
+    set_tests_properties(EngineTests PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
 endif()

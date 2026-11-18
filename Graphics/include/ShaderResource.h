@@ -2,9 +2,8 @@
 
 #include "Graphics.h"
 #include "Shared.h"
-#include "IResourceOwner.h"
+#include "ResourceOwner.h"
 
-#include <utility>
 #include <vector>
 
 namespace Graphics
@@ -20,23 +19,19 @@ namespace Graphics
         [[nodiscard]] const ShaderSource &GetSource(std::size_t index) const { return sources.at(index); }
         [[nodiscard]] const std::vector<ShaderSource> &GetSources() const { return sources; }
         [[nodiscard]] bool HasSources() const { return !sources.empty(); }
-        [[nodiscard]] bool IsInitialized() const override { return shaderProgram != 0; }
+        [[nodiscard]] bool IsInitialized() const override;
 
         [[nodiscard]]
         bool GetUniformLocation(const std::string &name, GLint &location) const;
         [[nodiscard]]
         bool GetAttributeLocation(const std::string &name, GLint &location) const;
 
-        explicit ShaderResource(std::vector<ShaderSource> sources) : sources(std::move(sources)) {}
+        explicit ShaderResource(std::vector<ShaderSource> sources);
 
-        // Transfers the program handle, leaving the source without ownership.
-        ShaderResource(ShaderResource &&other) noexcept
-            : ResourceOwner(std::move(other)), shaderProgram(std::exchange(other.shaderProgram, 0)),
-              sources(std::move(other.sources)) { }
-        // Releases this program before taking ownership of the source's.
+        ShaderResource(ShaderResource &&other) noexcept;
         ShaderResource &operator=(ShaderResource &&other) noexcept;
 
-        ~ShaderResource() { ReleaseResources(); }
+        ~ShaderResource() override;
 
         ShaderResource(const ShaderResource &) = delete;
         ShaderResource &operator=(const ShaderResource &) = delete;

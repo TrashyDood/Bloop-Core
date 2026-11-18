@@ -1,10 +1,18 @@
-#include "Mesh.h"
+#include "MeshResource.h"
+
 #include "Graphics.h"
+#include "ResourceUtils.h"
 #include "LogHandler.h"
 
 #include <cstddef>
 #include <limits>
 #include <utility>
+
+Graphics::MeshResource::MeshResource(const MeshVertices &vertices, const MeshIndices &indices)
+    : vertices(vertices), indices(indices) { }
+
+Graphics::MeshResource::MeshResource(MeshVertices &&vertices, MeshIndices &&indices)
+    : vertices(std::move(vertices)), indices(std::move(indices)) { }
 
 Graphics::MeshResource::MeshResource(MeshResource &&other) noexcept
     : ResourceOwner(std::move(other)),
@@ -32,6 +40,17 @@ Graphics::MeshResource &Graphics::MeshResource::operator=(MeshResource &&other) 
     return *this;
 }
 
+Graphics::MeshResource::~MeshResource()
+{
+    ReleaseResources();
+}
+
+bool Graphics::MeshResource::IsInitialized() const
+{
+    return vertexArray != 0 && vertexBuffer != 0 && instanceBuffer != 0 &&
+        (indices.empty() || indexBuffer != 0);
+}
+
 void Graphics::MeshResource::ReleaseResources() noexcept
 {
     if (vertexArray != 0)
@@ -51,12 +70,14 @@ void Graphics::MeshResource::ReleaseResources() noexcept
 
 bool Graphics::MeshResource::InitializeResources()
 {
+    LOG_SCOPE;
+
     if (!ResourceOwner::InitializeResources())
         return false;
 
     if (vertexArray != 0 || vertexBuffer != 0 || indexBuffer != 0 || instanceBuffer != 0)
     {
-        LOG_ERROR("Cannot initialize mesh: OpenGL resource handles are already assigned.\n");
+        LOG_ERROR("Cannot initialize mesh: Resource handles are already assigned.\n");
         return false;
     }
 
@@ -72,12 +93,11 @@ bool Graphics::MeshResource::InitializeResources()
     glGenBuffers(1, &instanceBuffer);
     if (instanceBuffer == 0)
     {
-        LOG_ERROR("Cannot initialize mesh: OpenGL failed to allocate the instance buffer.\n");
+        LOG_ERROR("Cannot initialize mesh: Failed to allocate the instance buffer.\n");
         ReleaseResources();
         return false;
     }
 
-    LOG_INFO("Initialized mesh: %zu vertices, %zu indices.\n", vertices.size(), indices.size());
     return true;
 }
 

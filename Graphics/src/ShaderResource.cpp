@@ -1,7 +1,16 @@
-#include "Shader.h"
+#include "ShaderResource.h"
+
+#include "ResourceUtils.h"
 #include "LogHandler.h"
 
 #include <utility>
+
+Graphics::ShaderResource::ShaderResource(std::vector<ShaderSource> sources)
+    : sources(std::move(sources)) { }
+
+Graphics::ShaderResource::ShaderResource(ShaderResource &&other) noexcept
+    : ResourceOwner(std::move(other)), shaderProgram(std::exchange(other.shaderProgram, 0)),
+      sources(std::move(other.sources)) { }
 
 bool Graphics::ShaderResource::GetUniformLocation(const std::string &name, GLint &location) const
 {
@@ -28,6 +37,16 @@ Graphics::ShaderResource &Graphics::ShaderResource::operator=(ShaderResource &&o
     return *this;
 }
 
+Graphics::ShaderResource::~ShaderResource()
+{
+    ReleaseResources();
+}
+
+bool Graphics::ShaderResource::IsInitialized() const
+{
+    return shaderProgram != 0;
+}
+
 void Graphics::ShaderResource::ReleaseResources() noexcept
 {
     if (shaderProgram != 0)
@@ -37,14 +56,10 @@ void Graphics::ShaderResource::ReleaseResources() noexcept
 
 bool Graphics::ShaderResource::InitializeResources()
 {
+    LOG_SCOPE;
+
     if (!ResourceOwner::InitializeResources())
         return false;
-
-    if (IsInitialized())
-    {
-        LOG_ERROR("Cannot initialize shader: program handle is already set.\n");
-        return false;
-    }
 
     if (sources.empty())
     {
@@ -52,9 +67,8 @@ bool Graphics::ShaderResource::InitializeResources()
         return false;
     }
 
-    if (!CreateShaderProgram(sources.data(), sources.size(), shaderProgram))
+    if (!CreateShaderProgram(shaderProgram, sources.data(), sources.size()))
         return false;
 
-    LOG_INFO("Initialized shader program with %zu stage(s).\n", sources.size());
     return true;
 }

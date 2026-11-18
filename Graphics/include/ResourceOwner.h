@@ -1,6 +1,6 @@
 #pragma once
 
-#include <glad/gl.h>
+#include "LogHandler.h"
 
 #include <cstddef>
 #include <type_traits>
@@ -23,11 +23,8 @@ namespace Graphics
 
         virtual bool IsInitialized() const = 0;
         virtual void ReleaseResources() noexcept = 0;
-        virtual bool InitializeResources() { ReleaseResources(); return true; }
+        virtual bool InitializeResources();
     };
-
-    bool InitializeResources(ResourceOwner *owners[], std::size_t count);
-    bool InitializeResources(std::vector<ResourceOwner *> &owners);
 
     template <typename T>
     bool InitializeResources(ResourceOwner *owners[], std::size_t count)
@@ -43,15 +40,27 @@ namespace Graphics
     }
 
     template <typename T>
-    bool InitializeResources(std::vector<T> &owners)
+    bool InitializeResources(std::vector<T> &owners, bool eraseOnFail = true)
     {
         static_assert(std::is_base_of_v<ResourceOwner, T>,
             "InitializeResources requires a vector of ResourceOwner-derived objects.");
 
-        for (T &owner : owners)
-            if (!owner.InitializeResources())
-                return false;
+        bool allInitialized = true;
+        for (auto owner = owners.begin(); owner != owners.end();)
+        {
+            if (owner->InitializeResources())
+            {
+                ++owner;
+                continue;
+            }
 
-        return true;
+            allInitialized = false;
+            static_cast<ResourceOwner &>(*owner).ReleaseResources();
+
+            if (eraseOnFail)
+                owner = owners.erase(owner);
+        }
+
+        return allInitialized;
     }
-}
+} // namespace Graphics
