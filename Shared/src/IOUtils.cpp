@@ -15,24 +15,22 @@ namespace IOUtils
         std::vector<std::filesystem::path> matches;
 
         for (const auto &entry : std::filesystem::recursive_directory_iterator(folder))
-        {
-            if (entry.is_regular_file() &&
-                std::regex_match(entry.path().filename().string(), filenamePattern))
+            if (entry.is_regular_file() && std::regex_match(entry.path().filename().string(), filenamePattern))
                 matches.push_back(entry.path());
-        }
 
         return matches;
     }
 
-    std::vector<std::filesystem::path> FindMatchingFiles_Parallel(
-        const std::filesystem::path &folder, const std::regex &filenamePattern)
+    std::vector<std::filesystem::path> FindMatchingFiles_Parallel(const std::filesystem::path &folder,
+        const std::regex &filenamePattern)
     {
         std::vector<std::filesystem::path> files;
         for (const auto &entry : std::filesystem::recursive_directory_iterator(folder))
             if (entry.is_regular_file())
                 files.push_back(entry.path());
 
-        auto tasks = StaticThreadPool().For_Parallel<16>(
+        std::size_t chunkCount;
+        auto tasks = StaticThreadPool().For_Parallel(
             [&files, &filenamePattern](std::size_t, std::size_t start, std::size_t end)
             {
                 std::vector<std::filesystem::path> matches;
@@ -41,8 +39,7 @@ namespace IOUtils
                         matches.push_back(files[i]);
 
                 return matches;
-            },
-            files.size());
+            }, files.size());
 
         std::vector<std::filesystem::path> matches;
         for (auto &task : tasks)
@@ -53,13 +50,6 @@ namespace IOUtils
         }
 
         return matches;
-    }
-
-    std::string GetRelativeName(
-        const std::filesystem::path &file, const std::filesystem::path &root, const std::filesystem::path &name)
-    {
-        const std::filesystem::path relativeFile = file.lexically_relative(root);
-        return (relativeFile.parent_path() / name).generic_string();
     }
 
     bool ReadFileToEnd(const char *filename, std::string &outContents)

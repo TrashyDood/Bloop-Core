@@ -87,7 +87,7 @@ bool Graphics::MeshResource::InitializeResources()
         return false;
     }
 
-    if (!CreateMeshBuffers(vertexArray, vertexBuffer, indexBuffer, vertices, indices))
+    if (!CreateGLMeshBuffers(vertexArray, vertexBuffer, indexBuffer, vertices, indices))
         return false;
 
     glGenBuffers(1, &instanceBuffer);

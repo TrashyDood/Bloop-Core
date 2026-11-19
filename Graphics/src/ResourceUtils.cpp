@@ -18,54 +18,85 @@
 #include <tuple>
 #include <utility>
 
-namespace
+namespace // Local helpers
 {
     template <typename TChunkResult, typename TLoadFile, typename TMergeChunk>
     bool LoadResourcesFromFiles_Parallel(const std::filesystem::path &rootDirectory, const char *resourceNames,
-        const char *directoryName, const std::regex &filePattern, const bool outputNonEmpty, TLoadFile &&loadFile,
-        TMergeChunk &&mergeChunk)
+        const std::regex &filePattern, const bool outputNonEmpty, TLoadFile &&loadFile, TMergeChunk &&mergeChunk)
     {
-        const std::string directoryString = rootDirectory.string();
+        const std::string directory = rootDirectory.string();
 
         LOG_SCOPE;
-        LOG_INFO("Loading %s from '%s'.\n", resourceNames, directoryString.c_str());
+        LOG_INFO("Loading %s from '%s'.\n", resourceNames, directory.c_str());
 
         if (!std::filesystem::is_directory(rootDirectory))
         {
-            LOG_SCOPE;
-            LOG_ERROR("%s directory '%s' does not exist.\n", directoryName, directoryString.c_str());
+            LOG_ERROR("Cannot load %s: directory '%s' does not exist.\n", resourceNames, directory.c_str());
             return false;
         }
 
         if (outputNonEmpty)
-        {
-            LOG_SCOPE;
             LOG_WARNING("Loading %s into a non-empty list.\n", resourceNames);
-        }
 
         const auto files = IOUtils::FindMatchingFiles_Parallel(rootDirectory, filePattern);
-        std::atomic_size_t rejectedFileCount{0};
-        auto processFile = [&loadFile, &rejectedFileCount](
-            const std::filesystem::path &file, const std::size_t index, TChunkResult &results)
-        {
-            if (!loadFile(file, index, results))
-                rejectedFileCount.fetch_add(1, std::memory_order_relaxed);
-        };
-        auto tasks = StaticThreadPool().ForEach_Parallel<16, TChunkResult>(files, std::move(processFile));
+        std::atomic_size_t rejected{0};
 
-        bool addedResources = false;
+        auto tasks = StaticThreadPool().ForEach_Parallel<TChunkResult>(
+            [&](const std::filesystem::path &file, std::size_t index, TChunkResult &results)
+            {
+                if (!loadFile(file, index, results))
+                    ++rejected;
+            },
+            files);
+
+        bool added = false;
         for (auto &task : tasks)
-            if (mergeChunk(task.get()))
-                addedResources = true;
+            added |= mergeChunk(task.get());
 
-        LOG_INFO("Rejected %zu of %zu files while loading %s.\n",
-            rejectedFileCount.load(std::memory_order_relaxed), files.size(), resourceNames);
+        if (rejected.load() > 0)    
+            LOG_WARNING("Rejected %zu of %zu files while loading %s.\n", rejected.load(), files.size(), resourceNames);
+        return added;
+    }
 
-        return addedResources;
+    template <typename TKey, typename TValue>
+    void MergeMaps(std::map<TKey, TValue> &mapA, std::map<TKey, TValue> &mapB)
+    {
+        for (auto &[keyA, valueA] : mapA)
+        {
+            auto [keyB, valueB] = mapB.try_emplace(keyA, std::move(valueA));
+            if (!valueB)
+                keyB->second.insert(
+                    keyB->second.end(),
+                    std::make_move_iterator(valueA.begin()),
+                    std::make_move_iterator(valueA.end()));
+        }
+    }
+
+    template <typename T>
+    bool MergeResourceChunks(std::vector<T> &to, std::vector<T> &from,
+        std::vector<std::string> &namesTo, std::vector<std::string> &namesFrom)
+    {
+        if (from.empty())
+            return false;
+
+        to.insert(to.end(),
+            std::make_move_iterator(from.begin()),
+            std::make_move_iterator(from.end()));
+        namesTo.insert(namesTo.end(),
+            std::make_move_iterator(namesFrom.begin()),
+            std::make_move_iterator(namesFrom.end()));
+        return true;
+    }
+
+    std::string GetRelativeName(const std::filesystem::path &file,
+        const std::filesystem::path &root, const std::filesystem::path &name)
+    {
+        return (file.lexically_relative(root).parent_path() / name).generic_string();
     }
 } // namespace
 
-bool Graphics::CompileShader(ResourceHandle &outShader, const ShaderType type, const char *source)
+#pragma region Create GL Handles
+bool Graphics::CompileGLShader(ResourceHandle &outShader, const ShaderType type, const char *source)
 {
     LOG_SCOPE;
 
@@ -106,7 +137,7 @@ bool Graphics::CompileShader(ResourceHandle &outShader, const ShaderType type, c
     return compiled == GL_TRUE;
 }
 
-bool Graphics::LinkShaders(ResourceHandle &shaderProgram, const ResourceHandle *shaders, const std::size_t shadersCount)
+bool Graphics::LinkGLShaders(ResourceHandle &shaderProgram, const ResourceHandle *shaders, const std::size_t shadersCount)
 {
     LOG_SCOPE;
 
@@ -164,7 +195,7 @@ bool Graphics::LinkShaders(ResourceHandle &shaderProgram, const ResourceHandle *
     return linked == GL_TRUE;
 }
 
-bool Graphics::CreateShaderProgram(ResourceHandle &outShaderProgram, const ShaderSource *sources, const std::size_t sourcesCount)
+bool Graphics::CreateGLShaderProgram(ResourceHandle &outShaderProgram, const ShaderSource *sources, const std::size_t sourcesCount)
 {
     LOG_SCOPE;
 
@@ -186,7 +217,7 @@ bool Graphics::CreateShaderProgram(ResourceHandle &outShaderProgram, const Shade
     for (std::size_t i = 0; i < sourcesCount; ++i)
     {
         const std::string *source = &sources[i].source;
-        if (!CompileShader(shaders[i], sources[i].type, source->c_str()))
+        if (!CompileGLShader(shaders[i], sources[i].type, source->c_str()))
         {
             LOG_ERROR("Cannot create shader program: failed to compile at %s shader stage.\n", ShaderTypeToString(static_cast<ShaderType>(sources[i].type)));
             for (const ResourceHandle shader : shaders)
@@ -196,7 +227,7 @@ bool Graphics::CreateShaderProgram(ResourceHandle &outShaderProgram, const Shade
         }
     }
 
-    const bool linked = LinkShaders(outShaderProgram, shaders.data(), shaders.size());
+    const bool linked = LinkGLShaders(outShaderProgram, shaders.data(), shaders.size());
 
     if (!linked)
         LOG_ERROR("Cannot create shader program: failed to link shaders.\n");
@@ -207,7 +238,7 @@ bool Graphics::CreateShaderProgram(ResourceHandle &outShaderProgram, const Shade
     return linked;
 }
 
-bool Graphics::CreateMeshBuffers(ResourceHandle &outVertexArray, ResourceHandle &outVertexBuffer,
+bool Graphics::CreateGLMeshBuffers(ResourceHandle &outVertexArray, ResourceHandle &outVertexBuffer,
     ResourceHandle &outIndexBuffer, const MeshVertices &vertices, const MeshIndices &indices)
 {
     LOG_SCOPE;
@@ -297,7 +328,7 @@ bool Graphics::CreateMeshBuffers(ResourceHandle &outVertexArray, ResourceHandle 
     return true;
 }
 
-bool Graphics::CreateTexture2D(ResourceHandle &outTexture, const TextureData &textureData)
+bool Graphics::CreateGLTexture2D(ResourceHandle &outTexture, const TextureData &textureData)
 {
     LOG_SCOPE;
 
@@ -349,60 +380,123 @@ bool Graphics::CreateTexture2D(ResourceHandle &outTexture, const TextureData &te
 
     return true;
 }
+#pragma endregion
 
+#pragma region Create Resource
+bool Graphics::LoadShaderSource(ShaderSource &outShaderSource, std::string &outGroup,
+    const std::filesystem::path &file, const std::filesystem::path &rootDirectory)
+{
+    LOG_SCOPE;
 
-bool Graphics::LoadShaderResources(std::vector<ShaderResource> &outShaders,
+    const std::string fileString = file.string();
+    const ShaderType type = GetShaderFileType(file);
+
+    LOG_INFO("Loading shader file '%s'.\n", fileString.c_str());
+
+    if (type == ShaderType::Unknown)
+    {
+        LOG_SCOPE;
+        LOG_WARNING("Skipping shader file with an unrecognized stage: '%s'.\n", fileString.c_str());
+        return false;
+    }
+
+    std::string sourceCode;
+    if (!IOUtils::ReadFileToEnd(fileString.c_str(), sourceCode))
+    {
+        LOG_SCOPE;
+        LOG_WARNING("Failed to read shader file '%s'.\n", fileString.c_str());
+        return false;
+    }
+
+    const std::filesystem::path stem = file.lexically_relative(rootDirectory).stem(),
+        groupName = stem.extension().empty() ? std::filesystem::path("default") : stem.stem();
+
+    outShaderSource = {sourceCode, type};
+    outGroup = GetRelativeName(file, rootDirectory, groupName);
+
+    return true;
+}
+
+bool Graphics::LoadMeshResource(std::vector<MeshResource> &outMeshes, std::vector<std::string> &outNames,
+    const std::filesystem::path &file, const std::filesystem::path &rootDirectory)
+{
+    const std::string fileString = file.string();
+
+    LOG_SCOPE;
+    LOG_INFO("Loading mesh file '%s'.\n", fileString.c_str());
+
+    std::vector<MeshVertices> vertices;
+    std::vector<MeshIndices> indices;
+    std::vector<std::string> names;
+
+    if (!ReadAndParseModeFile(fileString.c_str(), names, vertices, indices))
+    {
+        LOG_WARNING("Failed to load one or more mesh objects in file '%s'.\n", fileString.c_str());
+        return false;
+    }
+
+    for (std::size_t i = 0; i < vertices.size(); ++i)
+    {
+        if (names[i].empty())
+            names[i] = GetRelativeName(file, rootDirectory, file.stem());
+
+        outMeshes.emplace_back(std::move(vertices[i]), std::move(indices[i]));
+        outNames.emplace_back(std::move(names[i]));
+    }
+    return vertices.size() > 0;
+}
+
+bool Graphics::LoadTexture2DResource(Texture2DResource &outTexture, std::string &outName,
+    const std::filesystem::path &file, const std::filesystem::path &rootDirectory)
+{
+    const std::string fileString = file.string();
+
+    LOG_SCOPE;
+    LOG_INFO("Loading texture file '%s'.\n", fileString.c_str());
+
+    int width = 0, height = 0;
+    std::unique_ptr<stbi_uc, decltype(&stbi_image_free)> image(
+        stbi_load(fileString.c_str(), &width, &height, nullptr, STBI_rgb_alpha), stbi_image_free);
+
+    if (!image)
+    {
+        LOG_WARNING("Failed to load texture file '%s': '%s'.\n", fileString.c_str(), stbi_failure_reason());
+        return false;
+    }
+
+    const auto byteCount = static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4;
+    std::vector<UInt8> rgba(image.get(), image.get() + byteCount);
+
+    outTexture = Texture2DResource(width, height, std::move(rgba));
+    outName = GetRelativeName(file, rootDirectory, file.stem());
+    
+    return true;
+}
+#pragma endregion
+
+#pragma region Create Resource Collections
+bool Graphics::LoadShaderResources_Parallel(std::vector<ShaderResource> &outShaders,
     std::vector<std::string> &outNames, const std::filesystem::path &rootDirectory)
 {
-    using namespace Graphics;
     using ShaderGroupMap = std::map<std::string, std::vector<ShaderSource>>;
 
     ShaderGroupMap shaderGroups;
     const bool addedNew = LoadResourcesFromFiles_Parallel<ShaderGroupMap>(
-        rootDirectory, "shaders", "Shader", std::regex(".*\\.glsl", std::regex::icase), !outShaders.empty(),
-        [root = rootDirectory](const std::filesystem::path &file, std::size_t,
-            ShaderGroupMap &results)
+        rootDirectory, "Shader", std::regex(".*\\.glsl", std::regex::icase), !outShaders.empty(),
+        [rootDir = rootDirectory](const std::filesystem::path &file, std::size_t, ShaderGroupMap &results)
         {
-            LOG_SCOPE;
-
-            const std::string fileString = file.string();
-            const Graphics::ShaderType type = GetShaderFileType(file);
-
-            LOG_INFO("Loading shader file '%s'.\n", fileString.c_str());
-
-            if (type == Graphics::ShaderType::Unknown)
-            {
-                LOG_SCOPE;
-                LOG_WARNING("Skipping shader file with an unrecognized stage: '%s'.\n", fileString.c_str());
+            ShaderSource shaderSource;
+            std::string shaderGroup;
+            if (!LoadShaderSource(shaderSource, shaderGroup, file, rootDir))
                 return false;
-            }
 
-            std::string source;
-            if (!IOUtils::ReadFileToEnd(fileString.c_str(), source))
-            {
-                LOG_SCOPE;
-                LOG_WARNING("Failed to read shader file '%s'.\n", fileString.c_str());
-                return false;
-            }
-
-            const std::filesystem::path stem = file.lexically_relative(root).stem();
-            const std::filesystem::path groupName = stem.extension().empty() ? std::filesystem::path("default") : stem.stem();
-            const std::string name = IOUtils::GetRelativeName(file, root, groupName);
-
-            results[name].push_back({std::move(source), type});
+            results[shaderGroup].push_back(shaderSource);
             return true;
         },
-        [&shaderGroups](ShaderGroupMap chunkGroups) // Merge shader groups
+        [&shaderGroups](ShaderGroupMap chunkGroups)
         {
             const bool added = !chunkGroups.empty();
-            for (auto &[groupName, sources] : chunkGroups)
-            {
-                auto [group, inserted] = shaderGroups.try_emplace(groupName, std::move(sources));
-                if (!inserted)
-                    group->second.insert(group->second.end(),
-                        std::make_move_iterator(sources.begin()),
-                        std::make_move_iterator(sources.end()));
-            }
+            MergeMaps(chunkGroups, shaderGroups);
             return added;
         });
 
@@ -417,113 +511,54 @@ bool Graphics::LoadShaderResources(std::vector<ShaderResource> &outShaders,
     return addedNew;
 }
 
-bool Graphics::LoadMeshResources(std::vector<MeshResource> &outMeshes,
+bool Graphics::LoadMeshResources_Parallel(std::vector<MeshResource> &outMeshes,
     std::vector<std::string> &outNames, const std::filesystem::path &rootDirectory)
 {
-    using namespace Graphics;
     using MeshChunkResult = std::tuple<std::vector<MeshResource>, std::vector<std::string>>;
 
     return LoadResourcesFromFiles_Parallel<MeshChunkResult>(
-        rootDirectory, "meshes", "Model", std::regex(".*\\.obj", std::regex::icase), !outMeshes.empty(),
-        [root = rootDirectory](const std::filesystem::path &file, std::size_t,
+        rootDirectory, "Model", std::regex(".*\\.obj", std::regex::icase), !outMeshes.empty(),
+        [rootDir = rootDirectory](const std::filesystem::path &file, std::size_t,
             MeshChunkResult &results)
         {
-            LOG_SCOPE;
-
-            const std::string fileString = file.string();
-
-            LOG_INFO("Loading mesh file '%s'.\n", fileString.c_str());
-
-            std::vector<MeshVertices> vertices;
-            std::vector<MeshIndices> indices;
-            std::vector<std::string> names;
-
-            if (!LoadMeshFile(fileString.c_str(), names, vertices, indices))
-            {
-                LOG_WARNING("Failed to load one or more mesh objects in file '%s'.\n", fileString.c_str());
-                return false;
-            }
-
-            for (std::size_t i = 0; i < vertices.size(); ++i)
-            {
-                if (names[i].empty())
-                    names[i] = IOUtils::GetRelativeName(file, root, file.stem());
-
-                std::get<0>(results).emplace_back(std::move(vertices[i]), std::move(indices[i]));
-                std::get<1>(results).emplace_back(std::move(names[i]));
-            }
-            return true;
+            return LoadMeshResource(std::get<0>(results),
+                std::get<1>(results), file, rootDir);
         },
         [&outMeshes, &outNames](MeshChunkResult results)
         {
             auto [meshes, names] = std::move(results);
-            if (meshes.empty())
-                return false;
-
-            outMeshes.insert(outMeshes.end(),
-                std::make_move_iterator(meshes.begin()),
-                std::make_move_iterator(meshes.end()));
-            outNames.insert(outNames.end(),
-                std::make_move_iterator(names.begin()),
-                std::make_move_iterator(names.end()));
-            return true;
+            return MergeResourceChunks(outMeshes, meshes, outNames, names);
         });
 }
 
-bool Graphics::LoadTextureResources(std::vector<Texture2DResource> &outTextures,
+bool Graphics::LoadTextureResources_Parallel(std::vector<Texture2DResource> &outTextures,
     std::vector<std::string> &outNames, const std::filesystem::path &rootDirectory)
 {
-    using namespace Graphics;
     using TextureChunkResult = std::tuple<std::vector<Texture2DResource>, std::vector<std::string>>;
 
-    return LoadResourcesFromFiles_Parallel<TextureChunkResult>(
-        rootDirectory, "textures", "Texture", std::regex(".*\\.(png|jpg|jpeg)", std::regex::icase),
-        !outTextures.empty(),
-        [root = rootDirectory](const std::filesystem::path &file, std::size_t,
-            TextureChunkResult &results)
+    return LoadResourcesFromFiles_Parallel<TextureChunkResult>(rootDirectory, "Texture",
+        std::regex(".*\\.(png|jpg|jpeg)", std::regex::icase), !outTextures.empty(),
+        [rootDir = rootDirectory](const std::filesystem::path &file, std::size_t, TextureChunkResult &results)
         {
-            LOG_SCOPE;
-
-            const std::string fileString = file.string();
-
-            LOG_INFO("Loading texture file '%s'.\n", fileString.c_str());
-            
-            int width = 0, height = 0;
-            std::unique_ptr<stbi_uc, decltype(&stbi_image_free)> image(
-                stbi_load(fileString.c_str(), &width, &height, nullptr, STBI_rgb_alpha), stbi_image_free);
-
-            if (!image)
-            {
-                LOG_WARNING("Failed to load texture file '%s': '%s'.\n", fileString.c_str(), stbi_failure_reason());
+            std::string name;
+            Texture2DResource texture;
+            if (!LoadTexture2DResource(texture, name, file, rootDir))
                 return false;
-            }
 
-            const std::string name = IOUtils::GetRelativeName(file, root, file.stem());
-            const auto byteCount = static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4;
-            std::vector<UInt8> rgba(image.get(), image.get() + byteCount);
-
-            std::get<0>(results).emplace_back(width, height, std::move(rgba));
-            std::get<1>(results).emplace_back(std::move(name));
+            std::get<0>(results).push_back(std::move(texture));
+            std::get<1>(results).push_back(std::move(name));
             return true;
         },
         [&outTextures, &outNames](TextureChunkResult results)
         {
             auto [textures, names] = std::move(results);
-            if (textures.empty())
-                return false;
-
-            outTextures.insert(outTextures.end(),
-                std::make_move_iterator(textures.begin()),
-                std::make_move_iterator(textures.end()));
-            outNames.insert(outNames.end(),
-                std::make_move_iterator(names.begin()),
-                std::make_move_iterator(names.end()));
-            return true;
+            return MergeResourceChunks(outTextures, textures, outNames, names);
         });
 }
+#pragma endregion
 
-bool Graphics::LoadAndInitResources(std::vector<Graphics::ShaderResource> &outShaders,
-    std::vector<Graphics::MeshResource> &outMeshes, std::vector<Graphics::Texture2DResource> &outTextures,
+bool Graphics::LoadAndInitResources(std::vector<ShaderResource> &outShaders,
+    std::vector<MeshResource> &outMeshes, std::vector<Texture2DResource> &outTextures,
     std::vector<std::string> &outShaderNames, std::vector<std::string> &outMeshNames,
     std::vector<std::string> &outTextureNames, const std::filesystem::path &rootDirectory)
 {
@@ -537,11 +572,10 @@ bool Graphics::LoadAndInitResources(std::vector<Graphics::ShaderResource> &outSh
 
         StopWatch<std::chrono::steady_clock> stopWatch;
 
-        LOG_INFO("Loading resources... \n");
         stopWatch.Reset();
-        LoadShaderResources(outShaders, outShaderNames, SHADERS_DIR);
-        LoadMeshResources(outMeshes, outMeshNames, MODELS_DIR);
-        LoadTextureResources(outTextures, outTextureNames, TEXTURES_DIR);
+        LoadShaderResources_Parallel(outShaders, outShaderNames, SHADERS_DIR);
+        LoadMeshResources_Parallel(outMeshes, outMeshNames, MODELS_DIR);
+        LoadTextureResources_Parallel(outTextures, outTextureNames, TEXTURES_DIR);
         LOG_INFO("Loading resources took %f seconds.\n", TimeDuration(stopWatch.CurrentDuration()).count());
 
         LOG_INFO("Initializing resources... \n");

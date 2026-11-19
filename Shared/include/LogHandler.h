@@ -58,9 +58,9 @@ public:
         std::thread::id threadId{};
     };
 
-    template<typename... Args>
+    template<typename... TArgs>
     void WriteLog(LogLevel level, std::uint8_t priority, std::uint8_t depth,
-        std::string message, Args... args)
+        std::string message, TArgs... args)
     {
         message = FormatMessage(message, args...);
         AddLogEntry(LogEntry{level, priority, depth, std::move(message)});
@@ -76,8 +76,8 @@ private:
 
     void AddLogEntry(LogEntry entry);
 
-    template<typename... Args>
-    static std::string FormatMessage(const std::string &format, Args... args)
+    template<typename... TArgs>
+    static std::string FormatMessage(const std::string &format, TArgs... args)
     {
         if constexpr (sizeof...(args) == 0)
             return format;

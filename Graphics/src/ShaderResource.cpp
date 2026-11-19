@@ -67,7 +67,7 @@ bool Graphics::ShaderResource::InitializeResources()
         return false;
     }
 
-    if (!CreateShaderProgram(shaderProgram, sources.data(), sources.size()))
+    if (!CreateGLShaderProgram(shaderProgram, sources.data(), sources.size()))
         return false;
 
     return true;

@@ -52,7 +52,8 @@ bool Graphics::Texture2DResource::InitializeResources()
     if (!ResourceOwner::InitializeResources())
         return false;
 
-    if (!Graphics::CreateTexture2D(texture, { pixels, static_cast<UInt32>(width), static_cast<UInt32>(height) }))
+    if (!Graphics::CreateGLTexture2D(texture,
+        { pixels, static_cast<UInt32>(width), static_cast<UInt32>(height) }))
         return false;
 
     return true;

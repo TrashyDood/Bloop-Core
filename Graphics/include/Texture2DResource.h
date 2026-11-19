@@ -21,6 +21,7 @@ namespace Graphics
         [[nodiscard]] ResourceHandle GetTextureHandle() const { return texture; }
         [[nodiscard]] bool IsInitialized() const override;
 
+        Texture2DResource() = default;
         Texture2DResource(Int32 width, Int32 height, std::vector<UInt8> rgbaPixels);
 
         Texture2DResource(Texture2DResource &&other) noexcept;

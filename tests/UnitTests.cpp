@@ -367,7 +367,7 @@ namespace
 
         std::vector<Graphics::ShaderResource> shaders;
         std::vector<std::string> shaderNames;
-        Require(Graphics::LoadShaderResources(shaders, shaderNames, shaderRoot),
+        Require(Graphics::LoadShaderResources_Parallel(shaders, shaderNames, shaderRoot),
                 "Shader loader finds source groups");
         Require(shaderNames == std::vector<std::string>{"nested/program", "other/program"},
                 "Shader names include their path relative to the root");
@@ -388,7 +388,7 @@ namespace
 
         std::vector<Graphics::MeshResource> meshes;
         std::vector<std::string> meshNames;
-        Require(Graphics::LoadMeshResources(meshes, meshNames, meshRoot),
+        Require(Graphics::LoadMeshResources_Parallel(meshes, meshNames, meshRoot),
                 "Mesh loader finds OBJ resources");
         Require(meshNames == std::vector<std::string>{"nested/unnamed"},
                 "Unnamed mesh objects use their root-relative file stem");
@@ -401,7 +401,7 @@ namespace
 
         std::vector<Graphics::Texture2DResource> textures;
         std::vector<std::string> textureNames;
-        Require(Graphics::LoadTextureResources(textures, textureNames, root / "textures"),
+        Require(Graphics::LoadTextureResources_Parallel(textures, textureNames, root / "textures"),
                 "Texture loader finds image resources");
         Require(textureNames == std::vector<std::string>{"nested/sample"},
                 "Texture names include their path relative to the root");

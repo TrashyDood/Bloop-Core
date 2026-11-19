@@ -10,25 +10,39 @@
 
 namespace Graphics
 {
-    bool CompileShader(ResourceHandle &outShader, const ShaderType type, const char *source);
-    bool LinkShaders(ResourceHandle &outShaderProgram, const ResourceHandle *shaders, const std::size_t shadersCount);
-    bool CreateShaderProgram(
+    template<typename T>
+    struct Results
+    {
+
+    };
+
+    bool CompileGLShader(ResourceHandle &outShader, const ShaderType type, const char *source);
+    bool LinkGLShaders(ResourceHandle &outShaderProgram, const ResourceHandle *shaders, const std::size_t shadersCount);
+    bool CreateGLShaderProgram(
         ResourceHandle &outShaderProgram, const ShaderSource *sources, const std::size_t sourcesCount);
-    bool CreateMeshBuffers(ResourceHandle &vertexArray, ResourceHandle &vertexBuffer, ResourceHandle &indexBuffer,
+    bool CreateGLMeshBuffers(ResourceHandle &vertexArray, ResourceHandle &vertexBuffer, ResourceHandle &indexBuffer,
         const MeshVertices &vertices, const MeshIndices &indices = {});
-    bool CreateTexture2D(ResourceHandle &outTexture, const TextureData &textureData);
+    bool CreateGLTexture2D(ResourceHandle &outTexture, const TextureData &textureData);
 
-    bool LoadShaderResources(std::vector<Graphics::ShaderResource> &outShaders, std::vector<std::string> &outNames,
+    inline bool LoadShaderSource(Graphics::ShaderSource &outShaderSource, std::string &outGroup,
+        const std::filesystem::path &file, const std::filesystem::path &rootDirectory);
+
+    bool LoadMeshResource(std::vector<Graphics::MeshResource> &outMeshes, std::vector<std::string> &outNames,
+        const std::filesystem::path &file, const std::filesystem::path &rootDirectory);
+    bool LoadTexture2DResource(Graphics::Texture2DResource &outTexture, std::string &outName,
+        const std::filesystem::path &file, const std::filesystem::path &rootDirectory);
+
+    bool LoadShaderResources_Parallel(std::vector<Graphics::ShaderResource> &outShaders, std::vector<std::string> &outNames,
         const std::filesystem::path &directory);
-    bool LoadMeshResources(std::vector<Graphics::MeshResource> &outMeshes, std::vector<std::string> &outNames,
+    bool LoadMeshResources_Parallel(std::vector<Graphics::MeshResource> &outMeshes, std::vector<std::string> &outNames,
         const std::filesystem::path &directory);
-    bool LoadTextureResources(std::vector<Graphics::Texture2DResource> &outTextures, std::vector<std::string> &outNames,
+    bool LoadTextureResources_Parallel(std::vector<Graphics::Texture2DResource> &outTextures, std::vector<std::string> &outNames,
         const std::filesystem::path &directory);
 
-bool LoadAndInitResources(std::vector<Graphics::ShaderResource> &outShaders,
-    std::vector<Graphics::MeshResource> &outMeshes, std::vector<Graphics::Texture2DResource> &outTextures,
-    std::vector<std::string> &outShaderNames, std::vector<std::string> &outMeshNames,
-    std::vector<std::string> &outTextureNames, const std::filesystem::path &rootDirectory);
+    bool LoadAndInitResources(std::vector<Graphics::ShaderResource> &outShaders,
+        std::vector<Graphics::MeshResource> &outMeshes, std::vector<Graphics::Texture2DResource> &outTextures,
+        std::vector<std::string> &outShaderNames, std::vector<std::string> &outMeshNames,
+        std::vector<std::string> &outTextureNames, const std::filesystem::path &rootDirectory);
 
     template <typename T>
     bool InitializeResources(std::vector<T> &resources, std::vector<std::string> &names, std::size_t &outDiscardedCount, bool eraseOnFail = true)
