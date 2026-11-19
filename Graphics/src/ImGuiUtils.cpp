@@ -1,6 +1,8 @@
 #ifdef IMGUI_ENABLED
 #include "ImGuiUtils.h"
 
+#include <sstream>
+
 bool ImGuiUtils::Context::Initialize(GLFWwindow &window)
 {
     LOG_SCOPE;
@@ -126,7 +128,9 @@ void ImGuiUtils::Context::DrawLogWindow(LogHandler *logHandler)
     ImGui::SameLine();
     ImGui::Checkbox("Time", &showTime);
     ImGui::SameLine();
-    ImGui::Checkbox("Show depth", &showDepth);
+    ImGui::Checkbox("Depth", &showDepth);
+    ImGui::SameLine();
+    ImGui::Checkbox("Thread", &showThread);
     ImGui::Separator();
 
     const auto getTimestampText = [&](const std::string &timestamp)
@@ -191,6 +195,12 @@ void ImGuiUtils::Context::DrawLogWindow(LogHandler *logHandler)
             prefix += "[" + std::string(levelName) + "]";
             if (entry.priority >= 1)
                 prefix += " [P" + std::to_string(static_cast<unsigned int>(entry.priority)) + "]";
+            if (showThread)
+            {
+                std::ostringstream threadId;
+                threadId << entry.threadId;
+                prefix += " [thread " + threadId.str() + "]";
+            }
             prefix += " ";
 
             ImGui::TextWrapped("%s%s", prefix.c_str(), entry.message.c_str());

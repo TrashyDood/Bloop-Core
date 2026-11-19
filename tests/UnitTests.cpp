@@ -344,11 +344,17 @@ namespace
         owners.emplace_back(2, true);
         owners.emplace_back(3, false);
         owners.emplace_back(4, true);
+        std::vector<std::string> names{"one", "two", "three", "four"};
+        Graphics::LoadedResources<TestResourceOwner> results{owners, names};
 
-        Require(!Graphics::InitializeResources(owners),
+        Require(!Graphics::InitializeResources(results),
                 "Resource initialization reports any failed resource");
+        Require(results.foundCount == 4 && results.discardedCount == 2,
+                "Resource initialization reports found and discarded resources");
         Require(owners.size() == 2 && owners[0].GetId() == 2 && owners[1].GetId() == 4,
                 "Failed resources are removed while successful resources are retained");
+        Require(names == std::vector<std::string>{"two", "four"},
+                "Names remain aligned with retained resources");
         Require(owners[0].IsInitialized() && owners[1].IsInitialized(),
                 "Initialization continues after a resource fails");
         Require(TestResourceOwner::releaseCount == 2,
@@ -364,11 +370,15 @@ namespace
         WriteTextFile(shaderRoot / "nested" / "program.vert.glsl", "vertex shader");
         WriteTextFile(shaderRoot / "nested" / "program.frag.glsl", "fragment shader");
         WriteTextFile(shaderRoot / "other" / "program.vert.glsl", "another vertex shader");
+        WriteTextFile(shaderRoot / "other" / "program.unknown.glsl", "unsupported shader stage");
 
         std::vector<Graphics::ShaderResource> shaders;
         std::vector<std::string> shaderNames;
-        Require(Graphics::LoadShaderResources_Parallel(shaders, shaderNames, shaderRoot),
+        Graphics::LoadedResources<Graphics::ShaderResource> shaderResults{shaders, shaderNames};
+        Require(Graphics::LoadShaderResources_Parallel(shaderResults, shaderRoot),
                 "Shader loader finds source groups");
+        Require(shaderResults.foundCount == 4 && shaderResults.discardedCount == 1,
+                "Shader loader reports discovered and discarded files");
         Require(shaderNames == std::vector<std::string>{"nested/program", "other/program"},
                 "Shader names include their path relative to the root");
         Require(shaders.size() == 2 && shaders[0].GetSourceCount() == 2 &&
@@ -388,8 +398,11 @@ namespace
 
         std::vector<Graphics::MeshResource> meshes;
         std::vector<std::string> meshNames;
-        Require(Graphics::LoadMeshResources_Parallel(meshes, meshNames, meshRoot),
+        Graphics::LoadedResources<Graphics::MeshResource> meshResults{meshes, meshNames};
+        Require(Graphics::LoadMeshResources_Parallel(meshResults, meshRoot),
                 "Mesh loader finds OBJ resources");
+        Require(meshResults.foundCount == 1 && meshResults.discardedCount == 0,
+                "Mesh loader reports successfully loaded and discarded files");
         Require(meshNames == std::vector<std::string>{"nested/unnamed"},
                 "Unnamed mesh objects use their root-relative file stem");
 
@@ -398,11 +411,15 @@ namespace
         const auto texturePath = root / "textures" / "nested" / "sample.png";
         std::filesystem::create_directories(texturePath.parent_path());
         std::filesystem::copy_file(textureSource, texturePath);
+        WriteTextFile(root / "textures" / "nested" / "broken.png", "not a texture");
 
         std::vector<Graphics::Texture2DResource> textures;
         std::vector<std::string> textureNames;
-        Require(Graphics::LoadTextureResources_Parallel(textures, textureNames, root / "textures"),
+        Graphics::LoadedResources<Graphics::Texture2DResource> textureResults{textures, textureNames};
+        Require(Graphics::LoadTextureResources_Parallel(textureResults, root / "textures"),
                 "Texture loader finds image resources");
+        Require(textureResults.foundCount == 2 && textureResults.discardedCount == 1,
+                "Texture loader reports discovered and discarded files");
         Require(textureNames == std::vector<std::string>{"nested/sample"},
                 "Texture names include their path relative to the root");
     }

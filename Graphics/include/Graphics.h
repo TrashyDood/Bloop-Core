@@ -6,20 +6,12 @@
 #include <cstddef>
 #include <string>
 #include <string_view>
+#include <filesystem>
 
 #include <glad/gl.h>
 
 #define DEFAULT_ASPECT_RATIO Graphics::DefaultAspectRatio
 #define MAX_MESH_BUFFER_SIZE Graphics::MaxMeshBufferSize
-
-#define SHADER_EXTENSION ".glsl"
-#define PNG_EXTENSION ".png"
-#define OBJ_EXTENSION ".obj"
-
-#define ASSETS_DIR WORKING_DIR / "assets"
-#define MODELS_DIR ASSETS_DIR / "models"
-#define SHADERS_DIR ASSETS_DIR / "shaders"
-#define TEXTURES_DIR ASSETS_DIR / "textures"
 
 namespace Graphics
 {
@@ -119,4 +111,14 @@ namespace Graphics
     std::string GetShaderGroupName(const std::filesystem::path &file);
 
     void CheckGLErrors();
+
+    inline std::filesystem::path &AssetsDirectory(const std::filesystem::path &newDirectory = std::filesystem::path())
+    {
+        static std::filesystem::path assetsDirectory = "assets";
+
+        if (!newDirectory.empty())
+            assetsDirectory = newDirectory;
+
+        return assetsDirectory;
+    }
 }

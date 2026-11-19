@@ -4,6 +4,7 @@
 #include "Camera.h"
 #include "Scene.h"
 #include "ResourceUtils.h"
+#include "IOUtils.h"
 
 #include "LogHandler.h"
 
@@ -35,13 +36,31 @@ struct SceneObject
     bool animates = true;
 };
 
+struct Directories
+{
+    const std::filesystem::path rootDirectory;
+    const IOUtils::DiscoveredPath shadersDirectory;
+    const IOUtils::DiscoveredPath meshesDirectory;
+    const IOUtils::DiscoveredPath texturesDirectory;
+
+    Directories(const std::filesystem::path &rootDirectory)
+        : rootDirectory(rootDirectory),
+          shadersDirectory{IOUtils::GetAbsolutePath(rootDirectory / "Shaders"), "Shaders"},
+          meshesDirectory{IOUtils::GetAbsolutePath(rootDirectory / "Meshes"), "Meshes"},
+          texturesDirectory{IOUtils::GetAbsolutePath(rootDirectory / "Textures"), "Textures"} {}
+};
+
 class DemoScene : public Engine::Scene
 {
     Graphics::Window &windowHost;
     Graphics::FlyingCamera camera;
+
+    Directories assetDirectories;
+
     std::vector<Graphics::MeshResource> meshes;
     std::vector<Graphics::ShaderResource> shaders;
     std::vector<Graphics::Texture2DResource> textures;
+    std::vector<std::string> shaderNames, meshNames, textureNames;
 
     Graphics::ShaderResource *activeShader = nullptr;
     Graphics::Texture2DResource *activeTexture = nullptr;
@@ -56,7 +75,9 @@ class DemoScene : public Engine::Scene
     std::vector<std::vector<Vector3f>> objectOffsets;
 
 public:
-    explicit DemoScene(Graphics::Window &windowHost) : windowHost(windowHost) {}
+    explicit DemoScene(Graphics::Window &windowHost)
+        : windowHost(windowHost), assetDirectories(WORKING_DIR / "assets")
+    {}
 
     void OnCursorPosition(const double x, const double y) override
     {
@@ -442,8 +463,10 @@ public:
 
         LOG_INFO("Starting demo scene.\n");
 
-        std::vector<std::string> shaderNames, meshNames, textureNames;
-        if (!LoadAndInitResources(shaders, meshes, textures, shaderNames, meshNames, textureNames, ASSETS_DIR))
+        LoadedResources<ShaderResource> shaderLoadResult{shaders, shaderNames};
+        LoadedResources<MeshResource> meshLoadResult{meshes, meshNames};
+        LoadedResources<Texture2DResource> textureLoadResult{textures, textureNames};
+        if (!LoadResources(shaderLoadResult, meshLoadResult, textureLoadResult, assetDirectories.rootDirectory))
             LOG_WARNING("Some resources failed to initialize or load.\n");
 
         activeShader = &shaders.front();

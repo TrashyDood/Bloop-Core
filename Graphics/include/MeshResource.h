@@ -31,11 +31,10 @@ namespace Graphics
 
         MeshResource(MeshResource &&other) noexcept;
         MeshResource &operator=(MeshResource &&other) noexcept;
-
-        ~MeshResource() override;
-
         MeshResource(const MeshResource &) = delete;
         MeshResource &operator=(const MeshResource &) = delete;
+
+        ~MeshResource() override;
 
         bool InitializeResources() override;
         bool Draw() const;

@@ -31,8 +31,6 @@
 #undef SHARED_DEFINED_WIN32_LEAN_AND_MEAN
 #endif
 
-#define WORKING_DIR IOUtils::CurrentDirectory()
-
 struct TimerResolution
 {
     bool active;

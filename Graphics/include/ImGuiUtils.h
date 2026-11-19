@@ -40,6 +40,7 @@ namespace ImGuiUtils
         bool showDate = false;
         bool showTime = false;
         bool showDepth = false;
+        bool showThread = true;
         LogLevelFilter logLevelFilter = LogLevelFilter::All;
 
     public:

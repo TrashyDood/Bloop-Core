@@ -15,7 +15,7 @@ class StopWatch
 public:
     [[nodiscard]] Duration CurrentDuration() { return TClock::now() - start; }
 
-    StopWatch() = default;
+    StopWatch() { Reset(); }
 
     Duration Reset()
     {

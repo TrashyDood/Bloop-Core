@@ -30,11 +30,10 @@ namespace Graphics
 
         ShaderResource(ShaderResource &&other) noexcept;
         ShaderResource &operator=(ShaderResource &&other) noexcept;
-
-        ~ShaderResource() override;
-
         ShaderResource(const ShaderResource &) = delete;
         ShaderResource &operator=(const ShaderResource &) = delete;
+        
+        ~ShaderResource() override;
 
         void Use() const { glUseProgram(shaderProgram); }
         bool InitializeResources() override;

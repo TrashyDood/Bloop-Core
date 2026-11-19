@@ -9,9 +9,18 @@
 
 #include <map>
 
+#define WORKING_DIR IOUtils::WorkingDirectory()
+
 namespace IOUtils
 {
-    inline std::filesystem::path CurrentDirectory() { return std::filesystem::current_path(); }
+    struct DiscoveredPath
+    {
+        std::filesystem::path absolutePath;
+        std::filesystem::path relativePath;
+    };
+
+    std::filesystem::path &WorkingDirectory();
+    std::filesystem::path GetAbsolutePath(const std::filesystem::path &relativePath);
 
     bool ReadFileToEnd(const char *filename, std::string &outContents);
     

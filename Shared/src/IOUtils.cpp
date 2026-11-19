@@ -52,6 +52,17 @@ namespace IOUtils
         return matches;
     }
 
+    std::filesystem::path &WorkingDirectory()
+    {
+        static std::filesystem::path currentDirectory = std::filesystem::current_path();
+        return currentDirectory;
+    }
+
+    std::filesystem::path GetAbsolutePath(const std::filesystem::path &relativePath)
+    {
+        return std::filesystem::absolute(WorkingDirectory() / relativePath);
+    }
+
     bool ReadFileToEnd(const char *filename, std::string &outContents)
     {
         if (filename == nullptr)
