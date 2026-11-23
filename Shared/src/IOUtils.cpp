@@ -7,7 +7,7 @@
 #include <iterator>
 #include <utility>
 
-namespace IOUtils
+namespace IO
 {
     std::vector<std::filesystem::path> FindMatchingFiles(const std::filesystem::path &folder,
         const std::regex &filenamePattern)
@@ -30,7 +30,7 @@ namespace IOUtils
                 files.push_back(entry.path());
 
         std::size_t chunkCount;
-        auto tasks = StaticThreadPool().For_Parallel(
+        auto tasks = StaticThreadPool().For_Parallel(files.size(),
             [&files, &filenamePattern](std::size_t, std::size_t start, std::size_t end)
             {
                 std::vector<std::filesystem::path> matches;
@@ -39,12 +39,12 @@ namespace IOUtils
                         matches.push_back(files[i]);
 
                 return matches;
-            }, files.size());
+            });
 
         std::vector<std::filesystem::path> matches;
         for (auto &task : tasks)
         {
-            auto chunkMatches = task.get();
+            auto chunkMatches = task.Get();
             matches.insert(matches.end(), std::make_move_iterator(chunkMatches.begin()),
                 std::make_move_iterator(chunkMatches.end()));
         }
@@ -91,4 +91,24 @@ namespace IOUtils
         outContents = std::move(contents);
         return true;
     }
-}
+
+    Path Path::FromAbsolute(const std::filesystem::path &absolutePath)
+    {
+        return FromAbsolute(absolutePath, WorkingDirectory());
+    }
+
+    Path Path::FromAbsolute(const std::filesystem::path &absolutePath, const std::filesystem::path &rootDirectory)
+    {
+        return Path(absolutePath, absolutePath.lexically_relative(rootDirectory));
+    }
+
+    Path Path::FromRelative(const std::filesystem::path &relativePath)
+    {
+        return FromRelative(relativePath, WorkingDirectory());
+    }
+
+    Path Path::FromRelative(const std::filesystem::path &relativePath, const std::filesystem::path &rootDirectory)
+    {
+        return Path(rootDirectory / relativePath, relativePath);
+    }
+} // namespace IO

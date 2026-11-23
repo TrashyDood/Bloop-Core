@@ -1,6 +1,5 @@
 #include "ShaderResource.h"
 
-#include "ResourceUtils.h"
 #include "LogHandler.h"
 
 #include <utility>

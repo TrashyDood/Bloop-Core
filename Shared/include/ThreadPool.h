@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <chrono>
 #include <condition_variable>
 #include <cstdint>
 #include <functional>
@@ -12,11 +13,38 @@
 #include <utility>
 #include <vector>
 
-template <typename TValueType>
-using ThreadTask = std::future<TValueType>;
-using ThreadCount = std::uint8_t;
+class ThreadPool;
 
-template <ThreadCount TThreadCount = 32, ThreadCount TDefaultThreadCount = 8>
+template <typename TResult>
+class ThreadTask
+{
+    std::future<TResult> future;
+    ThreadPool *threadPool;
+
+    ThreadTask(std::future<TResult> &&future, ThreadPool &threadPool)
+        : future(std::move(future)), threadPool(&threadPool) {}
+
+    friend class ThreadPool;
+
+public:
+    [[nodiscard]] std::future_status Status() const
+    {
+        return future.wait_for(std::chrono::milliseconds(0));
+    }
+
+    ThreadTask(const ThreadTask &) = delete;
+    ThreadTask &operator=(const ThreadTask &) = delete;
+    ThreadTask(ThreadTask &&) = default;
+    ThreadTask &operator=(ThreadTask &&) = default;
+
+    void Wait();
+    decltype(auto) Get()
+    {
+        Wait();
+        return future.get();
+    }
+};
+
 class ThreadPool
 {
     std::vector<std::thread> workers;
@@ -26,34 +54,60 @@ class ThreadPool
     std::condition_variable condition;
     bool isStopping = false;
 
-public:
-    explicit ThreadPool()
+    // Identifies which pool owns the current worker thread.
+    static ThreadPool *&CurrentPool();
+    // Lets a waiting worker make progress on work queued behind its blocked task.
+    bool TryRunOneTask();
+    void WorkerLoop();
+
+    template <typename TResult>
+    void Wait(std::future<TResult> &task)
     {
-        for (std::size_t i = 0; i < TThreadCount; i++)
-            workers.emplace_back([this]() { WorkerLoop(); });
+        // Only workers from this pool help; other callers wait normally.
+        if (CurrentPool() != this)
+        {
+            task.wait();
+            return;
+        }
+
+        while (true)
+        {
+            const auto status = task.wait_for(std::chrono::milliseconds(0));
+            if (status == std::future_status::ready)
+                return;
+            if (status == std::future_status::deferred)
+            {
+                task.wait();
+                return;
+            }
+
+            if (!TryRunOneTask())
+                task.wait_for(std::chrono::milliseconds(1));
+        }
     }
 
-    ~ThreadPool()
-    {
-        {
-            std::lock_guard<std::mutex> lock(queueMutex);
-            isStopping = true;
-        }
-        condition.notify_all();
-        for (auto &worker : workers)
-            worker.join();
-    }
+    template <typename>
+    friend class ThreadTask;
+
+public:
+    [[nodiscard]] std::uint8_t WorkerCount() const { return static_cast<std::uint8_t>(workers.size()); }
+
+    explicit ThreadPool(const std::uint8_t workerCount = 32);
+    ~ThreadPool();
+
+    ThreadPool(const ThreadPool &) = delete;
+    ThreadPool &operator=(const ThreadPool &) = delete;
+    ThreadPool(ThreadPool &&) = delete;
+    ThreadPool &operator=(ThreadPool &&) = delete;
 
     template <typename TFunc, typename... TArgs>
     [[nodiscard]]
-    auto SubmitTask(TFunc &&f, TArgs &&...args)
+    auto SubmitTask(TFunc &&func, TArgs &&...args)
     {
         using ReturnType = typename std::result_of<TFunc(TArgs...)>::type;
 
         auto task = std::make_shared<std::packaged_task<ReturnType()>>(
-            std::bind(std::forward<TFunc>(f), std::forward<TArgs>(args)...));
-
-        ThreadTask<ReturnType> result = task->get_future();
+            std::bind(std::forward<TFunc>(func), std::forward<TArgs>(args)...));
 
         {
             std::lock_guard<std::mutex> lock(queueMutex);
@@ -63,83 +117,56 @@ public:
         }
 
         condition.notify_one();
-        return result;
+        return ThreadTask<ReturnType>(task->get_future(), *this);
     }
 
     template <typename TFunc>
     [[nodiscard]]
-    auto For_Parallel(TFunc &&func, const std::size_t count, const ThreadCount threadCount = TDefaultThreadCount)
+    auto For_Parallel(const std::size_t workItemCount, TFunc &&func)
+    {
+        return For_Parallel(
+            workItemCount, static_cast<std::uint8_t>(workers.size()), std::forward<TFunc>(func));
+    }
+
+    template <typename TFunc>
+    [[nodiscard]]
+    auto For_Parallel(const std::size_t workItemCount, const std::uint8_t desiredWorkerCount, TFunc &&func)
     {
         using ReturnType = std::invoke_result_t<TFunc &, uint16_t, std::size_t, std::size_t>;
 
         std::vector<ThreadTask<ReturnType>> tasks;
-        if (count == 0 || threadCount == 0)
+        if (workItemCount < 1 || desiredWorkerCount < 1)
             return tasks;
 
-        const std::size_t chunkSize = (count + threadCount - 1) / threadCount,
-                          chunkCount = (count + chunkSize - 1) / chunkSize; // aka. actual thread count
+        const std::size_t chunkSize = (workItemCount + desiredWorkerCount - 1) / desiredWorkerCount;
+        const std::size_t chunkCount = (workItemCount + chunkSize - 1) / chunkSize;
 
         tasks.reserve(chunkCount);
 
         for (std::size_t chunk = 0; chunk < chunkCount; ++chunk)
         {
             const auto thread = static_cast<uint16_t>(chunk);
-            const std::size_t chunkStart = chunk * chunkSize;
-            const std::size_t chunkEnd = std::min(chunkStart + chunkSize, count);
+            const std::size_t chunkStart = chunk * chunkSize; // Inclusive
+            const std::size_t chunkEnd = std::min(chunkStart + chunkSize, workItemCount); // Exclusive
 
             tasks.emplace_back(SubmitTask(
-                [chunkStart, chunkEnd, thread, func]() mutable { return func(thread, chunkStart, chunkEnd); }));
+                [chunkStart, chunkEnd, thread, func]() mutable
+                {
+                    return func(thread, chunkStart, chunkEnd);
+                }));
         }
 
         return tasks;
     }
 
-    template <typename TResult, typename TContainer, typename TFunc>
-    [[nodiscard]]
-    auto ForEach_Parallel(TFunc &&func, TContainer &values, const ThreadCount threadCount = TDefaultThreadCount)
-    {
-        auto chunkFunc = [&values, func = std::forward<TFunc>(func)](uint16_t, uint32_t start, uint32_t end) mutable
-        {
-            if constexpr (std::is_void_v<TResult>)
-                for (std::size_t i = start; i < end; ++i)
-                    func(values[i], i);
-            else
-            {
-                TResult results{};
-                for (std::size_t i = start; i < end; ++i)
-                    func(values[i], i, results);
-                return results;
-            }
-        };
-
-        return For_Parallel(std::move(chunkFunc), values.size(), threadCount);
-    }
-
-private:
-    void WorkerLoop()
-    {
-        while (true)
-        {
-            std::function<void()> task;
-            {
-                std::unique_lock<std::mutex> lock(queueMutex);
-                condition.wait(lock, [this]() { return isStopping || !tasks.empty(); });
-
-                if (isStopping && tasks.empty())
-                    return;
-
-                task = std::move(tasks.front());
-                tasks.pop();
-            }
-
-            task();
-        }
-    }
 };
 
-[[nodiscard]]
-inline ThreadPool<32> &StaticThreadPool()
+template <typename TResult>
+void ThreadTask<TResult>::Wait()
 {
-    static ThreadPool<32> instance;
-    return instance;
+    if (Status() != std::future_status::ready)
+        threadPool->Wait(future);
 }
+
+[[nodiscard]]
+ThreadPool &StaticThreadPool();

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "LogHandler.h"
+#include "Shared.h"
 
 #include <cstddef>
 #include <type_traits>
@@ -8,6 +9,11 @@
 
 namespace Graphics
 {
+    namespace
+    {
+        struct NoOpEraseCallback { void operator()(std::size_t) const noexcept { } };
+    }
+
     class ResourceOwner
     {
     protected:
@@ -26,41 +32,35 @@ namespace Graphics
         virtual bool InitializeResources();
     };
 
+    // Initializes the given vector of resources.
+    // Returns the number of resources that failed initialization.
     template <typename T>
-    bool InitializeResources(ResourceOwner *owners[], std::size_t count)
+    UInt32 InitializeResources(std::vector<T> &owners, const std::size_t startAt = 0)
     {
         static_assert(std::is_base_of_v<ResourceOwner, T>,
             "InitializeResources requires a vector of ResourceOwner-derived objects.");
 
-        for (std::size_t i = 0; i < count; ++i)
-            if (!owners[i]->InitializeResources())
-                return false;
-
-        return true;
-    }
-
-    template <typename T>
-    bool InitializeResources(std::vector<T> &owners, bool eraseOnFail = true)
-    {
-        static_assert(std::is_base_of_v<ResourceOwner, T>,
-            "InitializeResources requires a vector of ResourceOwner-derived objects.");
-
-        bool allInitialized = true;
-        for (auto owner = owners.begin(); owner != owners.end();)
+        UInt32 failedCount = 0;
+        for (std::size_t index = startAt; index < owners.size();)
         {
-            if (owner->InitializeResources())
+            if (owners[index].InitializeResources())
             {
-                ++owner;
+                ++index;
                 continue;
             }
 
-            allInitialized = false;
-            static_cast<ResourceOwner &>(*owner).ReleaseResources();
-
-            if (eraseOnFail)
-                owner = owners.erase(owner);
+            static_cast<ResourceOwner &>(owners[index]).ReleaseResources();
+            ++index;
+            ++failedCount;
         }
 
-        return allInitialized;
+        return failedCount;
+    }
+
+    // Initialize multiple vectors of ResourceOwner-derived objects, returning the total number that failed.
+    template <typename... TResourceTypes>
+    UInt32 InitializeResources(std::vector<TResourceTypes> &...owners)
+    {
+        return (InitializeResources(owners) + ...);
     }
 } // namespace Graphics

@@ -9,14 +9,24 @@
 
 #include <map>
 
-#define WORKING_DIR IOUtils::WorkingDirectory()
-
-namespace IOUtils
+namespace IO
 {
-    struct DiscoveredPath
+    struct Path
     {
-        std::filesystem::path absolutePath;
-        std::filesystem::path relativePath;
+        const std::filesystem::path absolutePath,
+            relativePath;
+
+        static Path FromAbsolute(const std::filesystem::path &absolutePath);
+        static Path FromAbsolute(const std::filesystem::path &absolutePath,
+            const std::filesystem::path &rootDirectory);
+        static Path FromRelative(const std::filesystem::path &relativePath);
+        static Path FromRelative(const std::filesystem::path &relativePath,
+            const std::filesystem::path &rootDirectory);
+
+        private:
+        Path() = default;
+        Path(const std::filesystem::path &absolutePath, const std::filesystem::path &relativePath)
+            : absolutePath(absolutePath), relativePath(relativePath) {}
     };
 
     std::filesystem::path &WorkingDirectory();
@@ -40,12 +50,11 @@ namespace IOUtils
         if (files.empty())
             return;
 
-        auto tasks = StaticThreadPool().For_Parallel(
+        auto tasks = StaticThreadPool().For_Parallel(files.size(),
             [&](std::size_t, std::size_t start, std::size_t end)
             {
                 for (std::size_t i = start; i < end; ++i)
                     func(files[i], i, args...);
-            },
-            files.size());
+            });
     }
 }

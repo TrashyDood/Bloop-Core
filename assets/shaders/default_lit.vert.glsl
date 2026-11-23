@@ -4,7 +4,6 @@ in vec3 vertex_position;
 in vec3 vertex_normal;
 in vec2 vertex_uv;
 in vec4 vertex_color;
-in vec3 instance_offset;
 
 uniform mat4 modelMatrix;
 uniform mat4 viewMatrix;
@@ -22,7 +21,5 @@ void main()
     vec3 transformedNormal = transpose(inverse(mat3(modelMatrix))) * vertex_normal;
     fragment_normal = normalize(transformedNormal);
 
-    vec4 worldPosition = modelMatrix * vec4(vertex_position, 1.0);
-    worldPosition.xyz += instance_offset;
-    gl_Position = projectionMatrix * viewMatrix * worldPosition;
+    gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(vertex_position, 1.0);
 }

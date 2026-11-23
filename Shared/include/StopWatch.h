@@ -5,7 +5,7 @@
 using namespace std::chrono_literals;
 
 template<typename TClock = std::chrono::steady_clock>
-class StopWatch
+class Stopwatch
 {
     using TimePoint = typename TClock::time_point;
     using Duration = typename TClock::duration;
@@ -15,7 +15,7 @@ class StopWatch
 public:
     [[nodiscard]] Duration CurrentDuration() { return TClock::now() - start; }
 
-    StopWatch() { Reset(); }
+    Stopwatch() { Reset(); }
 
     Duration Reset()
     {

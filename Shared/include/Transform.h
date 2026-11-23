@@ -15,7 +15,7 @@ public:
     [[nodiscard]] const Vector3f &GetRotationEuler() const { return rotationEuler; }
 
     [[nodiscard]] Vector3f GetRight() const { return TransformVector(Vectors::v3fRight, false); }
-    [[nodiscard]] Vector3f GetUp() const { return TransformVector(Vectors::v3fDown, false); }
+    [[nodiscard]] Vector3f GetUp() const { return TransformVector(Vectors::v3fUp, false); }
     [[nodiscard]] Vector3f GetForward() const { return TransformVector(Vectors::v3fForward, false); }
 
     [[nodiscard]] Matrix4f GetTransformMatrixScaled() const;
