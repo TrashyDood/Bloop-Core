@@ -9,12 +9,12 @@ namespace Graphics
 {
     class Camera
     {
-        Transform &transform;
+        Engine::Transform &transform;
         bool isOrthographic = false;
         float fieldOfView = 90.f, nearPlane = 0.1f, farPlane = 100.f, orthographicSize = 5.f;
 
     public:
-        Camera(Transform &transform)
+        Camera(Engine::Transform &transform)
             : transform(transform) {}
 
         [[nodiscard]] float GetFieldOfView() const { return fieldOfView; }
@@ -23,8 +23,8 @@ namespace Graphics
         [[nodiscard]] bool GetIsOrthographic() const { return isOrthographic; }
         [[nodiscard]] float GetOrthographicSize() const { return orthographicSize; }
 
-        [[nodiscard]] Transform &GetTransform() { return transform; }
-        [[nodiscard]] const Transform &GetTransform() const { return transform; }
+        [[nodiscard]] Engine::Transform &GetTransform() { return transform; }
+        [[nodiscard]] const Engine::Transform &GetTransform() const { return transform; }
 
         [[nodiscard]] Matrix4f GetViewMatrix() const { return transform.GetLookMatrix(); }
         [[nodiscard]] Matrix4f GetProjectionMatrix(const float aspectRatio = DEFAULT_ASPECT_RATIO) const;
@@ -46,7 +46,7 @@ namespace Graphics
             MinimumOrbitDistance = 0.1f,
             OrbitFocusDistance = 3.f;
 
-        Transform transform;
+        Engine::Transform transform;
         Vector3f orbitTarget{0.f};
         bool hasOrbitTarget = false;
 
@@ -110,7 +110,7 @@ namespace Graphics
             const Vector3f pitchAxis = yawRotation * Vectors::v3fRight;
             const Quaternionf pitchRotation = glm::angleAxis(clampedPitchDelta, pitchAxis);
 
-            Transform orbitTransform = GetTransform();
+            Engine::Transform orbitTransform = GetTransform();
             orbitTransform.SetPosition(target + pitchRotation * yawedOffset);
             orbitTransform.SetLookAtPoint(target, Vectors::v3fUp);
 

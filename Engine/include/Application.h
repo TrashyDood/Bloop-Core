@@ -14,6 +14,7 @@ public:
             unscaledElapsedTime = 0.f,
             elapsedTime = 0.f,
             timeScale = 1.f;
+            UInt32 elapsedFrames = 0;
     };
 
     class Layer
@@ -28,11 +29,11 @@ public:
 
         explicit Layer(Application &app) : application(&app) {}
 
-        virtual UInt32 OnStart() = 0;
-        virtual UInt32 OnTick(const Time &time) = 0;
+        virtual Int32 OnStart() = 0;
+        virtual Int32 OnTick(const Time &time) = 0;
         virtual void OnStop(const Int32 exitCode) = 0;
-        virtual UInt32 OnTransitionFrom() { return EXIT_SUCCESS; }
-        virtual UInt32 OnTransitionTo() { return EXIT_SUCCESS; }
+        virtual Int32 OnTransitionFrom() { return EXIT_SUCCESS; }
+        virtual Int32 OnTransitionTo() { return EXIT_SUCCESS; }
     };
 
     enum class State
@@ -47,6 +48,8 @@ public:
         std::function<void()> preTick;
         std::function<void()> postTick;
         std::function<bool()> shouldContinue;
+        std::function<void()> onStart;
+        std::function<void()> onStop;
     };
 
 private:
@@ -54,7 +57,8 @@ private:
     Layer *runningLayer = nullptr;
     Time time{};
 
-    UInt32 SetActiveLayer(Layer *newLayer, Layer *&outPreviousLayer);
+    Int32 OnStart(const Hooks &hooks);
+    void OnStop(const Int32 exitCode, const Hooks &hooks);
 
 public:
     Application(const Application &) = delete;
@@ -65,20 +69,27 @@ public:
     Application() = default;
     ~Application() = default;
 
-    State GetState() const { return state; }
-    Time &GetTime() { return time; }
+    [[nodiscard]] State GetState() const noexcept { return state; }
+    [[nodiscard]] Time &GetTime() noexcept { return time; }
 
     template<typename TLayer, typename... TArgs>
-    void SetRunningLayer(TArgs &&...args)
+    UInt32 SetRunningLayer(TArgs &&...args)
     {
         static_assert(std::is_base_of_v<Layer, TLayer>,
             "Application::Run requires a layer type derived from ApplicationLayer.");
 
         static TLayer layer{*this, std::forward<TArgs>(args)...}; // Application-wide for now.
-        SetActiveLayer(&layer);
+        if (runningLayer == &layer)
+            return EXIT_FAILURE;
+
+        if (runningLayer != nullptr)
+            runningLayer->OnTransitionFrom();
+
+        runningLayer = &layer;
+        runningLayer->OnTransitionTo();
+        return EXIT_SUCCESS;
     }
 
     UInt32 Run(const Hooks &hooks = {});
-    void RequestStop();
-    void OnStop();
+    bool RequestStop();
 };

@@ -15,6 +15,8 @@ void Graphics::ParseOBJFile(std::istream &stream, std::vector<std::string> &outN
     std::vector<MeshVertices> &outVertices, std::vector<MeshIndices> &outIndices,
     UInt32 &outSucceededCount, UInt32 &outFailedCount)
 {
+    LOG_SCOPE;
+
     outNames.clear();
     outVertices.clear();
     outIndices.clear();

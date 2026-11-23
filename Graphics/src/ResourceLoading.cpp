@@ -45,6 +45,8 @@ namespace // Local helpers
         auto tasks = StaticThreadPool().For_Parallel(files.size(),
             [&](uint16_t, const std::size_t start, const std::size_t end)
             {
+                LOG_SCOPE;
+
                 TChunkResult results{};
                 for (std::size_t index = start; index < end; ++index)
                 {
@@ -218,6 +220,8 @@ bool Graphics::LoadTexture2DResourceFile(Texture2DResource &outTexture, std::str
 void Graphics::LoadShaderResources_Parallel(LoadedResources<ShaderResource> &outResults,
     const IO::Path &rootDirectory)
 {
+    LOG_SCOPE;
+
     using ShaderGroupMap = std::map<std::string, std::vector<ShaderSource>>;
 
     const std::size_t loadedResourceStart = outResults.loadedResources.size();
@@ -258,6 +262,8 @@ void Graphics::LoadShaderResources_Parallel(LoadedResources<ShaderResource> &out
 void Graphics::LoadMeshResources_Parallel(LoadedResources<MeshResource> &outResults,
     const IO::Path &rootDirectory)
 {
+    LOG_SCOPE;
+
     using ChunkResult = std::tuple<std::vector<MeshResource>, std::vector<std::string>>;
     const std::size_t loadedResourceStart = outResults.loadedResources.size();
     LoadResourcesFromFiles_Parallel<MeshResource, ChunkResult>(
@@ -277,6 +283,8 @@ void Graphics::LoadMeshResources_Parallel(LoadedResources<MeshResource> &outResu
 
 void Graphics::LoadTextureResources_Parallel(LoadedResources<Texture2DResource> &outResults, const IO::Path &rootDirectory)
 {
+    LOG_SCOPE;
+
     using ChunkResult = std::tuple<std::vector<Texture2DResource>, std::vector<std::string>>;
     const std::size_t loadedResourceStart = outResults.loadedResources.size();
     LoadResourcesFromFiles_Parallel<Texture2DResource, ChunkResult>(

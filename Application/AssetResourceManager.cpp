@@ -2,6 +2,8 @@
 
 void AssetResourceManager::PollPendingResources()
 {
+    LOG_SCOPE;
+
     auto &shaderRegistry = GetAssetRegistry<Graphics::ShaderResource>();
     Graphics::PollResourceLoadQueue(shaderRegistry.loadQueue, shaderRegistry.resources,
         shaderRegistry.names, shaderRegistry.indexMap, "shader");

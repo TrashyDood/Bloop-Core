@@ -127,26 +127,3 @@ public:
     // Checks if any pending resource loading tasks are finished, if they are, we initialize and index them.
     void PollPendingResources();
 };
-
-template<typename TResource>
-class AssetHandle
-{
-    AssetResourceManager *manager = nullptr;
-    std::string name;
-    Int32 resourceId = -1;
-
-public:
-    [[nodiscard]] const bool IsValid() const { return resourceId > -1 && manager; }
-    [[nodiscard]] const std::string &Name() const { return name; }
-    [[nodiscard]] TResource *GetResource() const
-    {
-        return manager ? manager->GetResourceByIndex<TResource>(resourceId) : nullptr;
-    }
-
-    AssetHandle() = default;
-    AssetHandle(AssetResourceManager &manager, const std::string &name) :
-        manager(&manager), name(name)
-    {
-        manager.GetResourceIndexByName<TResource>(resourceId, name);
-    }
-};

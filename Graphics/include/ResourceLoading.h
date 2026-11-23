@@ -84,6 +84,8 @@ namespace Graphics
     template <typename TResource>
     void LoadResources_Parallel(LoadedResources<TResource> &outResources, const IO::Path &directory)
     {
+        LOG_SCOPE;
+
         if constexpr (std::is_same_v<TResource, Graphics::ShaderResource>)
             LoadShaderResources_Parallel(outResources, directory);
         else if constexpr (std::is_same_v<TResource, Graphics::MeshResource>)
@@ -116,6 +118,8 @@ namespace Graphics
     template <typename TResources>
     void InitializeResources(LoadedResources<TResources> &outResources, bool eraseOnFail = true)
     {
+        LOG_SCOPE;
+
         static_assert(std::is_base_of_v<ResourceOwner, TResources>,
             "InitializeResources requires a vector of ResourceOwner-derived objects.");
 
@@ -179,6 +183,8 @@ namespace Graphics
 
         void Initialize()
         {
+            LOG_SCOPE;
+
             task.Get();
             InitializeResources(results, true);
         }
@@ -188,6 +194,8 @@ namespace Graphics
     void PollResourceLoadQueue(ResourceLoadQueue<TResource> &queue, std::vector<TResource> &outResources,
         std::vector<std::string> &outNames, TIndexMap &indexMap, const char *resourceDomain)
     {
+        LOG_SCOPE;
+
         LoadedResources<TResource> loadedResources{outResources, outNames}; // Is used as a container for vectors.
         while (!queue.empty() && queue.front().task.Status() == std::future_status::ready)
         {

@@ -88,6 +88,8 @@ bool Graphics::MeshResource::InitializeResources()
 
 bool Graphics::MeshResource::Draw() const
 {
+    LOG_SCOPE;
+
     if (!IsInitialized())
     {
         LOG_ERROR("Cannot draw mesh: it is not initialized.\n");

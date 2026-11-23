@@ -2,25 +2,6 @@
 
 #include "TickLoop.h"
 
-UInt32 Application::SetActiveLayer(Application::Layer *newLayer, Application::Layer *&outPreviousLayer)
-{
-    if (newLayer == runningLayer)
-        return EXIT_FAILURE;
-
-    Layer *previousLayer = runningLayer;
-
-    if (runningLayer != nullptr)
-        runningLayer->OnTransitionFrom();
-
-    runningLayer = newLayer;
-
-    if (runningLayer != nullptr)
-        runningLayer->OnTransitionTo();
-
-    outPreviousLayer = previousLayer;
-    return EXIT_SUCCESS;
-}
-
 UInt32 Application::Run(const Application::Hooks &hooks)
 {
     if (state != State::Stopped)
@@ -30,14 +11,14 @@ UInt32 Application::Run(const Application::Hooks &hooks)
 
     const TimeDuration targetTimeStep = GetFrequency(60.0);
 
-    UInt32 exitCode = runningLayer != nullptr ?
-        runningLayer->OnStart() :
-        EXIT_SUCCESS;
+    UInt32 exitCode = OnStart(hooks);
+    if (exitCode == EXIT_SUCCESS && runningLayer != nullptr)
+        exitCode = runningLayer->OnStart();
 
     if (exitCode != EXIT_SUCCESS)
     {
         state = State::Stopped;
-        OnStop();
+        OnStop(exitCode, hooks);
         return exitCode;
     }
 
@@ -49,6 +30,7 @@ UInt32 Application::Run(const Application::Hooks &hooks)
             time.deltaTime = time.unscaledDeltaTime * time.timeScale;
             time.unscaledElapsedTime += time.unscaledDeltaTime;
             time.elapsedTime += time.deltaTime;
+            time.elapsedFrames += 1;
 
             if (hooks.preTick) hooks.preTick();
 
@@ -63,20 +45,34 @@ UInt32 Application::Run(const Application::Hooks &hooks)
         targetTimeStep);
 
     state = State::Stopped;
-    OnStop();
+    OnStop(exitCode, hooks);
     return exitCode;
 }
 
-void Application::RequestStop()
+Int32 Application::OnStart(const Application::Hooks &hooks)
 {
-    if (state != State::Running)
-        return;
+    if (hooks.onStart)
+        hooks.onStart();
 
-    state = State::Stopping;
+    return EXIT_SUCCESS;
 }
 
-void Application::OnStop()
+bool Application::RequestStop()
 {
-    Application::Layer *previousLayer = nullptr;
-    SetActiveLayer(nullptr, previousLayer);
+    if (state != State::Running)
+        return false;
+
+    state = State::Stopping;
+    return true;
+}
+
+void Application::OnStop(const Int32 exitCode, const Application::Hooks &hooks)
+{
+    if (runningLayer != nullptr)
+        runningLayer->OnTransitionFrom();
+
+    if (hooks.onStop)
+        hooks.onStop();
+
+    runningLayer = nullptr;
 }

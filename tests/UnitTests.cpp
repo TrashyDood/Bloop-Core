@@ -171,7 +171,7 @@ namespace
 
     void TestTransformDefaultsAndComposition()
     {
-        Transform transform;
+        Engine::Transform transform;
         Require(NearlyEqual(transform.GetPosition(), Vector3f{0.0f}), "Transform starts at the origin");
         Require(NearlyEqual(transform.GetScale(), Vector3f{1.0f}), "Transform starts with unit scale");
         Require(NearlyEqual(transform.GetUp(), Vectors::v3fUp),
@@ -192,7 +192,7 @@ namespace
 
     void TestTransformRotation()
     {
-        Transform transform;
+        Engine::Transform transform;
         transform.SetRotation(glm::angleAxis(glm::half_pi<float>(), Vector3f{0.0f, 0.0f, 1.0f}));
 
         Require(NearlyEqual(transform.GetRight(), Vector3f{0.0f, 1.0f, 0.0f}),
@@ -203,7 +203,7 @@ namespace
 
     void TestTransformRejectsParallelLookDirection()
     {
-        Transform transform;
+        Engine::Transform transform;
         transform.SetRotation(glm::angleAxis(0.5f, Vector3f{0.0f, 1.0f, 0.0f}));
         const Quaternionf originalRotation = transform.GetRotation();
 
@@ -216,7 +216,7 @@ namespace
 #ifdef GRAPHICS_ENABLED
     void TestCameraOrthographicProjection()
     {
-        Transform transform;
+        Engine::Transform transform;
         Graphics::Camera camera(transform);
         camera.SetIsOrthographic(true);
         camera.SetOrthographicSize(4.0f);
@@ -228,7 +228,7 @@ namespace
 
     void TestCameraPerspectiveProjection()
     {
-        Transform transform;
+        Engine::Transform transform;
         Graphics::Camera camera(transform);
         camera.SetIsOrthographic(false);
 
@@ -239,7 +239,7 @@ namespace
 
     void TestCameraViewMatrix()
     {
-        Transform transform;
+        Engine::Transform transform;
         transform.SetPosition({0.0f, 0.0f, 3.0f});
         Graphics::Camera camera(transform);
 

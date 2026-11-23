@@ -65,6 +65,8 @@ namespace IO
 
     bool ReadFileToEnd(const char *filename, std::string &outContents)
     {
+        LOG_SCOPE;
+
         if (filename == nullptr)
         {
             LOG_ERROR("Cannot read file: filename is null.\n");

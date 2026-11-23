@@ -5,40 +5,16 @@
 #include <cmath>
 #include <sstream>
 
-void ImGuiUtils::DrawSceneDiagnosticsWindow(float deltaTime, float elapsedTime,
-    const std::vector<std::string> &shaderNames, const std::vector<std::string> &meshNames,
-    const std::vector<std::string> &textureNames)
-{
-    if (!ImGui::Begin("Scene Diagnostics"))
-    {
-        ImGui::End();
-        return;
-    }
-
-    ImGui::SeparatorText("Diagnostics");
-    ImGui::Text("Framerate: %.1f FPS", 1.f / std::max(SMALL_NUMBER, deltaTime));
-    ImGui::Text("Time elapsed: %02d:%05.2f", static_cast<int>(elapsedTime / 60.f), std::fmod(elapsedTime, 60.f));
-
-    ImGui::SeparatorText("Loaded Resources");
-    const auto drawResourceList = [](const char *label, const std::vector<std::string> &names)
-    {
-        if (ImGui::TreeNode(label, "%s (%zu)", label, names.size()))
-        {
-            if (names.empty())
-                ImGui::TextDisabled("None");
-            else
-                for (const std::string &name : names)
-                    ImGui::BulletText("%s", name.c_str());
-
-            ImGui::TreePop();
-        }
-    };
-
-    drawResourceList("Shaders", shaderNames);
-    drawResourceList("Meshes", meshNames);
-    drawResourceList("Textures", textureNames);
-    ImGui::End();
-}
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#include <psapi.h>
+#endif
 
 bool ImGuiUtils::Context::Initialize(GLFWwindow &window)
 {
@@ -124,7 +100,108 @@ void ImGuiUtils::Context::Shutdown()
     }
 }
 
-void ImGuiUtils::Context::DrawLogWindow(LogHandler *logHandler)
+void ImGuiUtils::Context::Start()
+{
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+}
+
+void ImGuiUtils::Context::End()
+{
+    ImGui::Render();
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+}
+
+ImGuiUtils::SceneDiagnosticWindow::SceneDiagnosticWindow(
+    const std::vector<std::string> &shaderNames, const std::vector<std::string> &meshNames,
+    const std::vector<std::string> &textureNames)
+    : shaderNames(shaderNames), meshNames(meshNames), textureNames(textureNames) { }
+
+void ImGuiUtils::SceneDiagnosticWindow::Draw(
+    const float deltaTime, const float elapsedTime, const UInt64 elapsedFrames)
+{
+    LOG_SCOPE;
+
+    const auto now = std::chrono::steady_clock::now();
+    if (hasPreviousDraw && elapsedFrames < previousElapsedFrames)
+        hasPreviousDraw = false;
+    const double drawInterval = hasPreviousDraw
+        ? std::chrono::duration<double>(now - previousDrawTime).count()
+        : 0.0;
+    previousDrawTime = now;
+    previousElapsedFrames = elapsedFrames;
+    hasPreviousDraw = true;
+
+    if (!ImGui::Begin("Scene Diagnostics"))
+    {
+        ImGui::End();
+        return;
+    }
+
+    ImGui::SeparatorText("Time");
+    ImGui::Text("Tick framerate: %.1f FPS (%.2f ms)",
+        1.f / std::max(SMALL_NUMBER, deltaTime), deltaTime * 1000.f);
+    const float drawFramerate = drawInterval > 0.0
+        ? static_cast<float>(1.0 / drawInterval)
+        : 0.f;
+    ImGui::Text("Last draw interval: %.1f FPS (%.2f ms)", drawFramerate, drawInterval * 1000.0);
+    ImGui::Text("Elapsed frames: %llu", static_cast<unsigned long long>(elapsedFrames));
+    ImGui::Text("Time elapsed: %02d:%05.2f", static_cast<int>(elapsedTime / 60.f),
+        std::fmod(elapsedTime, 60.f));
+
+#ifdef _WIN32
+    ImGui::SeparatorText("Process Memory");
+
+    PROCESS_MEMORY_COUNTERS_EX memoryCounters{};
+    memoryCounters.cb = sizeof(memoryCounters);
+    static bool memoryQueryFailureLogged = false;
+    if (GetProcessMemoryInfo(GetCurrentProcess(),
+            reinterpret_cast<PROCESS_MEMORY_COUNTERS *>(&memoryCounters), sizeof(memoryCounters)))
+    {
+        constexpr double bytesPerMebibyte = 1024.0 * 1024.0;
+        ImGui::Text("Working set: %.1f MiB", memoryCounters.WorkingSetSize / bytesPerMebibyte);
+        ImGui::Text("Private usage: %.1f MiB", memoryCounters.PrivateUsage / bytesPerMebibyte);
+        memoryQueryFailureLogged = false;
+    }
+    else
+    {
+        const DWORD error = GetLastError();
+        if (!memoryQueryFailureLogged)
+        {
+            LOG_WARNING("Failed to query current process memory usage (error %lu).\n",
+                static_cast<unsigned long>(error));
+            memoryQueryFailureLogged = true;
+        }
+        ImGui::TextDisabled("Process memory usage unavailable.");
+    }
+#else
+    ImGui::SeparatorText("Process Memory");
+    ImGui::TextDisabled("Process memory metrics are available on Windows only.");
+#endif
+
+    ImGui::SeparatorText("Loaded Resources");
+    const auto drawResourceList = [](const char *label, const std::vector<std::string> &names)
+    {
+        if (ImGui::TreeNode(label, "%s (%zu)", label, names.size()))
+        {
+            if (names.empty())
+                ImGui::TextDisabled("None");
+            else
+                for (const std::string &name : names)
+                    ImGui::BulletText("%s", name.c_str());
+
+            ImGui::TreePop();
+        }
+    };
+
+    drawResourceList("Shaders", shaderNames);
+    drawResourceList("Meshes", meshNames);
+    drawResourceList("Textures", textureNames);
+    ImGui::End();
+}
+
+void ImGuiUtils::LogWindow::Draw(LogHandler *logHandler)
 {
     if (!logHandler) logHandler = &StaticLogHandler();
 

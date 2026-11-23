@@ -23,10 +23,10 @@ namespace Graphics
 
     struct InputCallbacks
     {
-        std::function<void(Input::KeyCode, Input::KeyAction)> onKey;
-        std::function<void(Input::MouseKeyCode, Input::KeyAction)> onMouseButton;
-        std::function<void(double, double)> onCursorPosition;
-        std::function<void(double, double)> onScroll;
+        std::function<void(Input::KeyCode, Input::KeyAction)> onKey{};
+        std::function<void(Input::MouseKeyCode, Input::KeyAction)> onMouseButton{};
+        std::function<void(double, double)> onCursorPosition{};
+        std::function<void(double, double)> onScroll{};
     };
 
     // Wrapper class for GLFW window management and input handling.

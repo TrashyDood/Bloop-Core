@@ -12,7 +12,24 @@ option(BUILD_ENGINE "Build the engine library" ON)
 option(BUILD_GRAPHICS "Build the graphics library" OFF)
 option(BUILD_IMGUI "Build Dear ImGui alongside Graphics" OFF)
 
+if(BUILD_GRAPHICS AND NOT BUILD_ENGINE)
+    message(FATAL_ERROR "BUILD_GRAPHICS requires BUILD_ENGINE.")
+endif()
+
 find_package(glm CONFIG REQUIRED)
+
+file(GLOB TOOLS_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/Tools/src/*.cpp"
+)
+add_library(Tools STATIC ${TOOLS_SOURCES})
+target_include_directories(Tools PUBLIC
+    Tools/include
+)
+target_compile_definitions(Tools PUBLIC LOGGING_ENABLED)
+
+if(WIN32)
+    target_link_libraries(Tools PUBLIC winmm)
+endif()
 
 file(GLOB SHARED_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/Shared/src/*.cpp"
@@ -21,12 +38,7 @@ add_library(Shared STATIC ${SHARED_SOURCES})
 target_include_directories(Shared PUBLIC
     Shared/include
 )
-target_link_libraries(Shared PUBLIC glm::glm)
-target_compile_definitions(Shared PUBLIC LOGGING_ENABLED)
-
-if(WIN32)
-    target_link_libraries(Shared PUBLIC winmm)
-endif()
+target_link_libraries(Shared PUBLIC Tools glm::glm)
 
 if(BUILD_ENGINE)
     file(GLOB ENGINE_SOURCES CONFIGURE_DEPENDS
@@ -96,6 +108,7 @@ if(BUILD_GRAPHICS)
         third_party/obj_loader
     )
     target_link_libraries(Graphics PUBLIC
+        Engine
         Shared
         "${GLFW_STATIC_LIBRARY}"
         glm::glm
@@ -117,6 +130,10 @@ if(BUILD_GRAPHICS)
             third_party/imgui/backends
         )
 
+        if(WIN32)
+            target_link_libraries(Graphics PUBLIC psapi)
+        endif()
+
         add_library(ImGui STATIC
             third_party/imgui/imgui.cpp
             third_party/imgui/imgui_draw.cpp
@@ -137,6 +154,7 @@ if(BUILD_ENGINE AND BUILD_GRAPHICS)
     add_executable(EngineDemo
         Application/main.cpp
         Application/AssetResourceManager.cpp
+        Application/DemoScene.cpp
     )
     target_link_libraries(EngineDemo PRIVATE Graphics Engine)
 

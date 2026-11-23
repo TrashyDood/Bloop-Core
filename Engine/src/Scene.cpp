@@ -7,6 +7,8 @@ namespace Engine
 {
     Int32 Scene::Run(Scene::SceneConfig &config, const Scene::RunHooks &hooks)
     {
+        LOG_SCOPE;
+
         Int32 exitCode = Start(config);
         if (exitCode == EXIT_SUCCESS)
         {
@@ -39,6 +41,8 @@ namespace Engine
 
     void Scene::RequestStop()
     {
+        LOG_SCOPE;
+
         if (state == State::Running)
         {
             LOG_INFO("Scene stop requested.\n");
@@ -48,6 +52,8 @@ namespace Engine
 
     Int32 Scene::Start(Scene::SceneConfig &config)
     {
+        LOG_SCOPE;
+
         if (state != State::Stopped)
         {
             LOG_ERROR("Cannot start scene: it is not stopped.\n");
@@ -68,6 +74,8 @@ namespace Engine
 
     Int32 Scene::Tick()
     {
+        LOG_SCOPE;
+
         if (!GetIsRunning())
             return EXIT_FAILURE;
 
@@ -84,6 +92,8 @@ namespace Engine
 
     void Scene::Stop(const Int32 exitCode)
     {
+        LOG_SCOPE;
+
         if (state == State::Stopped)
             return;
 

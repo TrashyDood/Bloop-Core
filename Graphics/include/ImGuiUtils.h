@@ -13,25 +13,31 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
+#include <chrono>
 #include <string>
 #include <vector>
 
-#define IMGUI_DRAW_START         \
-    ImGui_ImplOpenGL3_NewFrame();\
-    ImGui_ImplGlfw_NewFrame();   \
-    ImGui::NewFrame();
-
-#define IMGUI_DRAW_END                                     \
-    ImGui::Render();                                       \
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
 namespace ImGuiUtils
 {
-    void DrawSceneDiagnosticsWindow(float deltaTime, float elapsedTime,
-        const std::vector<std::string> &shaderNames, const std::vector<std::string> &meshNames,
-        const std::vector<std::string> &textureNames);
+    struct SceneDiagnosticWindow
+    {
+        const std::vector<std::string> &shaderNames;
+        const std::vector<std::string> &meshNames;
+        const std::vector<std::string> &textureNames;
 
-    class Context
+    private:
+        std::chrono::steady_clock::time_point previousDrawTime{};
+        UInt64 previousElapsedFrames = 0;
+        bool hasPreviousDraw = false;
+
+    public:
+        SceneDiagnosticWindow(const std::vector<std::string> &shaderNames,
+            const std::vector<std::string> &meshNames, const std::vector<std::string> &textureNames);
+
+        void Draw(const float deltaTime, const float elapsedTime, const UInt64 elapsedFrames);
+    };
+
+    struct LogWindow
     {
         enum class LogLevelFilter
         {
@@ -41,15 +47,21 @@ namespace ImGuiUtils
             Error
         };
 
-        ImGuiContext *imguiContext = nullptr;
-        bool imguiGlfwInitialized = false;
-        bool imguiOpenGLInitialized = false;
-        bool autoScroll = true;
-        bool showDate = false;
-        bool showTime = false;
-        bool showDepth = false;
-        bool showThread = true;
         LogLevelFilter logLevelFilter = LogLevelFilter::All;
+        bool autoScroll = true,
+            showDate = false,
+            showTime = false,
+            showDepth = false,
+            showThread = true;
+
+        void Draw(LogHandler *logHandler = nullptr);
+    };
+
+    class Context
+    {
+        ImGuiContext *imguiContext = nullptr;
+        bool imguiGlfwInitialized = false,
+            imguiOpenGLInitialized = false;
 
     public:
         Context() = default;
@@ -59,7 +71,8 @@ namespace ImGuiUtils
 
         bool Initialize(GLFWwindow &window);
         void Shutdown();
-        void DrawLogWindow(LogHandler *logHandler = nullptr);
+        static void Start();
+        static void End();
     };
 }
 #endif // IMGUI_ENABLED

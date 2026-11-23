@@ -9,6 +9,8 @@ namespace
 {
     void LogGlfwError(const char *operation)
     {
+        LOG_SCOPE;
+
         const char *description = nullptr;
         const int error = glfwGetError(&description);
         LOG_ERROR("%s failed (GLFW error 0x%X): %s\n",
@@ -20,6 +22,8 @@ namespace Graphics
 {
     bool Window::InitializeWindow(const WindowConfig &config)
     {
+        LOG_SCOPE;
+
         if (glfwInit() != GLFW_TRUE)
         {
             LogGlfwError("glfwInit");
@@ -77,6 +81,8 @@ namespace Graphics
 
     bool Window::Initialize(const WindowConfig &windowConfig, const InputCallbacks &callbacks)
     {
+        LOG_SCOPE;
+
         if (window != nullptr)
         {
             LOG_ERROR("Window initialization rejected: a window is already active.\n");
@@ -100,6 +106,8 @@ namespace Graphics
 
     void Window::PresentFrame() const
     {
+        LOG_SCOPE;
+
         CheckGLErrors();
         glfwSwapBuffers(window);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
