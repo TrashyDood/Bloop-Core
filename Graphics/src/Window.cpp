@@ -153,6 +153,38 @@ namespace Graphics
         return static_cast<float>(glm::max(width, 1)) / static_cast<float>(glm::max(height, 1));
     }
 
+    bool Window::GetFrameBufferSize(Int32 &outWidth, Int32 &outHeight)
+    {
+        glfwGetFramebufferSize(&GetWindow(), &outWidth, &outHeight);
+        return outWidth > 0 && outHeight > 0;
+    }
+
+    bool Window::SetSplitScreenViewport(const UInt32 viewportIndex, const UInt32 viewportCount, float &outAspectRatio)
+    {
+        LOG_SCOPE;
+
+        if (viewportIndex >= viewportCount)
+        {
+            LOG_ERROR("Cannot set split-screen viewport: index %d is invalid for %d viewports.\n",
+                viewportIndex, viewportCount);
+            return false;
+        }
+
+        Int32 framebufferWidth = 0, framebufferHeight = 0;
+        if (!GetFrameBufferSize(framebufferWidth, framebufferHeight))
+            return false;
+
+        const Int32 viewportLeft = framebufferWidth * viewportIndex / viewportCount;
+        const Int32 viewportRight = framebufferWidth * (viewportIndex + 1) / viewportCount;
+        const Int32 viewportWidth = viewportRight - viewportLeft;
+        if (viewportWidth <= 0)
+            return false;
+
+        glViewport(viewportLeft, 0, viewportWidth, framebufferHeight);
+        outAspectRatio = static_cast<float>(viewportWidth) / framebufferHeight;
+        return true;
+    }
+
     void Window::SetVSyncEnabled(const bool enabled)
     {
         vsyncEnabled = enabled;

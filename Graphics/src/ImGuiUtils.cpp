@@ -5,19 +5,10 @@
 #include <cmath>
 #include <sstream>
 
-void ImGuiUtils::DrawSceneDiagnosticsWindow(float deltaTime, float elapsedTime, const Vector3f &cameraPosition,
-    const Vector3f &cameraFacing, float cameraDistance, const std::vector<std::string> &shaderNames,
-    const std::vector<std::string> &meshNames, const std::vector<std::string> &textureNames)
+void ImGuiUtils::DrawSceneDiagnosticsWindow(float deltaTime, float elapsedTime,
+    const std::vector<std::string> &shaderNames, const std::vector<std::string> &meshNames,
+    const std::vector<std::string> &textureNames)
 {
-    const auto drawVector = [](const Vector3f &vector)
-    {
-        ImGui::TextColored({1.f, 0.3f, 0.3f, 1.f}, "X %.2f", vector.x);
-        ImGui::SameLine();
-        ImGui::TextColored({0.3f, 1.f, 0.3f, 1.f}, "Y %.2f", vector.y);
-        ImGui::SameLine();
-        ImGui::TextColored({0.3f, 0.5f, 1.f, 1.f}, "Z %.2f", vector.z);
-    };
-
     if (!ImGui::Begin("Scene Diagnostics"))
     {
         ImGui::End();
@@ -27,13 +18,6 @@ void ImGuiUtils::DrawSceneDiagnosticsWindow(float deltaTime, float elapsedTime, 
     ImGui::SeparatorText("Diagnostics");
     ImGui::Text("Framerate: %.1f FPS", 1.f / std::max(SMALL_NUMBER, deltaTime));
     ImGui::Text("Time elapsed: %02d:%05.2f", static_cast<int>(elapsedTime / 60.f), std::fmod(elapsedTime, 60.f));
-    ImGui::TextUnformatted("Camera position:");
-    ImGui::SameLine();
-    drawVector(cameraPosition);
-    ImGui::TextUnformatted("Camera facing:");
-    ImGui::SameLine();
-    drawVector(cameraFacing);
-    ImGui::Text("Camera distance: %.2f", cameraDistance);
 
     ImGui::SeparatorText("Loaded Resources");
     const auto drawResourceList = [](const char *label, const std::vector<std::string> &names)

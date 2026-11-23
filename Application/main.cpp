@@ -6,8 +6,8 @@
 #include "ResourceLoading.h"
 #include "IOUtils.h"
 #include "AssetResourceManager.h"
-
 #include "LogHandler.h"
+#include "Application.h"
 
 #include <glm/gtc/type_ptr.hpp>
 
@@ -30,33 +30,129 @@
 
 using MeshAsset = AssetHandle<Graphics::MeshResource>;
 
+bool GetUniforms(GLint &outModelMatrixUniform, GLint &outViewMatrixUniform, GLint &outProjectionMatrixUniform,
+    GLint &outTextureSamplerUniform, Graphics::ShaderResource *shader)
+{
+    LOG_SCOPE;
+    if (shader == nullptr || !shader->IsInitialized())
+    {
+        // LOG_ERROR("Cannot get uniforms: no active shader is selected.\n");
+        return false;
+    }
+
+    static Graphics::ShaderResource *cachedShader = nullptr;
+    static GLint modelMatrixUniform, viewMatrixUniform, projectionMatrixUniform, textureSamplerUniform;
+
+    if (cachedShader != shader)
+    {
+        GLint modelLocation, viewLocation, projectionLocation, textureSamplerLocation;
+        if (!shader->GetUniformLocation("modelMatrix", modelLocation) ||
+            !shader->GetUniformLocation("viewMatrix", viewLocation) ||
+            !shader->GetUniformLocation("projectionMatrix", projectionLocation) ||
+            !shader->GetUniformLocation("textureSampler", textureSamplerLocation))
+        {
+            // LOG_ERROR("Required transform, camera, or texture sampler uniforms are missing from the shader
+            // program.\n");
+            return false;
+        }
+
+        modelMatrixUniform = modelLocation;
+        viewMatrixUniform = viewLocation;
+        projectionMatrixUniform = projectionLocation;
+        textureSamplerUniform = textureSamplerLocation;
+        cachedShader = shader;
+    }
+
+    outModelMatrixUniform = modelMatrixUniform;
+    outViewMatrixUniform = viewMatrixUniform;
+    outProjectionMatrixUniform = projectionMatrixUniform;
+    outTextureSamplerUniform = textureSamplerUniform;
+    return true;
+}
+
 struct SceneObject
 {
     Transform transform;
     MeshAsset mesh;
 };
 
-struct AssetDirectories
+struct SceneCamera : Graphics::Camera
 {
-    const IO::Path rootDirectory, shadersDirectory, meshesDirectory, texturesDirectory;
+    SceneCamera(Transform &transform) : Camera(transform) { }
 
-    AssetDirectories(const std::filesystem::path &rootDirectory)
-        : rootDirectory(IO::Path::FromAbsolute(rootDirectory)),
-          shadersDirectory{IO::Path::FromRelative("shaders", rootDirectory)},
-          meshesDirectory{IO::Path::FromRelative("models", rootDirectory)},
-          texturesDirectory{IO::Path::FromRelative("textures", rootDirectory)} {}
+    void DrawScene(const std::vector<std::shared_ptr<SceneObject>> &objects, const SceneObject *playerObject,
+        Graphics::ShaderResource *shader, const float aspectRatio, const bool wireframe)
+    {
+        GLint modelMatrixUniform,
+            viewMatrixUniform,
+            projectionMatrixUniform,
+            samplerUniform;
+
+        if (!GetUniforms(modelMatrixUniform, viewMatrixUniform, projectionMatrixUniform, samplerUniform, shader))
+            return;
+
+        // Set the view and projection matrices based on the camera's current state.
+        const Matrix4f viewMatrix = GetViewMatrix(),
+                       projectionMatrix = GetProjectionMatrix(aspectRatio);
+
+        glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, glm::value_ptr(viewMatrix));
+        glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
+
+        glPolygonMode(GL_FRONT_AND_BACK, wireframe ? GL_LINE : GL_FILL);
+
+        for (const auto &sceneObject : objects)
+        {
+            if (sceneObject.get() == playerObject)
+                continue;
+
+            Graphics::MeshResource *mesh = sceneObject->mesh.GetResource();
+            if (mesh == nullptr)
+                continue;
+
+            const Matrix4f modelMatrix = sceneObject->transform.GetTransformMatrix();
+            glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, glm::value_ptr(modelMatrix));
+            mesh->Draw();
+        }
+    }
+};
+
+struct Player : SceneObject
+{
+    UInt8 playerIndex = 0;
+    SceneCamera camera{transform};
+
+    void GetInputAxis(Engine::InputHandler &inputHandler, float &outRight, float &outUp, float &outForward) const
+    {
+        using namespace Engine;
+        if (playerIndex % 2 == 0)
+            inputHandler.GetAxis3(KeyCode::D, KeyCode::A, KeyCode::Q, KeyCode::E,
+                KeyCode::W, KeyCode::S, outRight, outUp, outForward);
+        else
+            inputHandler.GetAxis3(KeyCode::Left, KeyCode::Right, KeyCode::Num0, KeyCode::Num1,
+                KeyCode::Up, KeyCode::Down, outRight, outUp, outForward);
+    }
+
+    void Update(const float deltaTime, Engine::InputHandler &inputHandler)
+    {
+        float move, turn, elevate;
+        GetInputAxis(inputHandler, turn, elevate, move);
+
+        transform.Translate((Vectors::v3fForward * move + Vectors::v3fUp * elevate) * deltaTime);
+        transform.RotateEuler(Vectors::v3fUp * turn * deltaTime);
+    }
 };
 
 class DemoScene : public Engine::Scene
 {
     Graphics::Window &windowHost;
-    Graphics::FlyingCamera camera;
 
-    AssetDirectories assetDirectories;
+    const std::filesystem::path assetsRootDirectory;
     AssetResourceManager assetManager;
-
     AssetHandle<Graphics::ShaderResource> activeShader;
     AssetHandle<Graphics::Texture2DResource> activeTexture;
+
+    std::vector<std::shared_ptr<Player>> players;
+    std::vector<std::shared_ptr<SceneObject>> sceneObjects;
 
     double lastCursorX = 0.0, lastCursorY = 0.0;
     bool orbiting = false, wireframeEnabled = false, isSimulating = true;
@@ -64,30 +160,30 @@ class DemoScene : public Engine::Scene
     ImGuiUtils::Context imgui;
 #endif
 
-    SharedList<SceneObject> sceneObjects;
-
 public:
     explicit DemoScene(Graphics::Window &windowHost)
-        : windowHost(windowHost), assetDirectories(IO::WorkingDirectory() / "assets")
-    {}
+        : windowHost(windowHost),
+          assetsRootDirectory(IO::WorkingDirectory() / "assets") {}
 
-    void OnCursorPosition(const double x, const double y) override
+    Player *SpawnPlayer(const Vector3f &position)
     {
-        if (!orbiting) { orbiting = false; return; }
+        MeshAsset mesh(assetManager, "bunny/bunny");
+        if (!mesh.IsValid())
+        {
+            LOG_ERROR("Failed to spawn player: the bunny mesh is unavailable.\n");
+            return nullptr;
+        }
 
-        const float sensitivity = 0.005f,
-            yawDelta = static_cast<float>(x - lastCursorX) * sensitivity,
-            pitchDelta = static_cast<float>(lastCursorY - y) * sensitivity;
+        auto player = std::make_shared<Player>();
+        player->playerIndex = static_cast<UInt8>(players.size());
+        player->mesh = std::move(mesh);
+        player->transform.SetPosition(position);
+        player->transform.SetLookAtPoint(Vectors::v3fZero);
 
-        camera.Orbit(yawDelta, pitchDelta);
-        lastCursorX = x;
-        lastCursorY = y;
-    }
-
-    void OnScroll(double, const double yOffset) override
-    {
-        constexpr float zoomSensitivity = 0.1f;
-        camera.Zoom(yOffset * zoomSensitivity);
+        Player *playerPointer = player.get();
+        sceneObjects.push_back(player);
+        players.push_back(std::move(player));
+        return playerPointer;
     }
 
     SceneObject *SpawnSceneObject(const Vector3f &position, const std::string &meshName)
@@ -146,69 +242,8 @@ public:
         GetInput().BindKey([this](const InputCode &, const KeyAction &action)
         {
             if (action == Pressed)
-                camera.SetIsOrthographic(!camera.GetIsOrthographic());
-        }, KeyCode::G);
-
-        GetInput().BindKey([this](const InputCode &, const KeyAction &action)
-        {
-            if (action == Pressed)
                 windowHost.SetVSyncEnabled(!windowHost.IsVSyncEnabled());
         }, KeyCode::V);
-
-        GetInput().BindKey([this](const InputCode &, const KeyAction &action)
-        {
-            if (action != Pressed) return;
-                
-            camera.ResetPosition();
-            orbiting = false;
-        }, KeyCode::R);
-
-        GetInput().BindKey([this](const InputCode &, const KeyAction &action)
-        {
-            orbiting = action != Released;
-            if (orbiting)
-                windowHost.GetCursorPosition(lastCursorX, lastCursorY);
-        }, MouseKeyCode::Any);
-    }
-
-    bool GetUniforms(GLint &outModelMatrixUniform, GLint &outViewMatrixUniform,
-        GLint &outProjectionMatrixUniform, GLint &outTextureSamplerUniform)
-    {
-        LOG_SCOPE;
-        Graphics::ShaderResource *shader = activeShader.GetResource();
-        if (shader == nullptr || !shader->IsInitialized())
-        {
-            //LOG_ERROR("Cannot get uniforms: no active shader is selected.\n");
-            return false;
-        }
-
-        static Graphics::ShaderResource *cachedShader = nullptr;
-        static GLint modelMatrixUniform, viewMatrixUniform, projectionMatrixUniform, textureSamplerUniform;
-
-        if (cachedShader != shader)
-        {
-            GLint modelLocation, viewLocation, projectionLocation, textureSamplerLocation;
-            if (!shader->GetUniformLocation("modelMatrix", modelLocation) ||
-                !shader->GetUniformLocation("viewMatrix", viewLocation) ||
-                !shader->GetUniformLocation("projectionMatrix", projectionLocation) ||
-                !shader->GetUniformLocation("textureSampler", textureSamplerLocation))
-            {
-                //LOG_ERROR("Required transform, camera, or texture sampler uniforms are missing from the shader program.\n");
-                return false;
-            }
-
-            modelMatrixUniform =        modelLocation;
-            viewMatrixUniform =         viewLocation;
-            projectionMatrixUniform =   projectionLocation;
-            textureSamplerUniform =     textureSamplerLocation;
-            cachedShader =              shader;
-        }
-
-        outModelMatrixUniform =         modelMatrixUniform;
-        outViewMatrixUniform =          viewMatrixUniform;
-        outProjectionMatrixUniform =    projectionMatrixUniform;
-        outTextureSamplerUniform =      textureSamplerUniform;
-        return true;
     }
 
     int DrawScene(const Engine::Scene::SceneTime &time)
@@ -218,18 +253,11 @@ public:
         using namespace Engine;
         using namespace Input;
 
-        assetManager.PollPendingResources();
-
         GLint modelMatrixUniform, viewMatrixUniform, projectionMatrixUniform, textureSamplerUniform;
-        if (!GetUniforms(modelMatrixUniform, viewMatrixUniform, projectionMatrixUniform, textureSamplerUniform))
+        if (!GetUniforms(modelMatrixUniform, viewMatrixUniform, projectionMatrixUniform, textureSamplerUniform, activeShader.GetResource()))
             return EXIT_SUCCESS;
 
         activeShader.GetResource()->Use();
-
-        Vector3f moveVector{};
-        GetInput().GetAxis3(KeyCode::D, KeyCode::A, KeyCode::Q, KeyCode::E,
-            KeyCode::W, KeyCode::S, moveVector.x, moveVector.y, moveVector.z);
-        camera.Move(moveVector, time.deltaTime);
 
         // Bind the active texture to texture unit 0 and set the shader's sampler uniform to use that unit(0).
         if (Graphics::Texture2DResource *texture = activeTexture.GetResource())
@@ -238,30 +266,36 @@ public:
             texture->Bind(GL_TEXTURE0);
         }
 
-        // Set the view and projection matrices based on the camera's current state.
-        const Matrix4f viewMatrix = camera.GetViewMatrix(),
-            projectionMatrix = camera.GetProjectionMatrix(windowHost.GetWindowAspectRatio());
-
-        glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, glm::value_ptr(viewMatrix));
-        glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
-
-        glPolygonMode(GL_FRONT_AND_BACK, wireframeEnabled ? GL_LINE : GL_FILL);
-
-        for (const auto &sceneObject : sceneObjects)
+        const int playerCount = static_cast<int>(players.size());
+        for (int i = 0; i < playerCount; ++i)
         {
-            Graphics::MeshResource *mesh = sceneObject->mesh.GetResource();
-            if (mesh == nullptr)
-                continue;
-
-            if (isSimulating)
-                sceneObject->transform.Translate({0.f, glm::sin(time.elapsedTime) * time.deltaTime, 0.f});
-
-            const Matrix4f modelMatrix = sceneObject->transform.GetTransformMatrix();
-            glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, glm::value_ptr(modelMatrix));
-            mesh->Draw();
+            float aspectRatio;
+            if (windowHost.SetSplitScreenViewport(i, playerCount, aspectRatio))
+                players[i]->camera.DrawScene(sceneObjects,
+                    players[i].get(),
+                    activeShader.GetResource(),
+                    aspectRatio,
+                    wireframeEnabled);
         }
 
+        float fullWindowAspectRatio;
+        windowHost.SetSplitScreenViewport(0, 1, fullWindowAspectRatio);
+
         return EXIT_SUCCESS;
+    }
+
+    void DrawGUI(const Engine::Scene::SceneTime &time)
+    {
+#ifdef IMGUI_ENABLED
+        if (!imgui.Initialize(windowHost.GetWindow()))
+            return;
+
+        IMGUI_DRAW_START;
+        ImGuiUtils::DrawSceneDiagnosticsWindow(time.unscaledDeltaTime, time.unscaledElapsedTime,
+            assetManager.ShaderNames(), assetManager.MeshNames(), assetManager.TextureNames());
+        imgui.DrawLogWindow();
+        IMGUI_DRAW_END;
+#endif
     }
 
     Int32 OnStart() override
@@ -269,21 +303,23 @@ public:
         using namespace Graphics;
         LOG_INFO("Starting demo scene.\n");
 
-        assetManager.EnqueueAssetLoad<ShaderResource>(assetDirectories.shadersDirectory,
+        assetManager.EnqueueAssetLoad<ShaderResource>(IO::Path::FromRelative("shaders", assetsRootDirectory),
             [&]
             {
                 LOG_SCOPE;
                 LOG_INFO("Shaders finished loading.\n");
                 activeShader = AssetHandle<ShaderResource>(assetManager, "default_lit");
             });
-        assetManager.EnqueueAssetLoad<MeshResource>(assetDirectories.meshesDirectory,
+        assetManager.EnqueueAssetLoad<MeshResource>(IO::Path::FromRelative("models", assetsRootDirectory),
             [&]
             {
                 LOG_SCOPE;
                 LOG_INFO("Models finished loading.\n");
-                SpawnSceneObject({0, 0, 0}, "bunny/bunny");
+
+                SpawnPlayer({-1.5f, 0.f, 3.f});
+                SpawnPlayer({1.5f, 0.f, 3.f});
             });
-        assetManager.EnqueueAssetLoad<Texture2DResource>(assetDirectories.texturesDirectory,
+        assetManager.EnqueueAssetLoad<Texture2DResource>(IO::Path::FromRelative("textures", assetsRootDirectory),
             [&]
             {
                 LOG_SCOPE;
@@ -292,8 +328,6 @@ public:
             });
 
         BindInput();
-
-        camera.ResetPosition();
 
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_CULL_FACE);
@@ -305,22 +339,13 @@ public:
 
     Int32 OnMainTick(const Engine::Scene::SceneTime &time) override
     {
-        LOG_SCOPE;
+        assetManager.PollPendingResources();
 
-        int result = DrawScene(time);
+        for (const auto &player : players)
+            player->Update(time.deltaTime, GetInput());
 
-#ifdef IMGUI_ENABLED
-        if (!imgui.Initialize(windowHost.GetWindow()))
-            return result;
-
-        IMGUI_DRAW_START;
-        ImGuiUtils::DrawSceneDiagnosticsWindow(time.unscaledDeltaTime, time.unscaledElapsedTime,
-            camera.GetTransform().GetPosition(), camera.GetTransform().GetForward(), camera.GetOrbitDistance(),
-            assetManager.ShaderNames(), assetManager.MeshNames(), assetManager.TextureNames());
-        imgui.DrawLogWindow();
-        IMGUI_DRAW_END;
-#endif
-
+        const Int32 result = DrawScene(time);
+        DrawGUI(time);
         return result;
     }
 

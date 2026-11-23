@@ -27,9 +27,9 @@
 
 namespace ImGuiUtils
 {
-    void DrawSceneDiagnosticsWindow(float deltaTime, float elapsedTime, const Vector3f &cameraPosition,
-        const Vector3f &cameraFacing, float cameraDistance, const std::vector<std::string> &shaderNames,
-        const std::vector<std::string> &meshNames, const std::vector<std::string> &textureNames);
+    void DrawSceneDiagnosticsWindow(float deltaTime, float elapsedTime,
+        const std::vector<std::string> &shaderNames, const std::vector<std::string> &meshNames,
+        const std::vector<std::string> &textureNames);
 
     class Context
     {

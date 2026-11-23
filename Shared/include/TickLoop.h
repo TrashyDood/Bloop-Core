@@ -79,7 +79,7 @@ public:
     }
 
     template <typename TCallback, typename TRep, typename TPeriod>
-    void Run(const TCallback callback, std::chrono::duration<TRep, TPeriod> &targetTimeStep)
+    void Run(const TCallback callback, const std::chrono::duration<TRep, TPeriod> &targetTimeStep)
     {
         #ifdef _WIN32
         TimerResolution timerResolution(targetTimeStep > std::chrono::duration<TRep, TPeriod>::zero());

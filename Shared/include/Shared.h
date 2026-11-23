@@ -19,11 +19,6 @@
 
 using namespace std::chrono_literals;
 
-template<typename T>
-using SharedList = std::vector<std::shared_ptr<T>>;
-template<typename T>
-using UniqueList = std::vector<std::unique_ptr<T>>;
-
 using Vector2f =        glm::vec2;
 using Vector3f =        glm::vec3;
 using Vector4f =        glm::vec4;
@@ -41,6 +36,9 @@ using UInt16 =          std::uint16_t;
 using UInt32 =          std::uint32_t;
 using UInt64 =          std::uint64_t;
 using TimeDuration =    std::chrono::duration<double>;
+
+// Measured in hertz (Hz), which is cycles per second.
+inline constexpr TimeDuration GetFrequency(const double frequency) { return 1.0s / frequency; }
 
 namespace Colors
 {

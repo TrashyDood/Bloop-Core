@@ -188,7 +188,7 @@ namespace Graphics
     void PollResourceLoadQueue(ResourceLoadQueue<TResource> &queue, std::vector<TResource> &outResources,
         std::vector<std::string> &outNames, TIndexMap &indexMap, const char *resourceDomain)
     {
-        LoadedResources<TResource> loadedResources{outResources, outNames};
+        LoadedResources<TResource> loadedResources{outResources, outNames}; // Is used as a container for vectors.
         while (!queue.empty() && queue.front().task.Status() == std::future_status::ready)
         {
             auto &entry = queue.front();

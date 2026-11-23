@@ -60,6 +60,9 @@ namespace Graphics
         [[nodiscard]] bool ShouldClose() const { return !window || glfwWindowShouldClose(window); }
         [[nodiscard]] float GetWindowAspectRatio() const;
 
+        bool GetFrameBufferSize(Int32 &outWidth, Int32 &outHeight);
+        bool SetSplitScreenViewport(UInt32 viewportIndex, UInt32 viewportCount, float &outAspectRatio);
+
         void GetCursorPosition(double &outX, double &outY) const { glfwGetCursorPos(&GetWindow(), &outX, &outY); }
         void PollEvents() const { glfwPollEvents();}
 
