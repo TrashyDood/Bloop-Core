@@ -102,9 +102,6 @@ private:
     Graphics::Window windowHost;
     Engine::InputHandler inputHandler;
 
-    std::vector<Graphics::ShaderResource> shaders;
-    std::vector<Graphics::MeshResource> meshes;
-    std::vector<Graphics::Texture2DResource> textures;
     Graphics::ShaderResource *activeShader = nullptr;
     Graphics::Texture2DResource *activeTexture = nullptr;
 

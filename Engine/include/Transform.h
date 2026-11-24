@@ -20,8 +20,6 @@ namespace Engine
         [[nodiscard]] Vector3f GetUp() const { return TransformVector(Vectors::v3fUp, false); }
         [[nodiscard]] Vector3f GetForward() const { return TransformVector(Vectors::v3fForward, false); }
 
-        [[nodiscard]] Matrix4f GetTransformMatrixScaled() const;
-        [[nodiscard]] Matrix4f GetTransformMatrixUnScaled() const;
         [[nodiscard]] Matrix4f GetTransformMatrix(const bool includeScale = true) const;
         [[nodiscard]] const Matrix4f &GetRotationMatrix() const { return rotationMatrix; }
         [[nodiscard]] Matrix4f GetLookMatrix() const;
@@ -52,4 +50,11 @@ namespace Engine
         void Rotate(const Quaternionf &rotationOffset) { SetRotation(rotation * rotationOffset); }
         void RotateEuler(const Vector3f &angles) { Rotate(Quaternionf{angles}); }
     };
+
+    Matrix4f GetTransformMatrix(const Vector3f &position, const Vector3f &scale, const Matrix4f &rotationMatrix);
+    Matrix4f GetTransformMatrix(const Vector3f &position, const Matrix4f &rotationMatrix);
+    Matrix4f GetLookMatrix(const Vector3f &position, const Vector3f &forward, const Vector3f &up);
+
+    Vector3f TransformVector(const Matrix4f &transformMatrix, const Vector3f &vector);
+    Vector3f TransformPoint(const Matrix4f &transformMatrix, const Vector3f &point);
 }

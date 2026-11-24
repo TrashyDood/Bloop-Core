@@ -4,37 +4,27 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/norm.hpp>
 
-Matrix4f Engine::Transform::GetTransformMatrixScaled() const
-{
-    return glm::scale(glm::translate(Matrix4f{1.0f}, position) * rotationMatrix, scale);
-}
-
-Matrix4f Engine::Transform::GetTransformMatrixUnScaled() const
-{
-    return glm::translate(Matrix4f{1.0f}, position) * rotationMatrix;
-}
-
+#pragma region Transform class
 Matrix4f Engine::Transform::GetTransformMatrix(const bool includeScale) const
 {
     return includeScale
-        ? GetTransformMatrixScaled()
-        : GetTransformMatrixUnScaled();
+        ? Engine::GetTransformMatrix(GetPosition(), GetScale(),  GetRotationMatrix())
+        : Engine::GetTransformMatrix(GetPosition(), GetRotationMatrix());
 }
 
 Matrix4f Engine::Transform::GetLookMatrix() const
 {
-    return glm::lookAt(position, position + GetForward(), GetUp());
+    return Engine::GetLookMatrix(GetPosition(), GetForward(), GetUp());
 }
-
 
 Vector3f Engine::Transform::TransformVector(const Vector3f &vector, const bool includeScale) const
 {
-    return Vector3f{GetTransformMatrix(includeScale) * Vector4f{vector, 0.0f}};
+    return Engine::TransformVector(GetTransformMatrix(includeScale), vector);
 }
 
 Vector3f Engine::Transform::TransformPoint(const Vector3f &point, const bool includeScale) const
 {
-    return Vector3f{GetTransformMatrix(includeScale) * Vector4f{point, 1.0f}};
+    return Engine::TransformPoint(GetTransformMatrix(includeScale), point);
 }
 
 void Engine::Transform::SetRotation(const Quaternionf &newRotation)
@@ -63,4 +53,33 @@ void Engine::Transform::SetLookDirection(const Vector3f &direction, const Vector
 void Engine::Transform::SetLookAtPoint(const Vector3f &target, const Vector3f &up)
 {
     SetLookDirection(target - position, up);
+}
+#pragma endregion
+
+Matrix4f Engine::GetTransformMatrix(const Vector3f &position,
+    const Vector3f &scale, const Matrix4f &rotationMatrix)
+{
+    return glm::scale(glm::translate(Matrix4f{1.0f}, position) * rotationMatrix, scale);
+}
+
+Matrix4f Engine::GetTransformMatrix(const Vector3f &position,
+    const Matrix4f &rotationMatrix)
+{
+    return glm::translate(Matrix4f{1.0f}, position) * rotationMatrix;
+}
+
+Matrix4f Engine::GetLookMatrix(const Vector3f &position,
+    const Vector3f &forward, const Vector3f &up)
+{
+    return glm::lookAt(position, position + forward, up);
+}
+
+Vector3f Engine::TransformVector(const Matrix4f &transformMatrix, const Vector3f &vector)
+{
+    return Vector3f{transformMatrix * Vector4f{vector, 0.f}};
+}
+
+Vector3f Engine::TransformPoint(const Matrix4f &transformMatrix, const Vector3f &point)
+{
+    return Vector3f{transformMatrix * Vector4f{point, 1.f}};
 }
