@@ -1,4 +1,7 @@
-cube -2 0 -4
-torus 0 0 -4
-test 2 0 -4
-multi_mesh 0 2 -5
+object: cube -2 0 -4
+object: torus 0 0 -4
+object: test 2 0 -4
+object: multi_mesh 0 2 -5
+spawnposition -1 0 0
+spawnposition 1 0 0
+goalposition 0 0 -7

@@ -1,3 +1,6 @@
-bunny/bunny -2 0 -3
-bunny/bunny 0 0 -3
-bunny/bunny 2 0 -3
+object: bunny/bunny -2 0 -3
+object: bunny/bunny 0 0 -3
+object: bunny/bunny 2 0 -3
+spawnposition -1 0 0
+spawnposition 1 0 0
+goalposition 0 0 -6

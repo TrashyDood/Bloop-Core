@@ -4,6 +4,8 @@ A work-in-progress C++17 OpenGL demo with a GLFW window, GLAD, and GLM. It rende
 
 Controls: Player 1 uses WASD to move and Q/E to rotate; Player 2 uses keypad 8/4/2/6 to move and keypad 7/9 to rotate. Esc exits.
 
+Scene files in `assets/scenes` use `object: <meshName> x y z`, `spawnposition x y z`, and `goalposition x y z` records.
+
 ## Build and run
 
 This project uses CMake and is configured for MSYS2 UCRT64 on Windows.

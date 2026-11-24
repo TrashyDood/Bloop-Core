@@ -1,4 +1,7 @@
-pyramid -2 0 -3
-octahedron 0 0 -3
-triangular_prism 2 0 -3
-icosphere 0 2 -4
+object: pyramid -2 0 -3
+object: octahedron 0 0 -3
+object: triangular_prism 2 0 -3
+object: icosphere 0 2 -4
+spawnposition -1 0 0
+spawnposition 1 0 0
+goalposition 0 0 -6

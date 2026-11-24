@@ -38,7 +38,9 @@ namespace ImGuiUtils
 
         void Draw(const float deltaTime, const float elapsedTime, const UInt64 elapsedFrames,
             const std::string &currentSceneName, const std::vector<IO::Path> &sceneFilePaths,
-            const std::function<void(const std::string &)> &onSceneSelected);
+            const std::function<void(const std::string &)> &onSceneSelected,
+            const std::function<void()> &onPlayerSpawnRequested,
+            const std::function<void()> &onPlayerRemovalRequested);
     };
 
     struct LogWindow

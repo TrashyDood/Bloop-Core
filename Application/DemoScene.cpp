@@ -2,6 +2,7 @@
 
 #include <glm/gtc/type_ptr.hpp>
 #include <fstream>
+#include <random>
 #include <sstream>
 #include "Graphics.h"
 #include "IOUtils.h"
@@ -59,8 +60,12 @@ namespace // Local helpers
     }
 
     Int32 LoadSceneObjects(const std::filesystem::path &scenePath,
-        std::vector<std::shared_ptr<SceneObject>> &outObjects)
+        std::vector<std::shared_ptr<SceneObject>> &outObjects,
+        std::vector<Vector3f> &outPlayerSpawnLocations,
+        std::vector<Vector3f> &outGoalLocations)
     {
+        LOG_SCOPE;
+
         std::ifstream sceneFile(scenePath);
         if (!sceneFile)
         {
@@ -75,10 +80,26 @@ namespace // Local helpers
             ++lineNumber;
 
             std::istringstream lineStream(line);
-            std::string meshName, extra;
+            std::string recordType, meshName, extra;
             Vector3f position;
-            if (!(lineStream >> meshName))
+            if (!(lineStream >> recordType))
                 continue;
+
+            if (recordType == "object:")
+            {
+                if (!(lineStream >> meshName))
+                {
+                    LOG_ERROR("Invalid scene record at line %u in '%s'.\n",
+                        lineNumber, scenePath.string().c_str());
+                    return EXIT_FAILURE;
+                }
+            }
+            else if (recordType != "spawnposition" && recordType != "goalposition")
+            {
+                LOG_ERROR("Invalid scene record at line %u in '%s'.\n",
+                    lineNumber, scenePath.string().c_str());
+                return EXIT_FAILURE;
+            }
 
             if (!(lineStream >> position.x >> position.y >> position.z) || (lineStream >> extra))
             {
@@ -87,10 +108,17 @@ namespace // Local helpers
                 return EXIT_FAILURE;
             }
 
-            auto sceneObject = std::make_shared<SceneObject>();
-            sceneObject->transform = Engine::Transform(position);
-            sceneObject->meshName = meshName;
-            outObjects.emplace_back(std::move(sceneObject));
+            if (recordType == "object:")
+            {
+                auto sceneObject = std::make_shared<SceneObject>();
+                sceneObject->transform = Engine::Transform(position);
+                sceneObject->meshName = meshName;
+                outObjects.emplace_back(std::move(sceneObject));
+            }
+            else if (recordType == "spawnposition")
+                outPlayerSpawnLocations.emplace_back(position);
+            else
+                outGoalLocations.emplace_back(position);
         }
 
         if (sceneFile.bad())
@@ -178,6 +206,7 @@ void DemoSceneLayer::OnStop(const Int32 exitCode)
     imguiContext.Shutdown();
 }
 
+
 void DemoSceneLayer::BindInput()
 {
     LOG_SCOPE;
@@ -227,18 +256,31 @@ void DemoSceneLayer::LoadNewScene(const std::string &sceneName)
     LOG_SCOPE;
 
     std::vector<std::shared_ptr<SceneObject>> newSceneObjects;
+    std::vector<Vector3f> newPlayerSpawnLocations, newGoalLocations;
     const auto scenePath = assetsRootDirectory / "scenes" / (sceneName + ".scene");
-    if (LoadSceneObjects(scenePath, newSceneObjects) != EXIT_SUCCESS)
+    if (LoadSceneObjects(scenePath, newSceneObjects, newPlayerSpawnLocations, newGoalLocations) != EXIT_SUCCESS)
         return;
 
+    if (newPlayerSpawnLocations.empty())
+    {
+        LOG_ERROR("Scene '%s' has no player spawn positions.\n", sceneName.c_str());
+        return;
+    }
+
+    const std::size_t playerCount = scenePlayers.empty() ? 1 : scenePlayers.size();
     sceneCameras.clear();
     scenePlayers.clear();
-    sceneObjects = std::move(newSceneObjects);
-
-    SpawnPlayer(Engine::Transform(Vector3f{-1.f, 0.f, 0.f}));
-    SpawnPlayer(Engine::Transform(Vector3f{1.f, 0.f, 0.f}));
+    sceneObjects.clear();
 
     currentSceneName = sceneName;
+
+    sceneObjects = std::move(newSceneObjects);
+    playerSpawnLocations = std::move(newPlayerSpawnLocations);
+    goalLocations = std::move(newGoalLocations);
+
+    for (std::size_t playerIndex = 0; playerIndex < playerCount; ++playerIndex)
+        SpawnPlayerAtRandomPosition();
+
     LOG_INFO("Loaded scene '%s'.\n", sceneName.c_str());
 }
 
@@ -290,6 +332,33 @@ std::shared_ptr<PlayerObject> DemoSceneLayer::SpawnPlayer(const Engine::Transfor
     player->sceneCamera = SpawnCamera(cameraTransform, 60.f, 0.1f, 100.f);
 
     return player;
+}
+
+void DemoSceneLayer::SpawnPlayerAtRandomPosition()
+{
+    LOG_SCOPE;
+
+    if (playerSpawnLocations.empty())
+    {
+        LOG_ERROR("Cannot spawn a player: the current scene has no spawn positions.\n");
+        return;
+    }
+
+    static std::mt19937 randomGenerator(std::random_device{}());
+    std::uniform_int_distribution<std::size_t> randomSpawnIndex(0, playerSpawnLocations.size() - 1);
+    SpawnPlayer(Engine::Transform(playerSpawnLocations[randomSpawnIndex(randomGenerator)]));
+}
+
+void DemoSceneLayer::RemovePlayer()
+{
+    LOG_SCOPE;
+
+    if (scenePlayers.empty())
+        return;
+
+    scenePlayers.pop_back();
+    sceneCameras.pop_back();
+    sceneObjects.pop_back();
 }
 
 Int32 DemoSceneLayer::DrawScene(const Application::Time &time)
@@ -355,7 +424,9 @@ Int32 DemoSceneLayer::DrawGUI(const Application::Time &time)
     logWindow.Draw();
     diagnosticsWindow.Draw(time.unscaledDeltaTime, time.unscaledElapsedTime, time.elapsedFrames,
         currentSceneName, sceneFilePaths,
-        [&](const std::string &sceneName) { LoadNewScene(sceneName); });
+        [&](const std::string &sceneName) { LoadNewScene(sceneName); },
+        [&] { SpawnPlayerAtRandomPosition(); },
+        [&] { RemovePlayer(); });
     ImGuiUtils::Context::End();
 
     return EXIT_SUCCESS;

@@ -74,6 +74,11 @@ struct PlayerObject
         sceneCamera->transform.SetPosition(sceneObject->transform.TransformPoint(cameraOffset, false));
         sceneCamera->transform.SetLookAtPoint(sceneObject->transform.GetPosition());
     }
+
+    void SetPosition(const Vector3f &newPosition)
+    {
+        sceneObject->transform.SetPosition(newPosition);
+    }
 };
 
 class DemoSceneLayer : public Application::Layer
@@ -90,10 +95,12 @@ public:
 private:
     const std::filesystem::path assetsRootDirectory;
     std::vector<IO::Path> sceneFilePaths;
+    std::string currentSceneName;
     
+    std::vector<Vector3f> playerSpawnLocations, goalLocations;
+
     Graphics::Window windowHost;
     Engine::InputHandler inputHandler;
-    std::string currentSceneName;
 
     std::vector<Graphics::ShaderResource> shaders;
     std::vector<Graphics::MeshResource> meshes;
@@ -120,6 +127,8 @@ private:
     std::shared_ptr<SceneCamera> SpawnCamera(const Engine::Transform &transform, float fov, float nearPlane, float farPlane);
     std::shared_ptr<SceneObject> SpawnSceneObject(const Engine::Transform &transform, const std::string &meshName);
     std::shared_ptr<PlayerObject> SpawnPlayer(const Engine::Transform &transform);
+    void SpawnPlayerAtRandomPosition();
+    void RemovePlayer();
 
     Int32 DrawScene(const Application::Time &time);
     Int32 DrawGUI(const Application::Time &time);
