@@ -167,13 +167,15 @@ Int32 DemoSceneLayer::OnStart()
     BindInput();
     StartLoadingAssets();
 
+    sceneObjects.AddEntity();
+    sceneObjects.AddEntity({});
+    sceneCameras.AddEntity({Vectors::v3fBackward * 5.f}, {});
+
     if (!DiscoverSceneFiles(assetsRootDirectory, sceneFilePaths))
     {
         LOG_ERROR("No scene files found under '%s'.\n", assetsRootDirectory.string().c_str());
         return EXIT_FAILURE;
     }
-
-    LoadNewScene(sceneFilePaths.front().relativePath.stem().string());
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
@@ -251,115 +253,6 @@ void DemoSceneLayer::StartLoadingAssets()
         });
 }
 
-void DemoSceneLayer::LoadNewScene(const std::string &sceneName)
-{
-    LOG_SCOPE;
-
-    std::vector<std::shared_ptr<SceneObject>> newSceneObjects;
-    std::vector<Vector3f> newPlayerSpawnLocations, newGoalLocations;
-    const auto scenePath = assetsRootDirectory / "scenes" / (sceneName + ".scene");
-    if (LoadSceneObjects(scenePath, newSceneObjects, newPlayerSpawnLocations, newGoalLocations) != EXIT_SUCCESS)
-        return;
-
-    if (newPlayerSpawnLocations.empty())
-    {
-        LOG_ERROR("Scene '%s' has no player spawn positions.\n", sceneName.c_str());
-        return;
-    }
-
-    const std::size_t playerCount = scenePlayers.empty() ? 1 : scenePlayers.size();
-    sceneCameras.clear();
-    scenePlayers.clear();
-    sceneObjects.clear();
-
-    currentSceneName = sceneName;
-
-    sceneObjects = std::move(newSceneObjects);
-    playerSpawnLocations = std::move(newPlayerSpawnLocations);
-    goalLocations = std::move(newGoalLocations);
-
-    for (std::size_t playerIndex = 0; playerIndex < playerCount; ++playerIndex)
-        SpawnPlayerAtRandomPosition();
-
-    LOG_INFO("Loaded scene '%s'.\n", sceneName.c_str());
-}
-
-std::shared_ptr<SceneCamera> DemoSceneLayer::SpawnCamera(const Engine::Transform &transform,
-    float fov, float nearPlane, float farPlane)
-{
-    LOG_SCOPE;
-    LOG_INFO("Spawning camera with FOV %.2f, near plane %.2f, far plane %.2f.\n",
-        fov, nearPlane, farPlane);
-
-    sceneCameras.emplace_back(std::make_shared<SceneCamera>());
-    auto sceneCamera = sceneCameras.back();
-    
-    sceneCamera->transform = transform;
-
-    return sceneCamera;
-}
-
-std::shared_ptr<SceneObject> DemoSceneLayer::SpawnSceneObject(const Engine::Transform &transform,
-    const std::string &meshName)
-{
-    LOG_SCOPE;
-    LOG_INFO("Spawning scene object with mesh '%s'.\n", meshName.c_str());
-
-    sceneObjects.emplace_back(std::make_shared<SceneObject>());
-    auto sceneObject = sceneObjects.back();
-
-    sceneObject->transform = transform;
-    sceneObject->meshName = meshName;
-
-    return sceneObject;
-}
-
-std::shared_ptr<PlayerObject> DemoSceneLayer::SpawnPlayer(const Engine::Transform &transform)
-{
-    LOG_SCOPE;
-    LOG_INFO("Spawning player object.\n");
-
-    scenePlayers.emplace_back(std::make_shared<PlayerObject>());
-    auto player = scenePlayers.back();
-
-    player->playerId = static_cast<UInt32>(scenePlayers.size() - 1);
-    player->sceneObject = SpawnSceneObject(transform, "bunny/bunny");
-    player->cameraOffset = Vectors::v3fBackward * 5.f + Vectors::v3fUp * 2.f;
-    
-    Engine::Transform cameraTransform(transform.TransformPoint(player->cameraOffset, false));
-    cameraTransform.SetLookAtPoint(transform.GetPosition());
-    player->sceneCamera = SpawnCamera(cameraTransform, 60.f, 0.1f, 100.f);
-
-    return player;
-}
-
-void DemoSceneLayer::SpawnPlayerAtRandomPosition()
-{
-    LOG_SCOPE;
-
-    if (playerSpawnLocations.empty())
-    {
-        LOG_ERROR("Cannot spawn a player: the current scene has no spawn positions.\n");
-        return;
-    }
-
-    static std::mt19937 randomGenerator(std::random_device{}());
-    std::uniform_int_distribution<std::size_t> randomSpawnIndex(0, playerSpawnLocations.size() - 1);
-    SpawnPlayer(Engine::Transform(playerSpawnLocations[randomSpawnIndex(randomGenerator)]));
-}
-
-void DemoSceneLayer::RemovePlayer()
-{
-    LOG_SCOPE;
-
-    if (scenePlayers.empty())
-        return;
-
-    scenePlayers.pop_back();
-    sceneCameras.pop_back();
-    sceneObjects.pop_back();
-}
-
 Int32 DemoSceneLayer::DrawScene(const Application::Time &time)
 {
     LOG_SCOPE;
@@ -375,35 +268,29 @@ Int32 DemoSceneLayer::DrawScene(const Application::Time &time)
             activeShader->Use();
             activeTexture->Bind(GL_TEXTURE0);
 
-            const UInt32 viewportCount = static_cast<UInt32>(sceneCameras.size());
-            for (UInt32 viewportIndex = 0; viewportIndex < viewportCount; ++viewportIndex)
-            {
-                float aspectRatio = 0.f;
-                if (!windowHost.SetSplitScreenViewport(viewportIndex, viewportCount, aspectRatio))
+            windowHost.RenderViewports(static_cast<UInt32>(sceneCameras.EntityCount()),
+                [&](const Graphics::WindowViewportContext &viewport)
                 {
-                    LOG_ERROR("Failed to set split-screen viewport %d of %d.\n", viewportIndex, viewportCount);
-                    continue;
-                }
+                    auto camera = sceneCameras.GetComponent<Camera>(viewport.index);
+                    auto cameraTransform = sceneCameras.GetComponent<Engine::Transform>(viewport.index);
+                    
+                    const Matrix4f projectionMatrix = camera->ProjectionMatrix(viewport.aspectRatio);
+                    const Matrix4f viewMatrix = cameraTransform->GetLookMatrix();
 
-                const auto &camera = sceneCameras[viewportIndex];
-                const Matrix4f viewMatrix = camera->ViewMatrix();
-                const Matrix4f projectionMatrix = camera->ProjectionMatrix(windowHost.GetWindowAspectRatio());
+                    Graphics::MeshResource *mesh = assetManager.GetResourceByName<Graphics::MeshResource>("bunny/bunny");
 
-                for (auto &object : sceneObjects)
-                {
-                    Graphics::MeshResource *mesh = assetManager.GetResourceByName<Graphics::MeshResource>(object.get()->meshName);
-                    if (!mesh) continue;
+                    for (auto &transform : sceneObjects.GetComponents<Engine::Transform>())
+                    {
+                        const Matrix4f modelMatrix = transform.GetTransformMatrix();
 
-                    const Matrix4f modelMatrix = object.get()->transform.GetTransformMatrix();
-
-                    glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, glm::value_ptr(modelMatrix));
-                    glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, glm::value_ptr(viewMatrix));
-                    glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
-                    glUniform1i(textureSamplerUniform, 0);
+                        glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, glm::value_ptr(modelMatrix));
+                        glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, glm::value_ptr(viewMatrix));
+                        glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
+                        glUniform1i(textureSamplerUniform, 0);
+                    }
 
                     mesh->Draw();
-                }
-            }
+                });
         }
     }
 
@@ -421,11 +308,9 @@ Int32 DemoSceneLayer::DrawGUI(const Application::Time &time)
 {
     ImGuiUtils::Context::Start();
     logWindow.Draw();
-    diagnosticsWindow.Draw(time.unscaledDeltaTime, time.unscaledElapsedTime, time.elapsedFrames,
+    sceneContextWindow.Draw(time.unscaledDeltaTime, time.unscaledElapsedTime, time.elapsedFrames,
         currentSceneName, sceneFilePaths,
-        [&](const std::string &sceneName) { LoadNewScene(sceneName); },
-        [&] { SpawnPlayerAtRandomPosition(); },
-        [&] { RemovePlayer(); });
+        [&](const std::string &sceneName) {  });
     ImGuiUtils::Context::End();
 
     return EXIT_SUCCESS;
@@ -433,9 +318,6 @@ Int32 DemoSceneLayer::DrawGUI(const Application::Time &time)
 
 Int32 DemoSceneLayer::Update(const Application::Time &time)
 {
-    for (const auto &player : scenePlayers)
-        player->Update(time, inputHandler);
-
     return EXIT_SUCCESS;
 }
 

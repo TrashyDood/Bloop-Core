@@ -167,29 +167,29 @@ namespace Graphics
         return outWidth > 0 && outHeight > 0;
     }
 
-    bool Window::SetSplitScreenViewport(const UInt32 viewportIndex, const UInt32 viewportCount, float &outAspectRatio)
+    bool Window::RenderViewports(const UInt16 count, const ViewportCallback &callback)
     {
-        LOG_SCOPE;
-
-        if (viewportIndex >= viewportCount)
-        {
-            LOG_ERROR("Cannot set split-screen viewport: index %d is invalid for %d viewports.\n",
-                viewportIndex, viewportCount);
+        if (count < 1)
             return false;
-        }
 
         Int32 framebufferWidth = 0, framebufferHeight = 0;
         if (!GetFrameBufferSize(framebufferWidth, framebufferHeight))
             return false;
 
-        const Int32 viewportLeft = framebufferWidth * viewportIndex / viewportCount;
-        const Int32 viewportRight = framebufferWidth * (viewportIndex + 1) / viewportCount;
-        const Int32 viewportWidth = viewportRight - viewportLeft;
-        if (viewportWidth <= 0)
-            return false;
+        for (UInt16 i = 0; i < count; ++i)
+        {
+            const Int32 viewportLeft = framebufferWidth * i / count,
+                viewportRight = framebufferWidth * (i + 1) / count,
+                viewportWidth = viewportRight - viewportLeft;
 
-        glViewport(viewportLeft, 0, viewportWidth, framebufferHeight);
-        outAspectRatio = static_cast<float>(viewportWidth) / framebufferHeight;
+            if (viewportWidth <= 0)
+                return false;
+
+            glViewport(viewportLeft, 0, viewportWidth, framebufferHeight);
+            WindowViewportContext viewport{i, count, (static_cast<float>(viewportWidth) / framebufferHeight)};
+            callback(viewport);
+        }
+        
         return true;
     }
 

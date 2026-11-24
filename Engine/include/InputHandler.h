@@ -43,9 +43,11 @@ namespace Engine
             const Input::InputCode &wildcardKey = Input::AnyInput);
         bool UnbindKey(CallbackId callbackId, const Input::InputCode &key,
             const Input::InputCode &wildcardKey = Input::AnyInput);
-        [[nodiscard]] bool IsKeyHeld(const Input::InputCode &key,
-            const Input::InputCode &wildcardKey = Input::AnyInput) const;
-        [[nodiscard]] float GetAxis(const Input::KeyCode &positive, const Input::KeyCode &negative) const;
+
+        [[nodiscard]]
+        bool IsKeyHeld(const Input::InputCode &key, const Input::InputCode &wildcardKey = Input::AnyInput) const;
+        [[nodiscard]]
+        float GetAxis(const Input::KeyCode &positive, const Input::KeyCode &negative) const;
 
         void GetAxis2(const Input::KeyCode &right, const Input::KeyCode &left, const Input::KeyCode &up,
             const Input::KeyCode &down, float &outX,

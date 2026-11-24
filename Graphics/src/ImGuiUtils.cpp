@@ -121,9 +121,7 @@ ImGuiUtils::SceneDiagnosticWindow::SceneDiagnosticWindow(
 void ImGuiUtils::SceneDiagnosticWindow::Draw(
     const float deltaTime, const float elapsedTime, const UInt64 elapsedFrames,
     const std::string &currentSceneName, const std::vector<IO::Path> &sceneFilePaths,
-    const std::function<void(const std::string &)> &onSceneSelected,
-    const std::function<void()> &onPlayerSpawnRequested,
-    const std::function<void()> &onPlayerRemovalRequested)
+    const std::function<void(const std::string &)> &onSceneSelected)
 {
     LOG_SCOPE;
 
@@ -159,12 +157,6 @@ void ImGuiUtils::SceneDiagnosticWindow::Draw(
         }
         ImGui::EndCombo();
     }
-    if (ImGui::Button("Spawn player") && onPlayerSpawnRequested)
-        onPlayerSpawnRequested();
-    ImGui::SameLine();
-    if (ImGui::Button("Remove player") && onPlayerRemovalRequested)
-        onPlayerRemovalRequested();
-
     ImGui::SeparatorText("Time");
     ImGui::Text("Tick framerate: %.1f FPS (%.2f ms)",
         1.f / std::max(SMALL_NUMBER, deltaTime), deltaTime * 1000.f);

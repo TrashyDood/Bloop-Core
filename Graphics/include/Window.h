@@ -29,9 +29,18 @@ namespace Graphics
         std::function<void(double, double)> onScroll{};
     };
 
+    struct WindowViewportContext
+    {
+        const UInt16 index;
+        const UInt16 count;
+        const float aspectRatio;
+    };
+
     // Wrapper class for GLFW window management and input handling.
     class Window
     {
+        using ViewportCallback = std::function<void(WindowViewportContext&)>;
+
         GLFWwindow *window = nullptr;
         InputCallbacks inputCallbacks;
         bool glfwInitialized = false;
@@ -56,12 +65,12 @@ namespace Graphics
         [[nodiscard]] bool IsVSyncEnabled() const { return vsyncEnabled; }
         [[nodiscard]] GLFWwindow &GetWindow() const { return *window; }
         [[nodiscard]] bool IsInitialized() const { return glfwInitialized && window; }
-        [[nodiscard]] bool IsWindowFocused() const {return window && glfwGetWindowAttrib(window, GLFW_FOCUSED) == GLFW_TRUE;}
+        [[nodiscard]] bool IsWindowFocused() const { return window && glfwGetWindowAttrib(window, GLFW_FOCUSED) == GLFW_TRUE; }
         [[nodiscard]] bool ShouldClose() const { return !window || glfwWindowShouldClose(window); }
         [[nodiscard]] float GetWindowAspectRatio() const;
 
         bool GetFrameBufferSize(Int32 &outWidth, Int32 &outHeight);
-        bool SetSplitScreenViewport(UInt32 viewportIndex, UInt32 viewportCount, float &outAspectRatio);
+        bool RenderViewports(const UInt16 count, const ViewportCallback &callback);
 
         void GetCursorPosition(double &outX, double &outY) const { glfwGetCursorPos(&GetWindow(), &outX, &outY); }
         void PollEvents() const { glfwPollEvents();}
