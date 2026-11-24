@@ -8,7 +8,6 @@ namespace Engine
     {
         Vector3f position{0.f}, scale{1.f}, rotationEuler{0.f};
         Quaternionf rotation{1.f, 0.f, 0.f, 0.f};
-        Matrix4f rotationMatrix{1.f};
 
     public:
         [[nodiscard]] const Vector3f &GetPosition() const { return position; }
@@ -21,7 +20,7 @@ namespace Engine
         [[nodiscard]] Vector3f GetForward() const { return TransformVector(Vectors::v3fForward, false); }
 
         [[nodiscard]] Matrix4f GetTransformMatrix(const bool includeScale = true) const;
-        [[nodiscard]] const Matrix4f &GetRotationMatrix() const { return rotationMatrix; }
+        [[nodiscard]] const Matrix4f GetRotationMatrix() const;
         [[nodiscard]] Matrix4f GetLookMatrix() const;
 
         [[nodiscard]] Vector3f TransformVector(const Vector3f &vector, const bool includeScale = true) const;
@@ -51,10 +50,17 @@ namespace Engine
         void RotateEuler(const Vector3f &angles) { Rotate(Quaternionf{angles}); }
     };
 
-    Matrix4f GetTransformMatrix(const Vector3f &position, const Vector3f &scale, const Matrix4f &rotationMatrix);
-    Matrix4f GetTransformMatrix(const Vector3f &position, const Matrix4f &rotationMatrix);
-    Matrix4f GetLookMatrix(const Vector3f &position, const Vector3f &forward, const Vector3f &up);
+    [[nodiscard]]
+    Matrix4f GetMatrix_Transform(const Vector3f &position, const Vector3f &scale, const Matrix4f &rotationMatrix);
+    [[nodiscard]]
+    Matrix4f GetMatrix_Transform(const Vector3f &position, const Matrix4f &rotationMatrix);
+    [[nodiscard]]
+    Matrix4f GetMatrix_Look(const Vector3f &position, const Vector3f &forward, const Vector3f &up);
+    [[nodiscard]]
+    Matrix4f GetMatrix_Rotation(const Quaternionf &rotation);
 
+    [[nodiscard]]
     Vector3f TransformVector(const Matrix4f &transformMatrix, const Vector3f &vector);
+    [[nodiscard]]
     Vector3f TransformPoint(const Matrix4f &transformMatrix, const Vector3f &point);
 }

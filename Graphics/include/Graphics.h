@@ -107,13 +107,24 @@ namespace Graphics
         return ShaderType::Unknown;
     }
 
-    bool CompileGLShader(ResourceHandle &outShader, const ShaderType type, const char *source);
-    bool LinkGLShaders(ResourceHandle &outShaderProgram, const ResourceHandle *shaders, const std::size_t shadersCount);
-    bool CreateGLShaderProgram(
-        ResourceHandle &outShaderProgram, const ShaderSource *sources, const std::size_t sourcesCount);
-    bool CreateGLMeshBuffers(ResourceHandle &vertexArray, ResourceHandle &vertexBuffer, ResourceHandle &indexBuffer,
+    bool CompileGLShader(ResourceHandle &outShader,
+        const ShaderType type, const char *source);
+    bool LinkGLShaders(ResourceHandle &outShaderProgram,
+        const ResourceHandle *shaders, const std::size_t shadersCount);
+    bool CreateGLShaderProgram(ResourceHandle &outShaderProgram,
+        const ShaderSource *sources, const std::size_t sourcesCount);
+    bool CreateGLMeshBuffers(ResourceHandle &vertexArray,
+        ResourceHandle &vertexBuffer, ResourceHandle &indexBuffer,
         const MeshVertices &vertices, const MeshIndices &indices = {});
-    bool CreateGLTexture2D(ResourceHandle &outTexture, const TextureData &textureData);
+    bool CreateGLTexture2D(ResourceHandle &outTexture,
+        const TextureData &textureData);
 
     void CheckGLErrors();
+
+    [[nodiscard]]
+    Matrix4f GetMatrix_Perspective(const float fieldOfView,
+        const float aspectRatio, const float nearPlane, const float farPlane);
+    [[nodiscard]]
+    Matrix4f GetMatrix_Orthographic(const float orthographicSize,
+        const float aspectRatio, const float nearPlane, const float farPlane);
 }

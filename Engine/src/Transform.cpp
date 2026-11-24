@@ -8,13 +8,18 @@
 Matrix4f Engine::Transform::GetTransformMatrix(const bool includeScale) const
 {
     return includeScale
-        ? Engine::GetTransformMatrix(GetPosition(), GetScale(),  GetRotationMatrix())
-        : Engine::GetTransformMatrix(GetPosition(), GetRotationMatrix());
+        ? Engine::GetMatrix_Transform(GetPosition(), GetScale(),  GetRotationMatrix())
+        : Engine::GetMatrix_Transform(GetPosition(), GetRotationMatrix());
+}
+
+const Matrix4f Engine::Transform::GetRotationMatrix() const
+{
+    return Engine::GetMatrix_Rotation(GetRotation());
 }
 
 Matrix4f Engine::Transform::GetLookMatrix() const
 {
-    return Engine::GetLookMatrix(GetPosition(), GetForward(), GetUp());
+    return Engine::GetMatrix_Look(GetPosition(), GetForward(), GetUp());
 }
 
 Vector3f Engine::Transform::TransformVector(const Vector3f &vector, const bool includeScale) const
@@ -33,7 +38,6 @@ void Engine::Transform::SetRotation(const Quaternionf &newRotation)
         glm::normalize(newRotation) : Quaternionf{1.0f, 0.0f, 0.0f, 0.0f};
 
     rotationEuler = glm::eulerAngles(rotation);
-    rotationMatrix = glm::mat4_cast(rotation);
 }
 
 void Engine::Transform::SetLookDirection(const Vector3f &direction, const Vector3f &up)
@@ -56,22 +60,27 @@ void Engine::Transform::SetLookAtPoint(const Vector3f &target, const Vector3f &u
 }
 #pragma endregion
 
-Matrix4f Engine::GetTransformMatrix(const Vector3f &position,
+Matrix4f Engine::GetMatrix_Transform(const Vector3f &position,
     const Vector3f &scale, const Matrix4f &rotationMatrix)
 {
     return glm::scale(glm::translate(Matrix4f{1.0f}, position) * rotationMatrix, scale);
 }
 
-Matrix4f Engine::GetTransformMatrix(const Vector3f &position,
+Matrix4f Engine::GetMatrix_Transform(const Vector3f &position,
     const Matrix4f &rotationMatrix)
 {
     return glm::translate(Matrix4f{1.0f}, position) * rotationMatrix;
 }
 
-Matrix4f Engine::GetLookMatrix(const Vector3f &position,
+Matrix4f Engine::GetMatrix_Look(const Vector3f &position,
     const Vector3f &forward, const Vector3f &up)
 {
     return glm::lookAt(position, position + forward, up);
+}
+
+Matrix4f Engine::GetMatrix_Rotation(const Quaternionf &rotation)
+{
+    return glm::mat4_cast(rotation);
 }
 
 Vector3f Engine::TransformVector(const Matrix4f &transformMatrix, const Vector3f &vector)

@@ -295,7 +295,6 @@ std::shared_ptr<SceneCamera> DemoSceneLayer::SpawnCamera(const Engine::Transform
     auto sceneCamera = sceneCameras.back();
     
     sceneCamera->transform = transform;
-    sceneCamera->camera.SetPerspective(fov, nearPlane, farPlane, false);
 
     return sceneCamera;
 }
@@ -386,9 +385,9 @@ Int32 DemoSceneLayer::DrawScene(const Application::Time &time)
                     continue;
                 }
 
-                const auto &camera = sceneCameras[viewportIndex]->camera;
-                const Matrix4f viewMatrix = camera.GetViewMatrix();
-                const Matrix4f projectionMatrix = camera.GetProjectionMatrix(aspectRatio);
+                const auto &camera = sceneCameras[viewportIndex];
+                const Matrix4f viewMatrix = camera->ViewMatrix();
+                const Matrix4f projectionMatrix = camera->ProjectionMatrix(windowHost.GetWindowAspectRatio());
 
                 for (auto &object : sceneObjects)
                 {

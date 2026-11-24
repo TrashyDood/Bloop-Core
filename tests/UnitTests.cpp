@@ -7,7 +7,6 @@
 #include "Scene.h"
 #endif
 #ifdef GRAPHICS_ENABLED
-#include "Camera.h"
 #include "GlfwInput.h"
 #include "ResourceLoading.h"
 #endif
@@ -214,43 +213,6 @@ namespace
     }
 
 #ifdef GRAPHICS_ENABLED
-    void TestCameraOrthographicProjection()
-    {
-        Engine::Transform transform;
-        Graphics::Camera camera(transform);
-        camera.SetIsOrthographic(true);
-        camera.SetOrthographicSize(4.0f);
-
-        const Matrix4f projection = camera.GetProjectionMatrix(2.0f);
-        Require(NearlyEqual(projection[0][0], 0.25f), "Orthographic width follows aspect ratio");
-        Require(NearlyEqual(projection[1][1], 0.5f), "Orthographic height follows orthographic size");
-    }
-
-    void TestCameraPerspectiveProjection()
-    {
-        Engine::Transform transform;
-        Graphics::Camera camera(transform);
-        camera.SetIsOrthographic(false);
-
-        const Matrix4f projection = camera.GetProjectionMatrix(2.0f);
-        Require(NearlyEqual(projection[0][0], 0.5f), "Perspective horizontal scale uses aspect ratio");
-        Require(NearlyEqual(projection[1][1], 1.0f), "Perspective vertical scale uses field of view");
-    }
-
-    void TestCameraViewMatrix()
-    {
-        Engine::Transform transform;
-        transform.SetPosition({0.0f, 0.0f, 3.0f});
-        Graphics::Camera camera(transform);
-
-        const Vector4f cameraPositionInView =
-            camera.GetViewMatrix() * Vector4f{transform.GetPosition(), 1.0f};
-        Require(NearlyEqual(cameraPositionInView.x, 0.0f) &&
-                    NearlyEqual(cameraPositionInView.y, 0.0f) &&
-                    NearlyEqual(cameraPositionInView.z, 0.0f),
-                "View matrix maps camera position to the origin");
-    }
-
     void TestGlfwInputTranslation()
     {
         Require(Graphics::ToSharedKeyCode(GLFW_KEY_A) == KeyCode::A,
@@ -741,9 +703,6 @@ int main()
         {"transform rotation", TestTransformRotation},
         {"transform rejects parallel look direction", TestTransformRejectsParallelLookDirection},
 #ifdef GRAPHICS_ENABLED
-        {"orthographic camera projection", TestCameraOrthographicProjection},
-        {"perspective camera projection", TestCameraPerspectiveProjection},
-        {"camera view matrix", TestCameraViewMatrix},
         {"GLFW input translation", TestGlfwInputTranslation},
         {"resource initialization drops failures", TestResourceInitializationDropsFailures},
         {"resource loaders generate relative names", TestResourceLoadersGenerateRelativeNames},

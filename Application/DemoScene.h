@@ -15,8 +15,7 @@
 #include "Texture2DResource.h"
 #include "Window.h"
 #include "ImGuiUtils.h"
-#include "Camera.h"
-
+#include "Transform.h"
 #include "AssetResourceManager.h"
 
 struct SceneObject
@@ -28,7 +27,24 @@ struct SceneObject
 struct SceneCamera
 {
     Engine::Transform transform;
-    Graphics::Camera camera{transform};
+    float nearPlane = 0.1f, farPlane = 100.f, fov = 90.f;
+
+    Matrix4f ViewMatrix()
+    {
+        return Engine::GetMatrix_Look(
+            transform.GetPosition(),
+            transform.GetForward(),
+            transform.GetUp());
+    }
+
+    Matrix4f ProjectionMatrix(const float aspect)
+    {
+        return Graphics::GetMatrix_Perspective(
+            fov,
+            aspect,
+            nearPlane,
+            farPlane);
+    }
 };
 
 struct PlayerObject
