@@ -59,3 +59,8 @@ void Engine::Transform::SetLookDirection(const Vector3f &direction, const Vector
 
     SetRotation(glm::quatLookAt(normalizedDirection, normalizedUp));
 }
+
+void Engine::Transform::SetLookAtPoint(const Vector3f &target, const Vector3f &up)
+{
+    SetLookDirection(target - position, up);
+}

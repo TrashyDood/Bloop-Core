@@ -2,7 +2,7 @@
 
 A work-in-progress C++17 OpenGL demo with a GLFW window, GLAD, and GLM. It renders animated cubes and pyramids, with a flying camera and keyboard/mouse input. When enabled, Dear ImGui provides an in-app panel for camera, display, and frame-rate settings. The input handler supports typed keyboard and mouse codes, including wildcard bindings.
 
-Controls: WASD to move, Q/E vertically, mouse buttons to orbit, scroll to zoom, F for wireframe, G for orthographic view, V for VSync, R to reset the camera, and Esc to exit.
+Controls: Player 1 uses WASD to move and Q/E to rotate; Player 2 uses keypad 8/4/2/6 to move and keypad 7/9 to rotate. Esc exits.
 
 ## Build and run
 

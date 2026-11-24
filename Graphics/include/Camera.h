@@ -36,6 +36,8 @@ namespace Graphics
         void SetFarPlane(const float newFarPlane) { farPlane = newFarPlane; }
         void SetIsOrthographic(const bool newIsOrthographic) { isOrthographic = newIsOrthographic; }
         void SetOrthographicSize(const float newOrthographicSize) { orthographicSize = newOrthographicSize; }
+        void SetPerspective(const float newFieldOfView = 90.f, const float newNearPlane = 100.f,
+            const float newFarPlane = 0.1f, const bool newIsOrthographic = false);
     };
 
     class FlyingCamera : public Camera
@@ -135,4 +137,9 @@ namespace Graphics
             return true;
         }
     };
+
+    [[nodiscard]]
+    Matrix4f GetPerspectiveMatrix(const float fieldOfView, const float aspectRatio, const float nearPlane, const float farPlane);
+    [[nodiscard]]
+    Matrix4f GetOrthographicMatrix(const float orthographicSize, const float aspectRatio, const float nearPlane, const float farPlane);
 }

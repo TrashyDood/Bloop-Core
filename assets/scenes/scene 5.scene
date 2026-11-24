@@ -1,0 +1,4 @@
+cube -2 0 -4
+torus 0 0 -4
+test 2 0 -4
+multi_mesh 0 2 -5

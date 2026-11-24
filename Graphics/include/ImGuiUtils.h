@@ -2,6 +2,7 @@
 
 #ifdef IMGUI_ENABLED
 #include "LogHandler.h"
+#include "IOUtils.h"
 #include "Shared.h"
 
 #ifndef GLFW_INCLUDE_NONE
@@ -14,6 +15,7 @@
 #include <imgui_impl_opengl3.h>
 
 #include <chrono>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -34,7 +36,9 @@ namespace ImGuiUtils
         SceneDiagnosticWindow(const std::vector<std::string> &shaderNames,
             const std::vector<std::string> &meshNames, const std::vector<std::string> &textureNames);
 
-        void Draw(const float deltaTime, const float elapsedTime, const UInt64 elapsedFrames);
+        void Draw(const float deltaTime, const float elapsedTime, const UInt64 elapsedFrames,
+            const std::string &currentSceneName, const std::vector<IO::Path> &sceneFilePaths,
+            const std::function<void(const std::string &)> &onSceneSelected);
     };
 
     struct LogWindow

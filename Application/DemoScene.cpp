@@ -1,7 +1,10 @@
 #include "DemoScene.h"
 
 #include <glm/gtc/type_ptr.hpp>
+#include <fstream>
+#include <sstream>
 #include "Graphics.h"
+#include "IOUtils.h"
 
 namespace // Local helpers
 {
@@ -43,6 +46,61 @@ namespace // Local helpers
         outTextureSamplerUniform = textureSamplerUniform;
         return true;
     }
+
+    bool DiscoverSceneFiles(const std::filesystem::path &rootDirectory, std::vector<IO::Path> &outPaths)
+    {
+        outPaths.clear();
+
+        const std::regex sceneFilePattern(R"(.*\.scene)");
+        for (const auto &scenePath : IO::FindMatchingFiles_Parallel(rootDirectory, sceneFilePattern))
+            outPaths.emplace_back(IO::Path::FromAbsolute(scenePath, rootDirectory));
+
+        return outPaths.size() > 0;
+    }
+
+    Int32 LoadSceneObjects(const std::filesystem::path &scenePath,
+        std::vector<std::shared_ptr<SceneObject>> &outObjects)
+    {
+        std::ifstream sceneFile(scenePath);
+        if (!sceneFile)
+        {
+            LOG_ERROR("Failed to open scene file '%s'.\n", scenePath.string().c_str());
+            return EXIT_FAILURE;
+        }
+
+        std::string line;
+        UInt32 lineNumber = 0;
+        while (std::getline(sceneFile, line))
+        {
+            ++lineNumber;
+
+            std::istringstream lineStream(line);
+            std::string meshName, extra;
+            Vector3f position;
+            if (!(lineStream >> meshName))
+                continue;
+
+            if (!(lineStream >> position.x >> position.y >> position.z) || (lineStream >> extra))
+            {
+                LOG_ERROR("Invalid scene record at line %u in '%s'.\n",
+                    lineNumber, scenePath.string().c_str());
+                return EXIT_FAILURE;
+            }
+
+            auto sceneObject = std::make_shared<SceneObject>();
+            sceneObject->transform = Engine::Transform(position);
+            sceneObject->meshName = meshName;
+            outObjects.emplace_back(std::move(sceneObject));
+        }
+
+        if (sceneFile.bad())
+        {
+            LOG_ERROR("Failed while reading scene file '%s'.\n", scenePath.string().c_str());
+            return EXIT_FAILURE;
+        }
+
+        return EXIT_SUCCESS;
+    }
 } // namespace
 
 DemoSceneLayer::DemoSceneLayer(Application &app) :
@@ -81,11 +139,16 @@ Int32 DemoSceneLayer::OnStart()
     BindInput();
     StartLoadingAssets();
 
+    if (!DiscoverSceneFiles(assetsRootDirectory, sceneFilePaths))
+    {
+        LOG_ERROR("No scene files found under '%s'.\n", assetsRootDirectory.string().c_str());
+        return EXIT_FAILURE;
+    }
+
+    LoadNewScene(sceneFilePaths.front().relativePath.stem().string());
+
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
-
-    cameraTransform.SetPosition({0.f, 0.f, 3.f});
-    cameraTransform.SetLookAtPoint(Vectors::v3fZero);
 
     return EXIT_SUCCESS;
 }
@@ -149,7 +212,6 @@ void DemoSceneLayer::StartLoadingAssets()
         {
             LOG_SCOPE;
             LOG_INFO("Models finished loading.\n");
-            activeMesh = assetManager.GetResourceByIndex<MeshResource>(0);
         });
     assetManager.EnqueueAssetLoad<Texture2DResource>(IO::Path::FromRelative("textures", assetsRootDirectory),
         [&]
@@ -160,33 +222,126 @@ void DemoSceneLayer::StartLoadingAssets()
         });
 }
 
+void DemoSceneLayer::LoadNewScene(const std::string &sceneName)
+{
+    LOG_SCOPE;
+
+    std::vector<std::shared_ptr<SceneObject>> newSceneObjects;
+    const auto scenePath = assetsRootDirectory / "scenes" / (sceneName + ".scene");
+    if (LoadSceneObjects(scenePath, newSceneObjects) != EXIT_SUCCESS)
+        return;
+
+    sceneCameras.clear();
+    scenePlayers.clear();
+    sceneObjects = std::move(newSceneObjects);
+
+    SpawnPlayer(Engine::Transform(Vector3f{-1.f, 0.f, 0.f}));
+    SpawnPlayer(Engine::Transform(Vector3f{1.f, 0.f, 0.f}));
+
+    currentSceneName = sceneName;
+    LOG_INFO("Loaded scene '%s'.\n", sceneName.c_str());
+}
+
+std::shared_ptr<SceneCamera> DemoSceneLayer::SpawnCamera(const Engine::Transform &transform,
+    float fov, float nearPlane, float farPlane)
+{
+    LOG_SCOPE;
+    LOG_INFO("Spawning camera with FOV %.2f, near plane %.2f, far plane %.2f.\n",
+        fov, nearPlane, farPlane);
+
+    sceneCameras.emplace_back(std::make_shared<SceneCamera>());
+    auto sceneCamera = sceneCameras.back();
+    
+    sceneCamera->transform = transform;
+    sceneCamera->camera.SetPerspective(fov, nearPlane, farPlane, false);
+
+    return sceneCamera;
+}
+
+std::shared_ptr<SceneObject> DemoSceneLayer::SpawnSceneObject(const Engine::Transform &transform,
+    const std::string &meshName)
+{
+    LOG_SCOPE;
+    LOG_INFO("Spawning scene object with mesh '%s'.\n", meshName.c_str());
+
+    sceneObjects.emplace_back(std::make_shared<SceneObject>());
+    auto sceneObject = sceneObjects.back();
+
+    sceneObject->transform = transform;
+    sceneObject->meshName = meshName;
+
+    return sceneObject;
+}
+
+std::shared_ptr<PlayerObject> DemoSceneLayer::SpawnPlayer(const Engine::Transform &transform)
+{
+    LOG_SCOPE;
+    LOG_INFO("Spawning player object.\n");
+
+    scenePlayers.emplace_back(std::make_shared<PlayerObject>());
+    auto player = scenePlayers.back();
+
+    player->playerId = static_cast<UInt32>(scenePlayers.size() - 1);
+    player->sceneObject = SpawnSceneObject(transform, "bunny/bunny");
+    player->cameraOffset = Vectors::v3fBackward * 5.f + Vectors::v3fUp * 2.f;
+    
+    Engine::Transform cameraTransform(transform.TransformPoint(player->cameraOffset, false));
+    cameraTransform.SetLookAtPoint(transform.GetPosition());
+    player->sceneCamera = SpawnCamera(cameraTransform, 60.f, 0.1f, 100.f);
+
+    return player;
+}
+
 Int32 DemoSceneLayer::DrawScene(const Application::Time &time)
 {
     LOG_SCOPE;
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    if (activeShader != nullptr && activeMesh != nullptr && activeTexture != nullptr)
+    if (activeShader != nullptr && activeTexture != nullptr)
     {
         GLint modelMatrixUniform, viewMatrixUniform, projectionMatrixUniform, textureSamplerUniform;
         if (GetUniforms(modelMatrixUniform, viewMatrixUniform, projectionMatrixUniform,
                 textureSamplerUniform, activeShader))
         {
             activeShader->Use();
-
-            const Matrix4f modelMatrix = meshTransform.GetTransformMatrix();
-            const Matrix4f viewMatrix = camera.GetViewMatrix();
-            const Matrix4f projectionMatrix = camera.GetProjectionMatrix(windowHost.GetWindowAspectRatio());
-
-            glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, glm::value_ptr(modelMatrix));
-            glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, glm::value_ptr(viewMatrix));
-            glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
-            glUniform1i(textureSamplerUniform, 0);
-
             activeTexture->Bind(GL_TEXTURE0);
-            activeMesh->Draw();
+
+            const UInt32 viewportCount = static_cast<UInt32>(sceneCameras.size());
+            for (UInt32 viewportIndex = 0; viewportIndex < viewportCount; ++viewportIndex)
+            {
+                float aspectRatio = 0.f;
+                if (!windowHost.SetSplitScreenViewport(viewportIndex, viewportCount, aspectRatio))
+                {
+                    LOG_ERROR("Failed to set split-screen viewport %d of %d.\n", viewportIndex, viewportCount);
+                    continue;
+                }
+
+                const auto &camera = sceneCameras[viewportIndex]->camera;
+                const Matrix4f viewMatrix = camera.GetViewMatrix();
+                const Matrix4f projectionMatrix = camera.GetProjectionMatrix(aspectRatio);
+
+                for (auto &object : sceneObjects)
+                {
+                    Graphics::MeshResource *mesh = assetManager.GetResourceByName<Graphics::MeshResource>(object.get()->meshName);
+                    if (!mesh) continue;
+
+                    const Matrix4f modelMatrix = object.get()->transform.GetTransformMatrix();
+
+                    glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, glm::value_ptr(modelMatrix));
+                    glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, glm::value_ptr(viewMatrix));
+                    glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
+                    glUniform1i(textureSamplerUniform, 0);
+
+                    mesh->Draw();
+                }
+            }
         }
     }
+
+    Int32 framebufferWidth = 0, framebufferHeight = 0;
+    if (windowHost.GetFrameBufferSize(framebufferWidth, framebufferHeight))
+        glViewport(0, 0, framebufferWidth, framebufferHeight);
 
     DrawGUI(time);
     
@@ -198,7 +353,9 @@ Int32 DemoSceneLayer::DrawGUI(const Application::Time &time)
 {
     ImGuiUtils::Context::Start();
     logWindow.Draw();
-    diagnosticsWindow.Draw(time.unscaledDeltaTime, time.unscaledElapsedTime, elapsedFrames);
+    diagnosticsWindow.Draw(time.unscaledDeltaTime, time.unscaledElapsedTime, time.elapsedFrames,
+        currentSceneName, sceneFilePaths,
+        [&](const std::string &sceneName) { LoadNewScene(sceneName); });
     ImGuiUtils::Context::End();
 
     return EXIT_SUCCESS;
@@ -206,8 +363,8 @@ Int32 DemoSceneLayer::DrawGUI(const Application::Time &time)
 
 Int32 DemoSceneLayer::Update(const Application::Time &time)
 {
-    ++elapsedFrames;
-    meshTransform.RotateEuler({0.f, 0.5f * time.deltaTime, 0.f});
+    for (const auto &player : scenePlayers)
+        player->Update(time, inputHandler);
 
     return EXIT_SUCCESS;
 }

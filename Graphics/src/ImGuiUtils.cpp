@@ -119,7 +119,9 @@ ImGuiUtils::SceneDiagnosticWindow::SceneDiagnosticWindow(
     : shaderNames(shaderNames), meshNames(meshNames), textureNames(textureNames) { }
 
 void ImGuiUtils::SceneDiagnosticWindow::Draw(
-    const float deltaTime, const float elapsedTime, const UInt64 elapsedFrames)
+    const float deltaTime, const float elapsedTime, const UInt64 elapsedFrames,
+    const std::string &currentSceneName, const std::vector<IO::Path> &sceneFilePaths,
+    const std::function<void(const std::string &)> &onSceneSelected)
 {
     LOG_SCOPE;
 
@@ -133,10 +135,27 @@ void ImGuiUtils::SceneDiagnosticWindow::Draw(
     previousElapsedFrames = elapsedFrames;
     hasPreviousDraw = true;
 
-    if (!ImGui::Begin("Scene Diagnostics"))
+    if (!ImGui::Begin("Context"))
     {
         ImGui::End();
         return;
+    }
+
+    ImGui::SeparatorText("Scene");
+    ImGui::Text("Current scene: %s", currentSceneName.c_str());
+    if (ImGui::BeginCombo("Load scene", currentSceneName.c_str()))
+    {
+        for (const auto &scenePath : sceneFilePaths)
+        {
+            const std::string sceneName = scenePath.relativePath.stem().string();
+            const bool isSelected = sceneName == currentSceneName;
+            if (ImGui::Selectable(sceneName.c_str(), isSelected) &&
+                !isSelected && onSceneSelected)
+                onSceneSelected(sceneName);
+            if (isSelected)
+                ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
     }
 
     ImGui::SeparatorText("Time");

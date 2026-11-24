@@ -1,0 +1,4 @@
+pyramid -2 0 -3
+octahedron 0 0 -3
+triangular_prism 2 0 -3
+icosphere 0 2 -4

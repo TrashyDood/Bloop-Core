@@ -29,8 +29,8 @@ namespace Engine
         [[nodiscard]] Vector3f TransformVector(const Vector3f &vector, const bool includeScale = true) const;
         [[nodiscard]] Vector3f TransformPoint(const Vector3f &point, const bool includeScale = true) const;
 
-        Transform(const Vector3f &position = Vectors::v3fZero,
-            const Quaternionf &rotation = Quaternions::qfIdentity, const Vector3f &scale = Vectors::v3fOne)
+        Transform(const Vector3f &position = Vectors::v3fZero, const Quaternionf &rotation = Quaternions::qfIdentity,
+            const Vector3f &scale = Vectors::v3fOne)
         {
             SetRotation(rotation);
             SetPosition(position);
@@ -43,12 +43,10 @@ namespace Engine
 
         void SetRotationEuler(const Vector3f &newRotationEuler) { SetRotation(Quaternionf{newRotationEuler}); }
         void SetLookDirection(const Vector3f &direction, const Vector3f &up = Vectors::v3fUp);
-        void SetLookAtPoint(const Vector3f &target, const Vector3f &up = Vectors::v3fUp)
-        {
-            SetLookDirection(target - position, up);
-        }
+        void SetLookAtPoint(const Vector3f &target, const Vector3f &up = Vectors::v3fUp);
 
         void Translate(const Vector3f &offset) { SetPosition(position + offset); }
+        void TranslateLocal(const Vector3f &offset) { Translate(TransformVector(offset, false)); }
         void ScaleBy(const Vector3f &factor) { SetScale(scale * factor); }
         void ScaleBy(float factor) { SetScale(scale * factor); }
         void Rotate(const Quaternionf &rotationOffset) { SetRotation(rotation * rotationOffset); }
