@@ -10,7 +10,7 @@
 namespace // Local helpers
 {
     bool GetUniforms(GLint &outModelMatrixUniform, GLint &outViewMatrixUniform, GLint &outProjectionMatrixUniform,
-        GLint &outTextureSamplerUniform, Graphics::ShaderResource *shader)
+        GLint &outTextureSamplerUniform, Graphics::Shader *shader)
     {
         if (shader == nullptr || !shader->IsInitialized())
         {
@@ -18,7 +18,7 @@ namespace // Local helpers
             return false;
         }
 
-        static Graphics::ShaderResource *cachedShader = nullptr;
+        static Graphics::Shader *cachedShader = nullptr;
         static GLint modelMatrixUniform, viewMatrixUniform, projectionMatrixUniform, textureSamplerUniform;
 
         if (cachedShader != shader)
@@ -165,8 +165,12 @@ Int32 DemoSceneLayer::OnStart()
     StartLoadingAssets();
 
     sceneEntities.Add();
-    sceneEntities.Add({});
-    cameraEntities.Add({Vectors::v3fBackward * 5.f}, {});
+    sceneEntities.Add();
+    cameraEntities.Add<Engine::Transform, Camera>({Vectors::v3fBackward * 5.f}, {});
+
+    Camera *camera;
+    Engine::Transform *transform;
+    cameraEntities.Get(0, transform, camera);
 
     if (!DiscoverSceneFiles(assetsRootDirectory, sceneFilePaths))
     {
@@ -228,26 +232,26 @@ void DemoSceneLayer::StartLoadingAssets()
     LOG_SCOPE;
     LOG_INFO("Loading assets from '%s'...\n", assetsRootDirectory.string().c_str());
 
-    assetManager.EnqueueAssetLoad<ShaderResource>(IO::Path::FromRelative("shaders", assetsRootDirectory),
+    assetManager.EnqueueAssetLoad<Shader>(IO::Path::FromRelative("shaders", assetsRootDirectory),
         [&]
         {
             LOG_SCOPE;
             LOG_INFO("Shaders finished loading.\n");
-            activeShader = assetManager.GetResourceByIndex<ShaderResource>(0);
+            activeShader = assetManager.GetResourceByIndex<Shader>(0);
         });
-    assetManager.EnqueueAssetLoad<MeshResource>(IO::Path::FromRelative("models", assetsRootDirectory),
+    assetManager.EnqueueAssetLoad<Mesh>(IO::Path::FromRelative("models", assetsRootDirectory),
         [&]
         {
             LOG_SCOPE;
             LOG_INFO("Models finished loading.\n");
         });
-    assetManager.EnqueueAssetLoad<Texture2DResource>(IO::Path::FromRelative("textures", assetsRootDirectory),
+    assetManager.EnqueueAssetLoad<Texture2D>(IO::Path::FromRelative("textures", assetsRootDirectory),
         [&]
         {
             LOG_SCOPE;
             LOG_INFO("Textures finished loading.\n");
 
-            activeTexture = assetManager.GetResourceByIndex<Texture2DResource>(0);
+            activeTexture = assetManager.GetResourceByIndex<Texture2D>(0);
         });
 }
 
@@ -257,7 +261,7 @@ Int32 DemoSceneLayer::DrawScene(const Application::Time &time)
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    Graphics::MeshResource *mesh = assetManager.GetResourceByName<Graphics::MeshResource>("bunny/bunny");
+    Graphics::Mesh *mesh = assetManager.GetResourceByName<Graphics::Mesh>("bunny/bunny");
 
     if (activeShader != nullptr && activeTexture != nullptr && mesh != nullptr)
     {

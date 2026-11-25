@@ -8,7 +8,7 @@
 
 namespace Graphics
 {
-    class ShaderResource : public ResourceOwner
+    class Shader : public ResourceOwner
     {
         ResourceHandle shaderProgram = 0;
         std::vector<ShaderSource> sources;
@@ -26,14 +26,14 @@ namespace Graphics
         [[nodiscard]]
         bool GetAttributeLocation(const std::string &name, GLint &location) const;
 
-        explicit ShaderResource(std::vector<ShaderSource> sources);
+        explicit Shader(std::vector<ShaderSource> sources);
 
-        ShaderResource(ShaderResource &&other) noexcept;
-        ShaderResource &operator=(ShaderResource &&other) noexcept;
-        ShaderResource(const ShaderResource &) = delete;
-        ShaderResource &operator=(const ShaderResource &) = delete;
+        Shader(Shader &&other) noexcept;
+        Shader &operator=(Shader &&other) noexcept;
+        Shader(const Shader &) = delete;
+        Shader &operator=(const Shader &) = delete;
         
-        ~ShaderResource() override;
+        ~Shader() override;
 
         void Use() const { glUseProgram(shaderProgram); }
         bool InitializeResources() override;

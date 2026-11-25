@@ -12,9 +12,9 @@
 
 // Graphics
 #include "Graphics.h"
-#include "ShaderResource.h"
-#include "MeshResource.h"
-#include "Texture2DResource.h"
+#include "Shader.h"
+#include "Mesh.h"
+#include "Texture2D.h"
 #include "Window.h"
 #include "ImGuiUtils.h"
 
@@ -61,8 +61,8 @@ private:
     Graphics::Window windowHost;
     Engine::InputHandler inputHandler;
 
-    Graphics::ShaderResource *activeShader = nullptr;
-    Graphics::Texture2DResource *activeTexture = nullptr;
+    Graphics::Shader *activeShader = nullptr;
+    Graphics::Texture2D *activeTexture = nullptr;
 
     AssetResourceManager assetManager;
 
@@ -83,6 +83,7 @@ private:
 
     SceneObjectArchetype<> sceneEntities;
     SceneObjectArchetype<Camera> cameraEntities;
+    
 
     Int32 DrawScene(const Application::Time &time);
     Int32 DrawGUI(const Application::Time &time);

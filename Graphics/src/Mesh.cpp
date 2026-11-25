@@ -1,4 +1,4 @@
-#include "MeshResource.h"
+#include "Mesh.h"
 
 #include "Graphics.h"
 #include "LogHandler.h"
@@ -7,13 +7,13 @@
 #include <limits>
 #include <utility>
 
-Graphics::MeshResource::MeshResource(const MeshVertices &vertices, const MeshIndices &indices)
+Graphics::Mesh::Mesh(const MeshVertices &vertices, const MeshIndices &indices)
     : vertices(vertices), indices(indices) { }
 
-Graphics::MeshResource::MeshResource(MeshVertices &&vertices, MeshIndices &&indices)
+Graphics::Mesh::Mesh(MeshVertices &&vertices, MeshIndices &&indices)
     : vertices(std::move(vertices)), indices(std::move(indices)) { }
 
-Graphics::MeshResource::MeshResource(MeshResource &&other) noexcept
+Graphics::Mesh::Mesh(Mesh &&other) noexcept
     : ResourceOwner(std::move(other)),
       vertexArray(std::exchange(other.vertexArray, 0)),
       vertexBuffer(std::exchange(other.vertexBuffer, 0)),
@@ -21,7 +21,7 @@ Graphics::MeshResource::MeshResource(MeshResource &&other) noexcept
       vertices(std::move(other.vertices)),
       indices(std::move(other.indices)) { }
 
-Graphics::MeshResource &Graphics::MeshResource::operator=(MeshResource &&other) noexcept
+Graphics::Mesh &Graphics::Mesh::operator=(Mesh &&other) noexcept
 {
     if (this != &other)
     {
@@ -37,17 +37,17 @@ Graphics::MeshResource &Graphics::MeshResource::operator=(MeshResource &&other) 
     return *this;
 }
 
-Graphics::MeshResource::~MeshResource()
+Graphics::Mesh::~Mesh()
 {
     ReleaseResources();
 }
 
-bool Graphics::MeshResource::IsInitialized() const
+bool Graphics::Mesh::IsInitialized() const
 {
     return vertexArray != 0 && vertexBuffer != 0 && (indices.empty() || indexBuffer != 0);
 }
 
-void Graphics::MeshResource::ReleaseResources() noexcept
+void Graphics::Mesh::ReleaseResources() noexcept
 {
     if (vertexArray != 0)
         glDeleteVertexArrays(1, &vertexArray);
@@ -61,7 +61,7 @@ void Graphics::MeshResource::ReleaseResources() noexcept
     indexBuffer = 0;
 }
 
-bool Graphics::MeshResource::InitializeResources()
+bool Graphics::Mesh::InitializeResources()
 {
     LOG_SCOPE;
 
@@ -86,7 +86,7 @@ bool Graphics::MeshResource::InitializeResources()
     return true;
 }
 
-bool Graphics::MeshResource::Draw() const
+bool Graphics::Mesh::Draw() const
 {
     LOG_SCOPE;
 

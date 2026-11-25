@@ -1,18 +1,18 @@
-#include "Texture2DResource.h"
+#include "Texture2D.h"
 
 #include "LogHandler.h"
 
 #include <utility>
 
-Graphics::Texture2DResource::Texture2DResource(
+Graphics::Texture2D::Texture2D(
     Int32 width, Int32 height, std::vector<UInt8> rgbaPixels)
     : width(width), height(height), pixels(std::move(rgbaPixels)) { }
 
-Graphics::Texture2DResource::Texture2DResource(Texture2DResource &&other) noexcept
+Graphics::Texture2D::Texture2D(Texture2D &&other) noexcept
     : ResourceOwner(std::move(other)), texture(std::exchange(other.texture, 0)), width(std::exchange(other.width, 0)),
       height(std::exchange(other.height, 0)), pixels(std::move(other.pixels)) { }
 
-Graphics::Texture2DResource &Graphics::Texture2DResource::operator=(Texture2DResource &&other) noexcept
+Graphics::Texture2D &Graphics::Texture2D::operator=(Texture2D &&other) noexcept
 {
     if (this != &other)
     {
@@ -27,24 +27,24 @@ Graphics::Texture2DResource &Graphics::Texture2DResource::operator=(Texture2DRes
     return *this;
 }
 
-Graphics::Texture2DResource::~Texture2DResource()
+Graphics::Texture2D::~Texture2D()
 {
     ReleaseResources();
 }
 
-bool Graphics::Texture2DResource::IsInitialized() const
+bool Graphics::Texture2D::IsInitialized() const
 {
     return texture != 0;
 }
 
-void Graphics::Texture2DResource::ReleaseResources() noexcept
+void Graphics::Texture2D::ReleaseResources() noexcept
 {
     if (texture != 0)
         glDeleteTextures(1, &texture);
     texture = 0;
 }
 
-bool Graphics::Texture2DResource::InitializeResources()
+bool Graphics::Texture2D::InitializeResources()
 {
     LOG_SCOPE;
 
@@ -58,7 +58,7 @@ bool Graphics::Texture2DResource::InitializeResources()
     return true;
 }
 
-void Graphics::Texture2DResource::Bind(const GLenum textureUnit) const
+void Graphics::Texture2D::Bind(const GLenum textureUnit) const
 {
     glActiveTexture(textureUnit);
     glBindTexture(GL_TEXTURE_2D, texture);

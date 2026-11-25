@@ -10,7 +10,7 @@
 
 namespace Graphics
 {
-    class Texture2DResource : public ResourceOwner
+    class Texture2D : public ResourceOwner
     {
         ResourceHandle texture = 0;
         Int32 width,
@@ -21,15 +21,15 @@ namespace Graphics
         [[nodiscard]] ResourceHandle GetTextureHandle() const { return texture; }
         [[nodiscard]] bool IsInitialized() const override;
 
-        Texture2DResource() = default;
-        Texture2DResource(Int32 width, Int32 height, std::vector<UInt8> rgbaPixels);
+        Texture2D() = default;
+        Texture2D(Int32 width, Int32 height, std::vector<UInt8> rgbaPixels);
 
-        Texture2DResource(Texture2DResource &&other) noexcept;
-        Texture2DResource &operator=(Texture2DResource &&other) noexcept;
-        Texture2DResource(const Texture2DResource &) = delete;
-        Texture2DResource &operator=(const Texture2DResource &) = delete;
+        Texture2D(Texture2D &&other) noexcept;
+        Texture2D &operator=(Texture2D &&other) noexcept;
+        Texture2D(const Texture2D &) = delete;
+        Texture2D &operator=(const Texture2D &) = delete;
 
-        ~Texture2DResource() override;
+        ~Texture2D() override;
 
         bool InitializeResources() override;
         void Bind(GLenum textureUnit = GL_TEXTURE0) const;

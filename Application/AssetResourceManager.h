@@ -24,9 +24,9 @@ class AssetResourceManager
         Graphics::ResourceLoadQueue<TResource> loadQueue;
     };
 
-    AssetRegistry<Graphics::ShaderResource> shaders;
-    AssetRegistry<Graphics::MeshResource> meshes;
-    AssetRegistry<Graphics::Texture2DResource> textures;
+    AssetRegistry<Graphics::Shader> shaders;
+    AssetRegistry<Graphics::Mesh> meshes;
+    AssetRegistry<Graphics::Texture2D> textures;
 
     // Injects the given resources into given list and assigns them a name-to-index key
     template <typename TResource>
@@ -48,13 +48,13 @@ class AssetResourceManager
     template <typename TResource>
     AssetRegistry<TResource> &GetAssetRegistry()
     {
-        if constexpr (std::is_same_v<TResource, Graphics::ShaderResource>)
+        if constexpr (std::is_same_v<TResource, Graphics::Shader>)
             return shaders;
-        else if constexpr (std::is_same_v<TResource, Graphics::MeshResource>)
+        else if constexpr (std::is_same_v<TResource, Graphics::Mesh>)
             return meshes;
         else
         {
-            static_assert(std::is_same_v<TResource, Graphics::Texture2DResource>,
+            static_assert(std::is_same_v<TResource, Graphics::Texture2D>,
                 "AssetResourceManager only supports shader, mesh, and texture resources.");
             return textures;
         }
@@ -72,21 +72,21 @@ public:
     template <typename TResource>
     const AssetRegistry<TResource> &GetAssetRegistry() const
     {
-        if constexpr (std::is_same_v<TResource, Graphics::ShaderResource>)
+        if constexpr (std::is_same_v<TResource, Graphics::Shader>)
             return shaders;
-        else if constexpr (std::is_same_v<TResource, Graphics::MeshResource>)
+        else if constexpr (std::is_same_v<TResource, Graphics::Mesh>)
             return meshes;
         else
         {
-            static_assert(std::is_same_v<TResource, Graphics::Texture2DResource>,
+            static_assert(std::is_same_v<TResource, Graphics::Texture2D>,
                 "AssetResourceManager only supports shader, mesh, and texture resources.");
             return textures;
         }
     }
 
-    [[nodiscard]] const std::vector<Graphics::ShaderResource> &Shaders() noexcept { return shaders.resources; }
-    [[nodiscard]] const std::vector<Graphics::MeshResource> &Meshes() noexcept { return meshes.resources; }
-    [[nodiscard]] const std::vector<Graphics::Texture2DResource> &Textures() const noexcept { return textures.resources; }
+    [[nodiscard]] const std::vector<Graphics::Shader> &Shaders() noexcept { return shaders.resources; }
+    [[nodiscard]] const std::vector<Graphics::Mesh> &Meshes() noexcept { return meshes.resources; }
+    [[nodiscard]] const std::vector<Graphics::Texture2D> &Textures() const noexcept { return textures.resources; }
     [[nodiscard]] const std::vector<std::string> &MeshNames() const noexcept { return meshes.names; }
     [[nodiscard]] const std::vector<std::string> &ShaderNames() const noexcept { return shaders.names; }
     [[nodiscard]] const std::vector<std::string> &TextureNames() const noexcept { return textures.names; }

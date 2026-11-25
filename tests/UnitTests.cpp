@@ -335,9 +335,9 @@ namespace
         WriteTextFile(shaderRoot / "other" / "program.vert.glsl", "another vertex shader");
         WriteTextFile(shaderRoot / "other" / "program.unknown.glsl", "unsupported shader stage");
 
-        std::vector<Graphics::ShaderResource> shaders;
+        std::vector<Graphics::Shader> shaders;
         std::vector<std::string> shaderNames;
-        Graphics::LoadedResources<Graphics::ShaderResource> shaderResults{shaders, shaderNames};
+        Graphics::LoadedResources<Graphics::Shader> shaderResults{shaders, shaderNames};
         Graphics::LoadShaderResources_Parallel(shaderResults, IO::Path::FromAbsolute(shaderRoot, root));
         Require(shaderResults.filesFound == 4 && shaderResults.filesFailed == 1,
                 "Shader loader reports discovered and discarded files");
@@ -362,9 +362,9 @@ namespace
             "vn 0 0 1\n"
             "f 1/1/1 2/2/1 3/3/1\n");
 
-        std::vector<Graphics::MeshResource> meshes;
+        std::vector<Graphics::Mesh> meshes;
         std::vector<std::string> meshNames;
-        Graphics::LoadedResources<Graphics::MeshResource> meshResults{meshes, meshNames};
+        Graphics::LoadedResources<Graphics::Mesh> meshResults{meshes, meshNames};
         Graphics::LoadMeshResources_Parallel(meshResults, IO::Path::FromAbsolute(meshRoot, root));
         Require(meshResults.filesFound == 1 && meshResults.filesFailed == 0,
                 "Mesh loader reports successfully loaded and discarded files");
@@ -380,9 +380,9 @@ namespace
         std::filesystem::copy_file(textureSource, texturePath);
         WriteTextFile(root / "textures" / "nested" / "broken.png", "not a texture");
 
-        std::vector<Graphics::Texture2DResource> textures;
+        std::vector<Graphics::Texture2D> textures;
         std::vector<std::string> textureNames;
-        Graphics::LoadedResources<Graphics::Texture2DResource> textureResults{textures, textureNames};
+        Graphics::LoadedResources<Graphics::Texture2D> textureResults{textures, textureNames};
         Graphics::LoadTextureResources_Parallel(textureResults, IO::Path::FromAbsolute(root / "textures", root));
         Require(textureResults.filesFound == 2 && textureResults.filesFailed == 1,
                 "Texture loader reports discovered and discarded files");
@@ -391,13 +391,13 @@ namespace
         Require(textureNames == std::vector<std::string>{"nested/sample"},
                 "Texture names include their path relative to the root");
 
-        std::vector<Graphics::ShaderResource> allShaders;
-        std::vector<Graphics::MeshResource> allMeshes;
-        std::vector<Graphics::Texture2DResource> allTextures;
+        std::vector<Graphics::Shader> allShaders;
+        std::vector<Graphics::Mesh> allMeshes;
+        std::vector<Graphics::Texture2D> allTextures;
         std::vector<std::string> allShaderNames, allMeshNames, allTextureNames;
-        Graphics::LoadedResources<Graphics::ShaderResource> allShaderResults{allShaders, allShaderNames};
-        Graphics::LoadedResources<Graphics::MeshResource> allMeshResults{allMeshes, allMeshNames};
-        Graphics::LoadedResources<Graphics::Texture2DResource> allTextureResults{allTextures, allTextureNames};
+        Graphics::LoadedResources<Graphics::Shader> allShaderResults{allShaders, allShaderNames};
+        Graphics::LoadedResources<Graphics::Mesh> allMeshResults{allMeshes, allMeshNames};
+        Graphics::LoadedResources<Graphics::Texture2D> allTextureResults{allTextures, allTextureNames};
         Graphics::LoadResources_Parallel(
             allShaderResults, IO::Path::FromAbsolute(shaderRoot, root),
             allMeshResults, IO::Path::FromAbsolute(meshRoot, root),

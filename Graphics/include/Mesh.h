@@ -9,7 +9,7 @@
 namespace Graphics
 {
     // Represents a mesh in OpenGL, managing its vertex array, vertex buffer, and index buffer.
-    class MeshResource : public ResourceOwner
+    class Mesh : public ResourceOwner
     {
         ResourceHandle vertexArray = 0;
         ResourceHandle vertexBuffer = 0;
@@ -25,15 +25,15 @@ namespace Graphics
         [[nodiscard]] ResourceHandle GetIndexBuffer() const { return indexBuffer; }
         [[nodiscard]] bool IsInitialized() const override;
 
-        explicit MeshResource(const MeshVertices &vertices, const MeshIndices &indices = {});
-        explicit MeshResource(MeshVertices &&vertices, MeshIndices &&indices = {});
+        explicit Mesh(const MeshVertices &vertices, const MeshIndices &indices = {});
+        explicit Mesh(MeshVertices &&vertices, MeshIndices &&indices = {});
 
-        MeshResource(MeshResource &&other) noexcept;
-        MeshResource &operator=(MeshResource &&other) noexcept;
-        MeshResource(const MeshResource &) = delete;
-        MeshResource &operator=(const MeshResource &) = delete;
+        Mesh(Mesh &&other) noexcept;
+        Mesh &operator=(Mesh &&other) noexcept;
+        Mesh(const Mesh &) = delete;
+        Mesh &operator=(const Mesh &) = delete;
 
-        ~MeshResource() override;
+        ~Mesh() override;
 
         bool InitializeResources() override;
         bool Draw() const;

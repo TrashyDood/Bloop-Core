@@ -166,7 +166,7 @@ bool Graphics::LoadShaderResourceFile(ShaderSource &outShaderSource, std::string
     return true;
 }
 
-void Graphics::LoadMeshFile(std::vector<MeshResource> &outMeshes, std::vector<std::string> &outNames,
+void Graphics::LoadMeshFile(std::vector<Mesh> &outMeshes, std::vector<std::string> &outNames,
     const IO::Path &file, UInt32 &outSucceededCount, UInt32 &outFailedCount)
 {
     LOG_SCOPE;
@@ -190,7 +190,7 @@ void Graphics::LoadMeshFile(std::vector<MeshResource> &outMeshes, std::vector<st
     }
 }
 
-bool Graphics::LoadTexture2DResourceFile(Texture2DResource &outTexture, std::string &outName,
+bool Graphics::LoadTexture2DResourceFile(Texture2D &outTexture, std::string &outName,
     const IO::Path &file)
 {
     LOG_SCOPE;
@@ -209,7 +209,7 @@ bool Graphics::LoadTexture2DResourceFile(Texture2DResource &outTexture, std::str
     const auto byteCount = static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4;
     std::vector<UInt8> rgba(image.get(), image.get() + byteCount);
 
-    outTexture = Texture2DResource(width, height, std::move(rgba));
+    outTexture = Texture2D(width, height, std::move(rgba));
     outName = GetRelativeName(file, file.relativePath.stem());
     
     return true;
@@ -217,7 +217,7 @@ bool Graphics::LoadTexture2DResourceFile(Texture2DResource &outTexture, std::str
 #pragma endregion
 
 #pragma region Load Several Resources
-void Graphics::LoadShaderResources_Parallel(LoadedResources<ShaderResource> &outResults,
+void Graphics::LoadShaderResources_Parallel(LoadedResources<Shader> &outResults,
     const IO::Path &rootDirectory)
 {
     LOG_SCOPE;
@@ -226,7 +226,7 @@ void Graphics::LoadShaderResources_Parallel(LoadedResources<ShaderResource> &out
 
     const std::size_t loadedResourceStart = outResults.loadedResources.size();
     ShaderGroupMap shaderGroups;
-    LoadResourcesFromFiles_Parallel<ShaderResource, ShaderGroupMap>(
+    LoadResourcesFromFiles_Parallel<Shader, ShaderGroupMap>(
         rootDirectory, outResults, "shader", std::regex(".*\\.glsl", std::regex::icase),
         [](const IO::Path &file, ShaderGroupMap &results, UInt32 &loadedCount, UInt32 &failedCount)
         {
@@ -259,14 +259,14 @@ void Graphics::LoadShaderResources_Parallel(LoadedResources<ShaderResource> &out
         static_cast<UInt32>(outResults.loadedResources.size() - loadedResourceStart);
 }
 
-void Graphics::LoadMeshResources_Parallel(LoadedResources<MeshResource> &outResults,
+void Graphics::LoadMeshResources_Parallel(LoadedResources<Mesh> &outResults,
     const IO::Path &rootDirectory)
 {
     LOG_SCOPE;
 
-    using ChunkResult = std::tuple<std::vector<MeshResource>, std::vector<std::string>>;
+    using ChunkResult = std::tuple<std::vector<Mesh>, std::vector<std::string>>;
     const std::size_t loadedResourceStart = outResults.loadedResources.size();
-    LoadResourcesFromFiles_Parallel<MeshResource, ChunkResult>(
+    LoadResourcesFromFiles_Parallel<Mesh, ChunkResult>(
         rootDirectory, outResults, "model", std::regex(".*\\.obj", std::regex::icase),
         [](const IO::Path &file, ChunkResult &results, UInt32 &loadedCount, UInt32 &failedCount)
         {
@@ -281,18 +281,18 @@ void Graphics::LoadMeshResources_Parallel(LoadedResources<MeshResource> &outResu
         static_cast<UInt32>(outResults.loadedResources.size() - loadedResourceStart);
 }
 
-void Graphics::LoadTextureResources_Parallel(LoadedResources<Texture2DResource> &outResults, const IO::Path &rootDirectory)
+void Graphics::LoadTextureResources_Parallel(LoadedResources<Texture2D> &outResults, const IO::Path &rootDirectory)
 {
     LOG_SCOPE;
 
-    using ChunkResult = std::tuple<std::vector<Texture2DResource>, std::vector<std::string>>;
+    using ChunkResult = std::tuple<std::vector<Texture2D>, std::vector<std::string>>;
     const std::size_t loadedResourceStart = outResults.loadedResources.size();
-    LoadResourcesFromFiles_Parallel<Texture2DResource, ChunkResult>(
+    LoadResourcesFromFiles_Parallel<Texture2D, ChunkResult>(
         rootDirectory, outResults, "texture", std::regex(".*\\.(png|jpg|jpeg)", std::regex::icase),
         [](const IO::Path &file, ChunkResult &results, UInt32 &loadedCount, UInt32 &failedCount)
         {
             std::string name;
-            Texture2DResource texture;
+            Texture2D texture;
             if (!LoadTexture2DResourceFile(texture, name, file))
             {
                 failedCount = 1;

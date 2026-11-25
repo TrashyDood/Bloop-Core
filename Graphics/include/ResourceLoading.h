@@ -3,9 +3,9 @@
 #include "Shared.h"
 #include "IOUtils.h"
 
-#include "MeshResource.h"
-#include "ShaderResource.h"
-#include "Texture2DResource.h"
+#include "Mesh.h"
+#include "Shader.h"
+#include "Texture2D.h"
 
 #include <vector>
 #include <optional>
@@ -69,15 +69,15 @@ namespace Graphics
 
 #pragma region Load Resource File
     bool LoadShaderResourceFile(Graphics::ShaderSource &outShaderSource, std::string &outGroup, const IO::Path &file);
-    void LoadMeshFile(std::vector<Graphics::MeshResource> &outMeshes, std::vector<std::string> &outNames,
+    void LoadMeshFile(std::vector<Graphics::Mesh> &outMeshes, std::vector<std::string> &outNames,
         const IO::Path &file, UInt32 &outSucceededCount, UInt32 &outFailedCount);
-    bool LoadTexture2DResourceFile(Graphics::Texture2DResource &outTexture, std::string &outName, const IO::Path &file);
+    bool LoadTexture2DResourceFile(Graphics::Texture2D &outTexture, std::string &outName, const IO::Path &file);
 #pragma endregion
 
 #pragma region Load Resources
-    void LoadShaderResources_Parallel(LoadedResources<Graphics::ShaderResource> &outResults, const IO::Path &directory);
-    void LoadMeshResources_Parallel(LoadedResources<Graphics::MeshResource> &outResults, const IO::Path &directory);
-    void LoadTextureResources_Parallel(LoadedResources<Graphics::Texture2DResource> &outResults, const IO::Path &directory);
+    void LoadShaderResources_Parallel(LoadedResources<Graphics::Shader> &outResults, const IO::Path &directory);
+    void LoadMeshResources_Parallel(LoadedResources<Graphics::Mesh> &outResults, const IO::Path &directory);
+    void LoadTextureResources_Parallel(LoadedResources<Graphics::Texture2D> &outResults, const IO::Path &directory);
 #pragma endregion
 
 #pragma region Load Resources Generic
@@ -86,16 +86,16 @@ namespace Graphics
     {
         LOG_SCOPE;
 
-        if constexpr (std::is_same_v<TResource, Graphics::ShaderResource>)
+        if constexpr (std::is_same_v<TResource, Graphics::Shader>)
             LoadShaderResources_Parallel(outResources, directory);
-        else if constexpr (std::is_same_v<TResource, Graphics::MeshResource>)
+        else if constexpr (std::is_same_v<TResource, Graphics::Mesh>)
             LoadMeshResources_Parallel(outResources, directory);
-        else if constexpr (std::is_same_v<TResource, Graphics::Texture2DResource>)
+        else if constexpr (std::is_same_v<TResource, Graphics::Texture2D>)
             LoadTextureResources_Parallel(outResources, directory);
         else
-            static_assert(std::is_same_v<TResource, Graphics::ShaderResource> ||
-                std::is_same_v<TResource, Graphics::MeshResource> ||
-                std::is_same_v<TResource, Graphics::Texture2DResource>,
+            static_assert(std::is_same_v<TResource, Graphics::Shader> ||
+                std::is_same_v<TResource, Graphics::Mesh> ||
+                std::is_same_v<TResource, Graphics::Texture2D>,
                 "LoadResources_Parallel supports shader, mesh, and texture resources.");
     }
 
