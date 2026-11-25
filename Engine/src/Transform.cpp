@@ -36,8 +36,11 @@ void Engine::Transform::SetRotation(const Quaternionf &newRotation)
 {
     rotation = glm::dot(newRotation, newRotation) > 0.0f ?
         glm::normalize(newRotation) : Quaternionf{1.0f, 0.0f, 0.0f, 0.0f};
+}
 
-    rotationEuler = glm::eulerAngles(rotation);
+void Engine::Transform::SetRotationEuler(const Vector3f &newRotationEuler)
+{
+    SetRotation(Quaternionf{newRotationEuler});
 }
 
 void Engine::Transform::SetLookDirection(const Vector3f &direction, const Vector3f &up)

@@ -52,17 +52,14 @@ namespace // Local helpers
     {
         outPaths.clear();
 
-        const std::regex sceneFilePattern(R"(.*\.scene)");
-        for (const auto &scenePath : IO::FindMatchingFiles_Parallel(rootDirectory, sceneFilePattern))
+        for (const auto &scenePath : IO::FindMatchingFiles_Parallel(rootDirectory, std::regex(R"(.*\.scene)")))
             outPaths.emplace_back(IO::Path::FromAbsolute(scenePath, rootDirectory));
 
         return outPaths.size() > 0;
     }
 
-    Int32 LoadSceneObjects(const std::filesystem::path &scenePath,
-        std::vector<std::shared_ptr<SceneObject>> &outObjects,
-        std::vector<Vector3f> &outPlayerSpawnLocations,
-        std::vector<Vector3f> &outGoalLocations)
+    Int32 LoadSceneObjects(const std::filesystem::path &scenePath, std::vector<std::shared_ptr<SceneObject>> &outObjects,
+        std::vector<Vector3f> &outPlayerSpawnLocations, std::vector<Vector3f> &outGoalLocations)
     {
         LOG_SCOPE;
 
@@ -167,9 +164,9 @@ Int32 DemoSceneLayer::OnStart()
     BindInput();
     StartLoadingAssets();
 
-    sceneObjects.AddEntity();
-    sceneObjects.AddEntity({});
-    sceneCameras.AddEntity({Vectors::v3fBackward * 5.f}, {});
+    sceneEntities.Add();
+    sceneEntities.Add({});
+    cameraEntities.Add({Vectors::v3fBackward * 5.f}, {});
 
     if (!DiscoverSceneFiles(assetsRootDirectory, sceneFilePaths))
     {
@@ -249,6 +246,7 @@ void DemoSceneLayer::StartLoadingAssets()
         {
             LOG_SCOPE;
             LOG_INFO("Textures finished loading.\n");
+
             activeTexture = assetManager.GetResourceByIndex<Texture2DResource>(0);
         });
 }
@@ -259,7 +257,9 @@ Int32 DemoSceneLayer::DrawScene(const Application::Time &time)
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    if (activeShader != nullptr && activeTexture != nullptr)
+    Graphics::MeshResource *mesh = assetManager.GetResourceByName<Graphics::MeshResource>("bunny/bunny");
+
+    if (activeShader != nullptr && activeTexture != nullptr && mesh != nullptr)
     {
         GLint modelMatrixUniform, viewMatrixUniform, projectionMatrixUniform, textureSamplerUniform;
         if (GetUniforms(modelMatrixUniform, viewMatrixUniform, projectionMatrixUniform,
@@ -268,18 +268,17 @@ Int32 DemoSceneLayer::DrawScene(const Application::Time &time)
             activeShader->Use();
             activeTexture->Bind(GL_TEXTURE0);
 
-            windowHost.RenderViewports(static_cast<UInt32>(sceneCameras.EntityCount()),
+            auto cameras = cameraEntities.GetComponents<Camera>();
+            auto cameraTransforms = cameraEntities.GetComponents<Engine::Transform>();
+            auto sceneTransforms = sceneEntities.GetComponents<Engine::Transform>();
+
+            windowHost.RenderViewports(static_cast<UInt32>(cameraEntities.Count()),
                 [&](const Graphics::WindowViewportContext &viewport)
-                {
-                    auto camera = sceneCameras.GetComponent<Camera>(viewport.index);
-                    auto cameraTransform = sceneCameras.GetComponent<Engine::Transform>(viewport.index);
-                    
-                    const Matrix4f projectionMatrix = camera->ProjectionMatrix(viewport.aspectRatio);
-                    const Matrix4f viewMatrix = cameraTransform->GetLookMatrix();
+                {                    
+                    const Matrix4f projectionMatrix = cameras[viewport.index].ProjectionMatrix(viewport.aspectRatio);
+                    const Matrix4f viewMatrix = cameraTransforms[viewport.index].GetLookMatrix();
 
-                    Graphics::MeshResource *mesh = assetManager.GetResourceByName<Graphics::MeshResource>("bunny/bunny");
-
-                    for (auto &transform : sceneObjects.GetComponents<Engine::Transform>())
+                    for (auto &transform : sceneTransforms)
                     {
                         const Matrix4f modelMatrix = transform.GetTransformMatrix();
 
@@ -309,8 +308,7 @@ Int32 DemoSceneLayer::DrawGUI(const Application::Time &time)
     ImGuiUtils::Context::Start();
     logWindow.Draw();
     sceneContextWindow.Draw(time.unscaledDeltaTime, time.unscaledElapsedTime, time.elapsedFrames,
-        currentSceneName, sceneFilePaths,
-        [&](const std::string &sceneName) {  });
+        currentSceneName, sceneFilePaths, [&](const std::string &sceneName) {  });
     ImGuiUtils::Context::End();
 
     return EXIT_SUCCESS;

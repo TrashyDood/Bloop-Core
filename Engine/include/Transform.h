@@ -6,14 +6,14 @@ namespace Engine
 {
     class Transform
     {
-        Vector3f position{0.f}, scale{1.f}, rotationEuler{0.f};
-        Quaternionf rotation{1.f, 0.f, 0.f, 0.f};
+        Vector3f position, scale;
+        Quaternionf rotation;
 
     public:
         [[nodiscard]] const Vector3f &GetPosition() const { return position; }
         [[nodiscard]] const Vector3f &GetScale() const { return scale; }
         [[nodiscard]] const Quaternionf &GetRotation() const { return rotation; }
-        [[nodiscard]] const Vector3f &GetRotationEuler() const { return rotationEuler; }
+        [[nodiscard]] const Vector3f GetRotationEuler() const { return glm::eulerAngles(rotation); }
 
         [[nodiscard]] Vector3f GetRight() const { return TransformVector(Vectors::v3fRight, false); }
         [[nodiscard]] Vector3f GetUp() const { return TransformVector(Vectors::v3fUp, false); }
@@ -38,7 +38,7 @@ namespace Engine
         void SetScale(const Vector3f &newScale) { scale = newScale; }
         void SetRotation(const Quaternionf &newRotation);
 
-        void SetRotationEuler(const Vector3f &newRotationEuler) { SetRotation(Quaternionf{newRotationEuler}); }
+        void SetRotationEuler(const Vector3f &newRotationEuler);
         void SetLookDirection(const Vector3f &direction, const Vector3f &up = Vectors::v3fUp);
         void SetLookAtPoint(const Vector3f &target, const Vector3f &up = Vectors::v3fUp);
 

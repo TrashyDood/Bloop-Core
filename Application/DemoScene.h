@@ -65,6 +65,7 @@ private:
     Graphics::Texture2DResource *activeTexture = nullptr;
 
     AssetResourceManager assetManager;
+
     ImGuiUtils::Context imguiContext;
     ImGuiUtils::LogWindow logWindow;
     ImGuiUtils::SceneDiagnosticWindow sceneContextWindow {
@@ -75,8 +76,13 @@ private:
     void BindInput();
     void StartLoadingAssets();
 
-    Engine::ECSArchetypes::EntityArchetype<Engine::Transform> sceneObjects;
-    Engine::ECSArchetypes::EntityArchetype<Engine::Transform, Camera> sceneCameras;
+    using Test = Engine::Transform;
+
+    template <typename... TComps>
+    using SceneObjectArchetype = Engine::ECSArchetypes::EntityArchetype<Engine::Transform, TComps...>;
+
+    SceneObjectArchetype<> sceneEntities;
+    SceneObjectArchetype<Camera> cameraEntities;
 
     Int32 DrawScene(const Application::Time &time);
     Int32 DrawGUI(const Application::Time &time);

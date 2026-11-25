@@ -27,6 +27,8 @@ namespace Engine
                 while (components.size() > size)
                     components.pop_back();
             }
+
+            void Delete(Entity)
         };
 
         // Generic ECS archetype capable of only handling one of each type of component per entity.
@@ -36,7 +38,9 @@ namespace Engine
             std::size_t entityCount = 0;
 
         public:
-            std::size_t EntityCount() const noexcept { return entityCount; }
+            std::size_t Count() const noexcept { return entityCount; }
+
+            [[nodiscard]] bool ValidEntity(const Entity entity) { return entity < 0 || entity >= entityCount; }
 
             template <typename T>
             std::vector<T> &GetComponents() { return static_cast<ComponentStorage<T> &>(*this).components; }
@@ -44,14 +48,17 @@ namespace Engine
             template <typename T>
             T *GetComponent(const Entity entity)
             {
-                auto &components = GetComponents<T>();
-                if (entity < 0 || static_cast<std::size_t>(entity) >= components.size()) return nullptr;
+                if (ValidEntity(entity))
 
-                return &components[entity];
+                auto &components = GetComponents<T>();
+                if (ValidEntity(entity))
+                    return &components[entity];
+
+                return nullptr;
             }
 
-            Entity AddEntity() { return AddEntity(TComponents{}...); }
-            Entity AddEntity(TComponents... component)
+            Entity Add() { return Add(TComponents{}...); }
+            Entity Add(TComponents... component)
             {
                 if (entityCount > static_cast<std::size_t>(std::numeric_limits<Entity>::max()))
                     throw std::length_error("EntityArchetype has no available entity IDs");
@@ -69,6 +76,13 @@ namespace Engine
 
                 ++entityCount;
                 return entity;
+            }
+
+            bool Delete(const Entity)
+            {
+                if (!ValidEntity(entity)) return false;
+
+                return true;
             }
         };
     }
