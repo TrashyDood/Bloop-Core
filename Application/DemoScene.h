@@ -76,14 +76,11 @@ private:
     void BindInput();
     void StartLoadingAssets();
 
-    using Test = Engine::Transform;
+    template <typename... TComponents>
+    using SceneEntityArchetype = Engine::ECSArchetypes::LooseEntityArchetype<TComponents...>;
 
-    template <typename... TComps>
-    using SceneObjectArchetype = Engine::ECSArchetypes::EntityArchetype<Engine::Transform, TComps...>;
-
-    SceneObjectArchetype<> sceneEntities;
-    SceneObjectArchetype<Camera> cameraEntities;
-    
+    SceneEntityArchetype<Engine::Transform> sceneEntities;
+    SceneEntityArchetype<Engine::Transform, Camera> cameraEntities;
 
     Int32 DrawScene(const Application::Time &time);
     Int32 DrawGUI(const Application::Time &time);

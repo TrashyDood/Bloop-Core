@@ -5,6 +5,7 @@
 
 #include <limits>
 #include <stdexcept>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -15,16 +16,28 @@ namespace Engine
         template <typename T>
         using ComponentList = std::vector<T>;
 
-        template <typename... TComps>
+        template <typename... TComponents>
         using Entity = Int32;
 
         template <typename T>
         struct ComponentStorage
         {
+            static constexpr std::size_t NoComponent = std::numeric_limits<std::size_t>::max();
+
             std::vector<T> components;
+            std::vector<std::size_t> entityHandles;
             
             template <typename... TArgs>
-            void Add(TArgs&&... args) { components.emplace_back(std::forward<TArgs>(args)...); }
+            std::size_t AddInstance(TArgs&&... args)
+            {
+                components.emplace_back(std::forward<TArgs>(args)...);
+                return components.size() - 1;
+            }
+
+            void AddEntity(const std::size_t compIndex = NoComponent)
+            {
+                entityHandles.push_back(compIndex);
+            }
 
             void RollbackTo(const std::size_t size) noexcept
             {
@@ -33,14 +46,14 @@ namespace Engine
             }
         };
 
-        // Generic ECS archetype capable of only handling one of each type of component per entity.
+        // Generic ECS archetype capable of only handling one of each component type per entity.
         template <typename... TComponents>
-        class EntityArchetype : public ComponentStorage<TComponents>...
+        class LooseEntityArchetype : public ComponentStorage<TComponents>...
         {
+            using ArchEntity = Entity<TComponents...>;
             std::size_t entityCount = 0;
 
         public:
-            using ArchEntity = Entity<TComponents...>;
             static constexpr std::size_t ComponentTypeCount = sizeof...(TComponents);
 
             template <typename T>
@@ -60,45 +73,56 @@ namespace Engine
                 if (!ValidEntity(entity))
                     return nullptr;
 
-                auto &components = GetComponents<T>();
-                return &components[static_cast<std::size_t>(entity)];
+                auto &storage = static_cast<ComponentStorage<T> &>(*this);
+                const std::size_t entityIndex = static_cast<std::size_t>(entity);
+                if (entityIndex >= storage.entityHandles.size())
+                    return nullptr;
+
+                const std::size_t componentIndex = storage.entityHandles[entityIndex];
+                if (componentIndex == ComponentStorage<T>::NoComponent ||
+                    componentIndex >= storage.components.size())
+                    return nullptr;
+
+                return &storage.components[componentIndex];
             }
 
-            bool Get(const ArchEntity entity, TComponents *&... outComponents)
+            template <typename... TComps>
+            [[nodiscard]] bool Get(const ArchEntity entity, TComps *&... outComponents)
             {
-                ((outComponents = nullptr), ...);
                 if (!ValidEntity(entity))
                     return false;
 
-                const auto index = static_cast<std::size_t>(entity);
-                ((outComponents = &static_cast<ComponentStorage<TComponents> &>(*this).components[index]), ...);
+                ((outComponents = Get<TComps>(entity)), ...);
 
                 return true;
             }
 
-            ArchEntity Add() { return Add<TComponents...>(TComponents{}...); }
-            ArchEntity Add(TComponents... component) { return Add<TComponents...>(std::move(component)...); }
+            template <typename T, typename... TComps>
+            void AddEntityToStorage()
+            {
+                auto &storage = static_cast<ComponentStorage<T> &>(*this);
+                if constexpr ((std::is_same_v<T, TComps> || ...))
+                    storage.AddEntity(storage.components.size() - 1);
+                else
+                    storage.AddEntity();
+            }
+
+            ArchEntity Create() { return Create<TComponents...>(TComponents{}...); }
+            ArchEntity Create(TComponents... component) { return Create<TComponents...>(std::move(component)...); }
 
             template <typename... TComps>
-            Entity<TComps...> Add() { return Add<TComps...>(TComps{}...); }
+            Entity<TComps...> Create() { return Create<TComps...>(TComps{}...); }
 
             template <typename... TComps>
-            Entity<TComps...> Add(TComps... component)
+            Entity<TComps...> Create(TComps... component)
             {
                 if (entityCount > static_cast<std::size_t>(std::numeric_limits<ArchEntity>::max()))
                     throw std::length_error("EntityArchetype has no available entity IDs");
 
                 const auto entity = static_cast<ArchEntity>(entityCount);
-                
-                try
-                {
-                    (static_cast<ComponentStorage<TComps> &>(*this).Add(std::move(component)), ...);
-                }
-                catch (...)
-                {
-                    (static_cast<ComponentStorage<TComps> &>(*this).RollbackTo(entityCount), ...);
-                    throw;
-                }
+            
+                (static_cast<ComponentStorage<TComps> &>(*this).AddInstance(std::move(component)), ...);
+                (AddEntityToStorage<TComponents, TComps...>(), ...);
 
                 ++entityCount;                
                 return entity;

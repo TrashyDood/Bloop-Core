@@ -164,13 +164,13 @@ Int32 DemoSceneLayer::OnStart()
     BindInput();
     StartLoadingAssets();
 
-    sceneEntities.Add();
-    sceneEntities.Add();
-    cameraEntities.Add<Engine::Transform, Camera>({Vectors::v3fBackward * 5.f}, {});
+    sceneEntities.Create();
+    sceneEntities.Create();
+    sceneEntities.Create<Engine::Transform, Camera>({Vectors::v3fBackward * 5.f}, {});
 
     Camera *camera;
     Engine::Transform *transform;
-    cameraEntities.Get(0, transform, camera);
+    sceneEntities.Get(0, transform);
 
     if (!DiscoverSceneFiles(assetsRootDirectory, sceneFilePaths))
     {
