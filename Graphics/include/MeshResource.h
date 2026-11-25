@@ -14,7 +14,6 @@ namespace Graphics
         ResourceHandle vertexArray = 0;
         ResourceHandle vertexBuffer = 0;
         ResourceHandle indexBuffer = 0;
-        ResourceHandle instanceBuffer = 0;
         MeshVertices vertices;
         MeshIndices indices;
 
@@ -38,7 +37,6 @@ namespace Graphics
 
         bool InitializeResources() override;
         bool Draw() const;
-        bool DrawInstanced(const Vector3f offsets[], std::size_t offsetCount) const;
 
       private:
         void ReleaseResources() noexcept override;

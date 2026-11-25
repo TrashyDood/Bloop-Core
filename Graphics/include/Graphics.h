@@ -107,18 +107,13 @@ namespace Graphics
         return ShaderType::Unknown;
     }
 
-    ShaderType GetShaderFileType(const std::filesystem::path &file);
-    std::string GetShaderGroupName(const std::filesystem::path &file);
+    bool CompileGLShader(ResourceHandle &outShader, const ShaderType type, const char *source);
+    bool LinkGLShaders(ResourceHandle &outShaderProgram, const ResourceHandle *shaders, const std::size_t shadersCount);
+    bool CreateGLShaderProgram(
+        ResourceHandle &outShaderProgram, const ShaderSource *sources, const std::size_t sourcesCount);
+    bool CreateGLMeshBuffers(ResourceHandle &vertexArray, ResourceHandle &vertexBuffer, ResourceHandle &indexBuffer,
+        const MeshVertices &vertices, const MeshIndices &indices = {});
+    bool CreateGLTexture2D(ResourceHandle &outTexture, const TextureData &textureData);
 
     void CheckGLErrors();
-
-    inline std::filesystem::path &AssetsDirectory(const std::filesystem::path &newDirectory = std::filesystem::path())
-    {
-        static std::filesystem::path assetsDirectory = "assets";
-
-        if (!newDirectory.empty())
-            assetsDirectory = newDirectory;
-
-        return assetsDirectory;
-    }
 }

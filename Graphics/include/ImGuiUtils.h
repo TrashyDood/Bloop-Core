@@ -2,6 +2,7 @@
 
 #ifdef IMGUI_ENABLED
 #include "LogHandler.h"
+#include "Shared.h"
 
 #ifndef GLFW_INCLUDE_NONE
 #define GLFW_INCLUDE_NONE
@@ -11,6 +12,9 @@
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
+
+#include <string>
+#include <vector>
 
 #define IMGUI_DRAW_START         \
     ImGui_ImplOpenGL3_NewFrame();\
@@ -23,6 +27,10 @@
 
 namespace ImGuiUtils
 {
+    void DrawSceneDiagnosticsWindow(float deltaTime, float elapsedTime, const Vector3f &cameraPosition,
+        const Vector3f &cameraFacing, float cameraDistance, const std::vector<std::string> &shaderNames,
+        const std::vector<std::string> &meshNames, const std::vector<std::string> &textureNames);
+
     class Context
     {
         enum class LogLevelFilter

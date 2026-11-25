@@ -11,12 +11,15 @@
 #include <sstream>
 #include <utility>
 
-bool Graphics::ParseOBJFile(std::istream &stream, std::vector<std::string> &outNames,
-    std::vector<MeshVertices> &outVertices, std::vector<MeshIndices> &outIndices)
+void Graphics::ParseOBJFile(std::istream &stream, std::vector<std::string> &outNames,
+    std::vector<MeshVertices> &outVertices, std::vector<MeshIndices> &outIndices,
+    UInt32 &outSucceededCount, UInt32 &outFailedCount)
 {
     outNames.clear();
     outVertices.clear();
     outIndices.clear();
+    outSucceededCount = 0;
+    outFailedCount = 0;
 
     std::vector<Vector2f> uvs;
     std::vector<Vector3f> positions, normals;
@@ -25,25 +28,34 @@ bool Graphics::ParseOBJFile(std::istream &stream, std::vector<std::string> &outN
     MeshIndices currentIndices;
     std::string currentLine;
     bool isCurrentValid = true;
+    bool hasCurrentObject = false;
 
     const auto flushObject = [&]
     {
+        if (!hasCurrentObject)
+            return;
+
         if (!isCurrentValid || currentIndices.empty())
         {
             if (!isCurrentValid)
                 LOG_WARNING("OBJ parser: skipping invalid object '%s'.\n",
                     currentName.empty() ? "(unnamed)" : currentName.c_str());
+            ++outFailedCount;
             currentVertices.clear();
             currentIndices.clear();
+            currentName.clear();
+            hasCurrentObject = false;
             return;
         }
 
         outNames.emplace_back(std::move(currentName));
         outVertices.emplace_back(std::move(currentVertices));
         outIndices.emplace_back(std::move(currentIndices));
+        ++outSucceededCount;
         currentName.clear();
         currentVertices.clear();
         currentIndices.clear();
+        hasCurrentObject = false;
     };
 
     // Stream >> string = read until whitespace for strings
@@ -59,6 +71,7 @@ bool Graphics::ParseOBJFile(std::istream &stream, std::vector<std::string> &outN
         {
             flushObject(); // Flush the previous object before starting a new one
             isCurrentValid = true;
+            hasCurrentObject = true;
             currentName.clear();
             lineStream >> std::ws; // Skip whitespace before reading the object name, which may contain spaces
             std::getline(lineStream, currentName);
@@ -88,6 +101,7 @@ bool Graphics::ParseOBJFile(std::istream &stream, std::vector<std::string> &outN
         }
         else if (type == "f") // Read face vertex-indices
         {
+            hasCurrentObject = true;
             // Base index for this face.
             const auto firstIndex = static_cast<UInt32>(currentVertices.size());
             std::size_t faceVertexCount = 0;
@@ -120,7 +134,7 @@ bool Graphics::ParseOBJFile(std::istream &stream, std::vector<std::string> &outN
             if (faceVertexCount < 3)
             {
                 isCurrentValid = false;
-                break;
+                continue;
             }
 
             // The first three corners form the first triangle.
@@ -132,32 +146,38 @@ bool Graphics::ParseOBJFile(std::istream &stream, std::vector<std::string> &outN
     }
 
     flushObject();
-    return !outVertices.empty();
 }
 
-bool Graphics::ReadAndParseModeFile(
-    const char *path, std::vector<std::string> &outNames,
-    std::vector<MeshVertices> &outVertices, std::vector<MeshIndices> &outIndices)
+void Graphics::ReadAndParseModeFile(const char *path, std::vector<std::string> &outNames,
+    std::vector<MeshVertices> &outVertices, std::vector<MeshIndices> &outIndices,
+    UInt32 &outSucceededCount, UInt32 &outFailedCount)
 {
     LOG_SCOPE;
 
     outNames.clear();
     outVertices.clear();
     outIndices.clear();
+    outSucceededCount = 0;
+    outFailedCount = 0;
 
     std::ifstream file(path);
     if (!file)
     {
         LOG_ERROR("Failed to open mesh source: %s\n", path);
-        return false;
+        outFailedCount = 1;
+        return;
     }
 
-    if (ParseOBJFile(file, outNames, outVertices, outIndices) && !file.bad())
-        return true;
+    ParseOBJFile(file, outNames, outVertices, outIndices, outSucceededCount, outFailedCount);
+    if (!file.bad() && outSucceededCount > 0)
+        return;
 
     outNames.clear();
     outVertices.clear();
     outIndices.clear();
+    outFailedCount += outSucceededCount;
+    outSucceededCount = 0;
+    if (outFailedCount == 0)
+        outFailedCount = 1;
     LOG_ERROR("Failed to parse mesh: source '%s' has invalid, unsupported, or unreadable OBJ data.\n", path);
-    return false;
 }

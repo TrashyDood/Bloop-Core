@@ -1,5 +1,6 @@
 #include "LogHandler.h"
 #include "EventHandler.h"
+#include "ThreadPool.h"
 #include "Transform.h"
 #ifdef ENGINE_ENABLED
 #include "InputHandler.h"
@@ -8,7 +9,7 @@
 #ifdef GRAPHICS_ENABLED
 #include "Camera.h"
 #include "GlfwInput.h"
-#include "ResourceUtils.h"
+#include "ResourceLoading.h"
 #endif
 
 #include <atomic>
@@ -173,6 +174,8 @@ namespace
         Transform transform;
         Require(NearlyEqual(transform.GetPosition(), Vector3f{0.0f}), "Transform starts at the origin");
         Require(NearlyEqual(transform.GetScale(), Vector3f{1.0f}), "Transform starts with unit scale");
+        Require(NearlyEqual(transform.GetUp(), Vectors::v3fUp),
+                "Transform up direction matches the engine up vector");
 
         transform.SetPosition({2.0f, 3.0f, 4.0f});
         transform.SetScale({2.0f, 3.0f, 4.0f});
@@ -346,11 +349,9 @@ namespace
         owners.emplace_back(4, true);
         std::vector<std::string> names{"one", "two", "three", "four"};
         Graphics::LoadedResources<TestResourceOwner> results{owners, names};
+        results.uninitializedCount = static_cast<UInt32>(owners.size());
 
-        Require(!Graphics::InitializeResources(results),
-                "Resource initialization reports any failed resource");
-        Require(results.foundCount == 4 && results.discardedCount == 2,
-                "Resource initialization reports found and discarded resources");
+        Graphics::InitializeResources(results);
         Require(owners.size() == 2 && owners[0].GetId() == 2 && owners[1].GetId() == 4,
                 "Failed resources are removed while successful resources are retained");
         Require(names == std::vector<std::string>{"two", "four"},
@@ -375,15 +376,18 @@ namespace
         std::vector<Graphics::ShaderResource> shaders;
         std::vector<std::string> shaderNames;
         Graphics::LoadedResources<Graphics::ShaderResource> shaderResults{shaders, shaderNames};
-        Require(Graphics::LoadShaderResources_Parallel(shaderResults, shaderRoot),
-                "Shader loader finds source groups");
-        Require(shaderResults.foundCount == 4 && shaderResults.discardedCount == 1,
+        Graphics::LoadShaderResources_Parallel(shaderResults, IO::Path::FromAbsolute(shaderRoot, root));
+        Require(shaderResults.filesFound == 4 && shaderResults.filesFailed == 1,
                 "Shader loader reports discovered and discarded files");
+        Require(shaderResults.resourcesLoaded == 3 && shaderResults.resourcesFailed == 1,
+                "Shader loader reports loaded and failed shader sources");
         Require(shaderNames == std::vector<std::string>{"nested/program", "other/program"},
                 "Shader names include their path relative to the root");
         Require(shaders.size() == 2 && shaders[0].GetSourceCount() == 2 &&
                     shaders[1].GetSourceCount() == 1,
                 "Shader files are grouped by relative directory and program name");
+        Require(shaderResults.uninitializedCount == shaders.size(),
+                "Shader initialization count tracks grouped shader programs");
 
         const auto meshRoot = root / "models";
         WriteTextFile(meshRoot / "nested" / "unnamed.obj",
@@ -399,10 +403,11 @@ namespace
         std::vector<Graphics::MeshResource> meshes;
         std::vector<std::string> meshNames;
         Graphics::LoadedResources<Graphics::MeshResource> meshResults{meshes, meshNames};
-        Require(Graphics::LoadMeshResources_Parallel(meshResults, meshRoot),
-                "Mesh loader finds OBJ resources");
-        Require(meshResults.foundCount == 1 && meshResults.discardedCount == 0,
+        Graphics::LoadMeshResources_Parallel(meshResults, IO::Path::FromAbsolute(meshRoot, root));
+        Require(meshResults.filesFound == 1 && meshResults.filesFailed == 0,
                 "Mesh loader reports successfully loaded and discarded files");
+        Require(meshResults.resourcesLoaded == 1 && meshResults.resourcesFailed == 0,
+                "Mesh loader reports loaded and failed mesh objects");
         Require(meshNames == std::vector<std::string>{"nested/unnamed"},
                 "Unnamed mesh objects use their root-relative file stem");
 
@@ -416,12 +421,27 @@ namespace
         std::vector<Graphics::Texture2DResource> textures;
         std::vector<std::string> textureNames;
         Graphics::LoadedResources<Graphics::Texture2DResource> textureResults{textures, textureNames};
-        Require(Graphics::LoadTextureResources_Parallel(textureResults, root / "textures"),
-                "Texture loader finds image resources");
-        Require(textureResults.foundCount == 2 && textureResults.discardedCount == 1,
+        Graphics::LoadTextureResources_Parallel(textureResults, IO::Path::FromAbsolute(root / "textures", root));
+        Require(textureResults.filesFound == 2 && textureResults.filesFailed == 1,
                 "Texture loader reports discovered and discarded files");
+        Require(textureResults.resourcesLoaded == 1 && textureResults.resourcesFailed == 1,
+                "Texture loader reports loaded and failed textures");
         Require(textureNames == std::vector<std::string>{"nested/sample"},
                 "Texture names include their path relative to the root");
+
+        std::vector<Graphics::ShaderResource> allShaders;
+        std::vector<Graphics::MeshResource> allMeshes;
+        std::vector<Graphics::Texture2DResource> allTextures;
+        std::vector<std::string> allShaderNames, allMeshNames, allTextureNames;
+        Graphics::LoadedResources<Graphics::ShaderResource> allShaderResults{allShaders, allShaderNames};
+        Graphics::LoadedResources<Graphics::MeshResource> allMeshResults{allMeshes, allMeshNames};
+        Graphics::LoadedResources<Graphics::Texture2DResource> allTextureResults{allTextures, allTextureNames};
+        Graphics::LoadResources_Parallel(
+            allShaderResults, IO::Path::FromAbsolute(shaderRoot, root),
+            allMeshResults, IO::Path::FromAbsolute(meshRoot, root),
+            allTextureResults, IO::Path::FromAbsolute(root / "textures", root));
+        Require(allShaderNames == shaderNames && allMeshNames == meshNames && allTextureNames == textureNames,
+                "Combined resource loader preserves names from each supplied directory");
     }
 #endif
 
@@ -485,6 +505,18 @@ namespace
             thread.join();
 
         Require(value == 4000, "Event supports concurrent invocation");
+    }
+
+    void TestThreadPoolHelpsNestedTasks()
+    {
+        ThreadPool threadPool(1);
+        auto parentTask = threadPool.SubmitTask([&threadPool]
+        {
+            auto childTask = threadPool.SubmitTask([] { return 41; });
+            return childTask.Get() + 1;
+        });
+
+        Require(parentTask.Get() == 42, "Pool workers execute queued work while waiting");
     }
 
 #ifdef ENGINE_ENABLED
@@ -719,6 +751,7 @@ int main()
         {"event registration and removal", TestEventHandlerRegistrationAndRemoval},
         {"event duplicate lambdas", TestEventHandlerAllowsDuplicateLambdas},
         {"event concurrent invocation", TestEventHandlerConcurrentInvocation},
+        {"thread pool helps nested tasks", TestThreadPoolHelpsNestedTasks},
 #ifdef ENGINE_ENABLED
         {"input key state transitions", TestInputHandlerKeyStateTransitions},
         {"input callback unbinding", TestInputHandlerUnbindsKeyCallback},

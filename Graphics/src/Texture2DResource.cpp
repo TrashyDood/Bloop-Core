@@ -1,6 +1,5 @@
 #include "Texture2DResource.h"
 
-#include "ResourceUtils.h"
 #include "LogHandler.h"
 
 #include <utility>

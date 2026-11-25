@@ -134,7 +134,10 @@ if(BUILD_GRAPHICS)
 endif()
 
 if(BUILD_ENGINE AND BUILD_GRAPHICS)
-    add_executable(EngineDemo src/main.cpp)
+    add_executable(EngineDemo
+        Application/main.cpp
+        Application/AssetResourceManager.cpp
+    )
     target_link_libraries(EngineDemo PRIVATE Graphics Engine)
 
     if(BUILD_IMGUI)
