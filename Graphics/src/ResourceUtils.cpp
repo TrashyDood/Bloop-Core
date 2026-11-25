@@ -589,9 +589,9 @@ bool Graphics::LoadResources(LoadedResources<Graphics::ShaderResource> &outShade
 {
     StopWatch<std::chrono::steady_clock> stopWatch;
 
-    const std::filesystem::path shaderDirectory = rootDirectory / "Shaders";
-    const std::filesystem::path meshDirectory = rootDirectory / "Meshes";
-    const std::filesystem::path textureDirectory = rootDirectory / "Textures";
+    const std::filesystem::path shaderDirectory = rootDirectory / "shaders";
+    const std::filesystem::path meshDirectory = rootDirectory / "models";
+    const std::filesystem::path textureDirectory = rootDirectory / "textures";
 
     bool loadSuccess;
     if (threadCount > 1)

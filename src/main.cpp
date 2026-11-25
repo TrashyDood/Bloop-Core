@@ -45,9 +45,9 @@ struct Directories
 
     Directories(const std::filesystem::path &rootDirectory)
         : rootDirectory(rootDirectory),
-          shadersDirectory{IOUtils::GetAbsolutePath(rootDirectory / "Shaders"), "Shaders"},
-          meshesDirectory{IOUtils::GetAbsolutePath(rootDirectory / "Meshes"), "Meshes"},
-          texturesDirectory{IOUtils::GetAbsolutePath(rootDirectory / "Textures"), "Textures"} {}
+          shadersDirectory{IOUtils::GetAbsolutePath(rootDirectory / "shaders"), "shaders"},
+          meshesDirectory{IOUtils::GetAbsolutePath(rootDirectory / "models"), "models"},
+          texturesDirectory{IOUtils::GetAbsolutePath(rootDirectory / "textures"), "textures"} {}
 };
 
 class DemoScene : public Engine::Scene
@@ -466,13 +466,17 @@ public:
         LoadedResources<ShaderResource> shaderLoadResult{shaders, shaderNames};
         LoadedResources<MeshResource> meshLoadResult{meshes, meshNames};
         LoadedResources<Texture2DResource> textureLoadResult{textures, textureNames};
-        if (!LoadResources(shaderLoadResult, meshLoadResult, textureLoadResult, assetDirectories.rootDirectory))
-            LOG_WARNING("Some resources failed to initialize or load.\n");
+        if (!LoadAndInitResources(shaderLoadResult, meshLoadResult, textureLoadResult, assetDirectories.rootDirectory))
+        {
+            LOG_ERROR("Failed to load and initialize demo resources.\n");
+            return EXIT_FAILURE;
+        }
 
         activeShader = &shaders.front();
         activeTexture = &textures.front();
 
         objectOffsets.resize(meshes.size());
+        SpawnSceneObject({0.f, 0.f, 0.f}, 0);
             
         BindInput();
 
