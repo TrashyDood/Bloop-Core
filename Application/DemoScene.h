@@ -79,8 +79,9 @@ private:
     template <typename... TComponents>
     using SceneEntityArchetype = Engine::ECSArchetypes::LooseEntityArchetype<TComponents...>;
 
-    SceneEntityArchetype<Engine::Transform> sceneEntities;
-    SceneEntityArchetype<Engine::Transform, Camera> cameraEntities;
+    SceneEntityArchetype<Engine::Transform, Camera> sceneEntities;
+    std::vector<Engine::Entity<Engine::Transform, Camera>> cameras;
+    std::vector<Engine::Entity<Engine::Transform, Camera>> objects;
 
     Int32 DrawScene(const Application::Time &time);
     Int32 DrawGUI(const Application::Time &time);

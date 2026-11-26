@@ -166,11 +166,7 @@ Int32 DemoSceneLayer::OnStart()
 
     sceneEntities.Create();
     sceneEntities.Create();
-    cameraEntities.Create<Engine::Transform, Camera>({Vectors::v3fBackward * 5.f}, {});
-
-    Camera *camera;
-    Engine::Transform *transform;
-    sceneEntities.Get(0, transform);
+    sceneEntities.Create<Engine::Transform, Camera>({Vectors::v3fBackward * 5.f}, {});
 
     if (!DiscoverSceneFiles(assetsRootDirectory, sceneFilePaths))
     {
@@ -272,11 +268,10 @@ Int32 DemoSceneLayer::DrawScene(const Application::Time &time)
             activeShader->Use();
             activeTexture->Bind(GL_TEXTURE0);
 
-            const auto &cameras = cameraEntities.GetComponents<Camera>();
-            const auto &cameraTransforms = cameraEntities.GetComponents<Engine::Transform>();
+            const auto &cameras = sceneEntities.GetComponents<Camera>();
             const auto &sceneTransforms = sceneEntities.GetComponents<Engine::Transform>();
 
-            windowHost.RenderViewports(static_cast<UInt32>(cameraEntities.Count()),
+            windowHost.RenderViewports(static_cast<UInt32>(cameras.size()),
                 [&](const Graphics::WindowViewportContext &viewport)
                 {                    
                     const Matrix4f projectionMatrix = cameras[viewport.index].ProjectionMatrix(viewport.aspectRatio);

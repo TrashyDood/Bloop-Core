@@ -11,13 +11,13 @@
 
 namespace Engine
 {
+    template <typename... TComponents>
+    using Entity = Int32;
+
     namespace ECSArchetypes
     {
         template <typename T>
         using ComponentList = std::vector<T>;
-
-        template <typename... TComponents>
-        using Entity = Int32;
 
         template <typename T>
         struct ComponentStorage
@@ -27,20 +27,16 @@ namespace Engine
             std::vector<T> components; // Dense set
             std::vector<std::size_t> entityHandles; // Sparse set
             
+            void AddEntity(const std::size_t compIndex = NoComponent) { entityHandles.push_back(compIndex); }
+
             template <typename... TArgs>
             std::size_t AddInstance(TArgs&&... args)
             {
                 components.emplace_back(std::forward<TArgs>(args)...);
                 return components.size() - 1;
             }
-
-            void AddEntity(const std::size_t compIndex = NoComponent)
-            {
-                entityHandles.push_back(compIndex);
-            }
         };
 
-        // Generic ECS archetype capable of only handling one of each component type per entity.
         template <typename... TComponents>
         class LooseEntityArchetype : public ComponentStorage<TComponents>...
         {
@@ -91,7 +87,7 @@ namespace Engine
             bool Get(const ArchEntity entity, TComps *&... outComponents)
             {
                 ((outComponents = nullptr), ...);
-                
+
                 if (!ValidEntity(entity))
                     return false;
 
