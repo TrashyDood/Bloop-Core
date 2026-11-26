@@ -166,7 +166,7 @@ Int32 DemoSceneLayer::OnStart()
 
     sceneEntities.Create();
     sceneEntities.Create();
-    sceneEntities.Create<Engine::Transform, Camera>({Vectors::v3fBackward * 5.f}, {});
+    cameraEntities.Create<Engine::Transform, Camera>({Vectors::v3fBackward * 5.f}, {});
 
     Camera *camera;
     Engine::Transform *transform;
@@ -272,9 +272,9 @@ Int32 DemoSceneLayer::DrawScene(const Application::Time &time)
             activeShader->Use();
             activeTexture->Bind(GL_TEXTURE0);
 
-            auto cameras = cameraEntities.GetComponents<Camera>();
-            auto cameraTransforms = cameraEntities.GetComponents<Engine::Transform>();
-            auto sceneTransforms = sceneEntities.GetComponents<Engine::Transform>();
+            const auto &cameras = cameraEntities.GetComponents<Camera>();
+            const auto &cameraTransforms = cameraEntities.GetComponents<Engine::Transform>();
+            const auto &sceneTransforms = sceneEntities.GetComponents<Engine::Transform>();
 
             windowHost.RenderViewports(static_cast<UInt32>(cameraEntities.Count()),
                 [&](const Graphics::WindowViewportContext &viewport)

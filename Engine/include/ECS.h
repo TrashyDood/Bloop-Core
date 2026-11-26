@@ -24,8 +24,8 @@ namespace Engine
         {
             static constexpr std::size_t NoComponent = std::numeric_limits<std::size_t>::max();
 
-            std::vector<T> components;
-            std::vector<std::size_t> entityHandles;
+            std::vector<T> components; // Dense set
+            std::vector<std::size_t> entityHandles; // Sparse set
             
             template <typename... TArgs>
             std::size_t AddInstance(TArgs&&... args)
@@ -38,12 +38,6 @@ namespace Engine
             {
                 entityHandles.push_back(compIndex);
             }
-
-            void RollbackTo(const std::size_t size) noexcept
-            {
-                while (components.size() > size)
-                    components.pop_back();
-            }
         };
 
         // Generic ECS archetype capable of only handling one of each component type per entity.
@@ -53,19 +47,26 @@ namespace Engine
             using ArchEntity = Entity<TComponents...>;
             std::size_t entityCount = 0;
 
+            template <typename T, typename... TComps>
+            void AddEntityToStorage()
+            {
+                auto &storage = static_cast<ComponentStorage<T> &>(*this);
+                if constexpr ((std::is_same_v<T, TComps> || ...))
+                    storage.AddEntity(storage.components.size() - 1);
+                else
+                    storage.AddEntity();
+            }
+
         public:
             static constexpr std::size_t ComponentTypeCount = sizeof...(TComponents);
 
-            template <typename T>
             [[nodiscard]]
-            ComponentList<T> &GetComponents() { return static_cast<ComponentStorage<T> &>(*this).components; }
+            bool ValidEntity(const ArchEntity entity) const noexcept { return entity >= 0 && static_cast<std::size_t>(entity) < entityCount; }
             template <typename T>
             [[nodiscard]]
             const ComponentList<T> &GetComponents() const { return static_cast<const ComponentStorage<T> &>(*this).components; }
             [[nodiscard]]
             std::size_t Count() const noexcept { return entityCount; }
-            [[nodiscard]]
-            bool ValidEntity(const ArchEntity entity) const noexcept { return entity >= 0 && static_cast<std::size_t>(entity) < entityCount; }
 
             template <typename T>
             [[nodiscard]] T *Get(const ArchEntity entity)
@@ -87,24 +88,16 @@ namespace Engine
             }
 
             template <typename... TComps>
-            [[nodiscard]] bool Get(const ArchEntity entity, TComps *&... outComponents)
+            bool Get(const ArchEntity entity, TComps *&... outComponents)
             {
+                ((outComponents = nullptr), ...);
+                
                 if (!ValidEntity(entity))
                     return false;
 
                 ((outComponents = Get<TComps>(entity)), ...);
 
                 return true;
-            }
-
-            template <typename T, typename... TComps>
-            void AddEntityToStorage()
-            {
-                auto &storage = static_cast<ComponentStorage<T> &>(*this);
-                if constexpr ((std::is_same_v<T, TComps> || ...))
-                    storage.AddEntity(storage.components.size() - 1);
-                else
-                    storage.AddEntity();
             }
 
             ArchEntity Create() { return Create<TComponents...>(TComponents{}...); }

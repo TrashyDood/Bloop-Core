@@ -32,7 +32,7 @@ struct Camera
         farPlane = 100.f,
         fov = 90.f;
 
-    Matrix4f ProjectionMatrix(const float aspect)
+    Matrix4f ProjectionMatrix(const float aspect) const
     {
         return Graphics::GetMatrix_Perspective(
             fov,
