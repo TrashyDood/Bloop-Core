@@ -141,13 +141,9 @@ Int32 DemoSceneLayer::OnStart()
 
     InputCallbacks inputCallbacks{
         [&](const Input::KeyCode key, const Input::KeyAction action)
-        {
-            inputHandler.OnKeyStateChanged(key, action);
-        },
+        { inputHandler.OnKeyStateChanged(key, action); },
         [&](const Input::MouseKeyCode button, const Input::KeyAction action)
-        {
-            inputHandler.OnKeyStateChanged(button, action);
-        }};
+        { inputHandler.OnKeyStateChanged(button, action); }};
 
     if (!windowHost.Initialize({1920, 1080, "Bloop Core Engine", true}, std::move(inputCallbacks)))
     {
@@ -164,9 +160,33 @@ Int32 DemoSceneLayer::OnStart()
     BindInput();
     StartLoadingAssets();
 
-    sceneEntities.Create();
-    sceneEntities.Create();
-    sceneEntities.Create<Engine::Transform, Camera>({Vectors::v3fBackward * 5.f}, {});
+    SceneObject::Create(sceneObjects);
+    SceneObject::Create(sceneObjects);
+
+    SceneCamera::Create(sceneCameras,
+        [](Engine::Transform &transform, Camera &)
+        {
+            transform.SetPosition(Vector3f(-5.f, 5.f, 5.f));
+            transform.SetLookAtPoint(Vectors::v3fZero);
+        });
+
+    SceneCamera::Create(sceneCameras,
+        [](Engine::Transform &transform, Camera &camera)
+        {
+            transform.SetPosition(Vector3f(5.f, 5.f, 5.f));
+            transform.SetLookAtPoint(Vectors::v3fZero);
+        });
+
+    for (size_t i = 0; i < 3; i++)
+    {
+        SceneCamera::Create(sceneCameras,
+            [](Engine::Transform &transform, Camera &camera)
+            {
+                transform.SetPosition(Vector3f(5.f, 5.f, -5.f));
+                transform.SetLookAtPoint(Vectors::v3fZero);
+            });
+    }
+    
 
     if (!DiscoverSceneFiles(assetsRootDirectory, sceneFilePaths))
     {
@@ -255,49 +275,46 @@ Int32 DemoSceneLayer::DrawScene(const Application::Time &time)
 {
     LOG_SCOPE;
 
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
     Graphics::Mesh *mesh = assetManager.GetResourceByName<Graphics::Mesh>("bunny/bunny");
 
     if (activeShader != nullptr && activeTexture != nullptr && mesh != nullptr)
     {
         GLint modelMatrixUniform, viewMatrixUniform, projectionMatrixUniform, textureSamplerUniform;
-        if (GetUniforms(modelMatrixUniform, viewMatrixUniform, projectionMatrixUniform,
-                textureSamplerUniform, activeShader))
+        if (GetUniforms(modelMatrixUniform, viewMatrixUniform, projectionMatrixUniform, textureSamplerUniform, activeShader))
         {
             activeShader->Use();
             activeTexture->Bind(GL_TEXTURE0);
 
-            const auto &cameras = sceneEntities.GetComponents<Camera>();
-            const auto &sceneTransforms = sceneEntities.GetComponents<Engine::Transform>();
+            const auto &cameras = sceneCameras.GetComponents<Camera>();
+            const auto &cameraTransforms = sceneCameras.GetComponents<Engine::Transform>();
+            const auto &objectTransforms = sceneObjects.GetComponents<Engine::Transform>();
 
             windowHost.RenderViewports(static_cast<UInt32>(cameras.size()),
-                [&](const Graphics::WindowViewportContext &viewport)
-                {                    
+                [&](const Graphics::Window::Viewport &viewport)
+                {
                     const Matrix4f projectionMatrix = cameras[viewport.index].ProjectionMatrix(viewport.aspectRatio);
                     const Matrix4f viewMatrix = cameraTransforms[viewport.index].GetLookMatrix();
 
-                    for (auto &transform : sceneTransforms)
+                    glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, glm::value_ptr(viewMatrix));
+                    glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
+                    glUniform1i(textureSamplerUniform, 0);
+
+                    for (const auto &transform : objectTransforms)
                     {
                         const Matrix4f modelMatrix = transform.GetTransformMatrix();
-
                         glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, glm::value_ptr(modelMatrix));
-                        glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, glm::value_ptr(viewMatrix));
-                        glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
-                        glUniform1i(textureSamplerUniform, 0);
+                        mesh->Draw();
                     }
-
-                    mesh->Draw();
                 });
         }
     }
 
+    DrawGUI(time);
+    
     Int32 framebufferWidth = 0, framebufferHeight = 0;
     if (windowHost.GetFrameBufferSize(framebufferWidth, framebufferHeight))
         glViewport(0, 0, framebufferWidth, framebufferHeight);
 
-    DrawGUI(time);
-    
     windowHost.PresentFrame();
     return EXIT_SUCCESS;
 }

@@ -20,7 +20,7 @@ namespace
 
 namespace Graphics
 {
-    bool Window::InitializeWindow(const WindowConfig &config)
+    bool Window::InitializeWindow(const Config &config)
     {
         LOG_SCOPE;
 
@@ -79,7 +79,7 @@ namespace Graphics
         }
     }
 
-    bool Window::Initialize(const WindowConfig &windowConfig, const InputCallbacks &callbacks)
+    bool Window::Initialize(const Window::Config &windowConfig, const Graphics::InputCallbacks &callbacks)
     {
         LOG_SCOPE;
 
@@ -167,29 +167,34 @@ namespace Graphics
         return outWidth > 0 && outHeight > 0;
     }
 
-    bool Window::RenderViewports(const UInt16 count, const ViewportCallback &callback)
+    bool Window::RenderViewport(const UInt16 index, const UInt16 count, const ViewportCallback &callback, const ViewportSplitRule &splitRule)
     {
-        if (count < 1)
+        Int32 bufferWidth = 0, bufferHeight = 0;
+        if (!GetFrameBufferSize(bufferWidth, bufferHeight))
             return false;
 
-        Int32 framebufferWidth = 0, framebufferHeight = 0;
-        if (!GetFrameBufferSize(framebufferWidth, framebufferHeight))
+        const Box2i viewportRect = splitRule(static_cast<UInt32>(bufferWidth),
+            static_cast<UInt32>(bufferHeight), index, count);
+
+        if (viewportRect.Width() <= 0 || viewportRect.Height() <= 0)
+            return false;
+
+        glViewport(viewportRect.position.x, viewportRect.position.y,
+            viewportRect.dimensions.x, viewportRect.dimensions.y);
+
+        callback({index, count, viewportRect, static_cast<float>(viewportRect.dimensions.x) / viewportRect.dimensions.y});
+
+        return true;
+    }
+
+    bool Window::RenderViewports(const UInt16 count, const ViewportCallback &callback, const ViewportSplitRule &splitRule)
+    {
+        if (count < 1 || !splitRule || !callback)
             return false;
 
         for (UInt16 i = 0; i < count; ++i)
-        {
-            const Int32 viewportLeft = framebufferWidth * i / count,
-                viewportRight = framebufferWidth * (i + 1) / count,
-                viewportWidth = viewportRight - viewportLeft;
+            RenderViewport(i, count, callback, splitRule);
 
-            if (viewportWidth <= 0)
-                return false;
-
-            glViewport(viewportLeft, 0, viewportWidth, framebufferHeight);
-            WindowViewportContext viewport{i, count, (static_cast<float>(viewportWidth) / framebufferHeight)};
-            callback(viewport);
-        }
-        
         return true;
     }
 

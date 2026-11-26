@@ -20,6 +20,8 @@ The default VS Code CMake preset builds both the `Engine` and `Graphics` librari
 6. Press **Ctrl+Shift+B** or run **CMake: Build** to build.
 7. Run **Run Engine** to build and launch the selected CMake launch target.
 
+To debug the demo, select **Debug Engine Demo (GDB)** in Run and Debug and press **F5**. This uses a separate Debug build under `build/debug`; **MSYS2: Set Up Environment** installs GDB.
+
 ## Run unit tests
 
 Run **CMake: Run Core Tests** to configure, build, and run the core unit tests without requiring Graphics or GLFW. From a terminal, use:

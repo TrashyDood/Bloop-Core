@@ -61,6 +61,31 @@ namespace
             throw std::runtime_error(message);
     }
 
+    void TestBoxSupportsIntegerAndFloatDimensions()
+    {
+        Box2i integerBox;
+        integerBox.position = {3, 4};
+        integerBox.dimensions = {3, 4};
+        Require(integerBox.Area() == 12 && integerBox.Width() == 3 &&
+                    integerBox.Height() == 4 && integerBox.Size() == 5 &&
+                    integerBox.X() == 3 && integerBox.Y() == 4 &&
+                    integerBox.Center() == Vector2i{4, 6},
+                "Integer boxes retain integer measurements");
+
+        Box2f floatBox;
+        floatBox.position = {1.5f, 2.25f};
+        floatBox.dimensions = {3.5f, 4.0f};
+        Require(NearlyEqual(floatBox.Area(), 14.0f) &&
+                    NearlyEqual(floatBox.Width(), 3.5f) &&
+                    NearlyEqual(floatBox.Height(), 4.0f) &&
+                    NearlyEqual(floatBox.Size(), std::sqrt(28.25f)) &&
+                    NearlyEqual(floatBox.X(), 1.5f) &&
+                    NearlyEqual(floatBox.Y(), 2.25f) &&
+                    NearlyEqual(floatBox.Center().x, 3.25f) &&
+                    NearlyEqual(floatBox.Center().y, 4.25f),
+                "Float boxes preserve fractional measurements");
+    }
+
     int GetFileDescriptor(FILE *file)
     {
 #ifdef _WIN32
@@ -204,7 +229,7 @@ namespace
     {
         Engine::Transform transform;
         transform.SetRotation(glm::angleAxis(0.5f, Vector3f{0.0f, 1.0f, 0.0f}));
-        const Quaternionf originalRotation = transform.GetRotation();
+        const Quaternion originalRotation = transform.GetRotation();
 
         transform.SetLookDirection({0.0f, 1.0f, 0.0f}, {0.0f, 2.0f, 0.0f});
 
@@ -699,6 +724,7 @@ int main()
 {
     const std::vector<Test> tests{
         {"log handler formatting", TestLogHandlerFormatting},
+        {"box supports integers and floats", TestBoxSupportsIntegerAndFloatDimensions},
         {"transform defaults and composition", TestTransformDefaultsAndComposition},
         {"transform rotation", TestTransformRotation},
         {"transform rejects parallel look direction", TestTransformRejectsParallelLookDirection},

@@ -13,14 +13,6 @@
 
 namespace Graphics
 {
-    struct WindowConfig
-    {
-        Int32 width = 800;
-        Int32 height = 600;
-        const char *title = "Window";
-        bool vsyncEnabled = true;
-    };
-
     struct InputCallbacks
     {
         std::function<void(Input::KeyCode, Input::KeyAction)> onKey{};
@@ -29,24 +21,70 @@ namespace Graphics
         std::function<void(double, double)> onScroll{};
     };
 
-    struct WindowViewportContext
-    {
-        const UInt16 index;
-        const UInt16 count;
-        const float aspectRatio;
-    };
-
     // Wrapper class for GLFW window management and input handling.
     class Window
     {
-        using ViewportCallback = std::function<void(WindowViewportContext&)>;
+    public:
+        struct Viewport
+        {
+            const UInt16 index;
+            const UInt16 count;
+            const Box2i rect;
+            const float aspectRatio;
+        };
+
+        struct Config
+        {
+            Int32 width = 800;
+            Int32 height = 600;
+            const char *title = "Window";
+            bool vsyncEnabled = true;
+
+            Config() = default;
+        };
+
+    private:
+        using ViewportCallback = std::function<void(const Viewport&)>;
+        using ViewportSplitRule = std::function<Box2i(UInt32, UInt32, UInt16, UInt16)>;
 
         GLFWwindow *window = nullptr;
         InputCallbacks inputCallbacks;
-        bool glfwInitialized = false;
-        bool vsyncEnabled = true;
+        bool glfwInitialized = false,
+            vsyncEnabled = true;
 
-        bool InitializeWindow(const WindowConfig &config);
+        static constexpr auto DefaultSplitRule = [](UInt32 width, UInt32 height, UInt16 index, UInt16 viewportCount)
+        {
+            if (viewportCount == 0 || index >= viewportCount)
+                return Box2i{};
+
+            UInt16 columns = 1;
+            while (static_cast<UInt32>(columns) * columns < viewportCount)
+                ++columns;
+
+            const UInt16 rows = static_cast<UInt16>((viewportCount + columns - 1) / columns);
+            const UInt16 column = index % columns;
+            const UInt16 rowFromTop = index / columns;
+            const UInt16 row = rows - 1 - rowFromTop;
+            const UInt16 itemsInRow = rowFromTop == rows - 1
+                ? static_cast<UInt16>(viewportCount - rowFromTop * columns)
+                : columns;
+            const UInt16 horizontalOffset = columns - itemsInRow;
+
+            const UInt64 gridWidth = static_cast<UInt64>(columns) * 2;
+            const UInt64 leftUnits = static_cast<UInt64>(column) * 2 + horizontalOffset;
+            const UInt64 rightUnits = static_cast<UInt64>(column + 1) * 2 + horizontalOffset;
+            const Int32 left = static_cast<Int32>(static_cast<UInt64>(width) * leftUnits / gridWidth);
+            const Int32 right = static_cast<Int32>(static_cast<UInt64>(width) * rightUnits / gridWidth);
+            const Int32 bottom = static_cast<Int32>(static_cast<UInt64>(height) * row / rows);
+            const Int32 top = static_cast<Int32>(static_cast<UInt64>(height) * (row + 1) / rows);
+
+            Box2i rect;
+            rect.position = Vector2i{left, bottom};
+            rect.dimensions = Vector2i{right - left, top - bottom};
+            return rect;
+        };
+
+        bool InitializeWindow(const Config &config);
 
         static Window *GetHost(GLFWwindow *window) { return static_cast<Window *>(glfwGetWindowUserPointer(window)); }
         static void HandleKeyEvent(GLFWwindow *window, int key, int scancode, int action, int modifiers);
@@ -70,12 +108,14 @@ namespace Graphics
         [[nodiscard]] float GetWindowAspectRatio() const;
 
         bool GetFrameBufferSize(Int32 &outWidth, Int32 &outHeight);
-        bool RenderViewports(const UInt16 count, const ViewportCallback &callback);
+
+        bool RenderViewport(const UInt16 index, const UInt16 count, const ViewportCallback &callback, const ViewportSplitRule &splitRule = DefaultSplitRule);
+        bool RenderViewports(const UInt16 count, const ViewportCallback &callback, const ViewportSplitRule &viewportRule = DefaultSplitRule);
 
         void GetCursorPosition(double &outX, double &outY) const { glfwGetCursorPos(&GetWindow(), &outX, &outY); }
         void PollEvents() const { glfwPollEvents();}
 
-        bool Initialize(const WindowConfig &windowConfig = {}, const InputCallbacks &callbacks = {});
+        bool Initialize(const Config &windowConfig, const InputCallbacks &callbacks = {});
         void Shutdown() noexcept;
         void PresentFrame() const;
         void SetVSyncEnabled(bool enabled);

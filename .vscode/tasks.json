@@ -33,7 +33,7 @@
     { // MSYS UCRT64 DEPENDENCIES
       "label": "MSYS2: Install UCRT64 Dependencies",
       "type": "shell",
-      "command": "call \"${config:msys2.root}\\msys2_shell.cmd\" -ucrt64 -defterm -no-start -here -c \"pacman -S --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-pkgconf\"",
+      "command": "call \"${config:msys2.root}\\msys2_shell.cmd\" -ucrt64 -defterm -no-start -here -c \"pacman -S --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-pkgconf mingw-w64-ucrt-x86_64-gdb\"",
       "options": {
         "cwd": "${workspaceFolder}",
         "shell": {
@@ -138,6 +138,21 @@
         "kind": "build",
         "isDefault": true
       },
+      "problemMatcher": []
+    },
+    { // CMAKE DEBUG CONFIGURE
+      "label": "CMake: Configure Debug",
+      "type": "cmake",
+      "command": "configure",
+      "preset": "debug",
+      "problemMatcher": []
+    },
+    { // CMAKE DEBUG BUILD
+      "label": "CMake: Build Debug",
+      "type": "cmake",
+      "command": "build",
+      "preset": "debug",
+      "dependsOn": "CMake: Configure Debug",
       "problemMatcher": []
     },
     { // CMAKE TEST

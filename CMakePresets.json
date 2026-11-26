@@ -29,6 +29,15 @@
       "cacheVariables": {
         "BUILD_GRAPHICS": "OFF"
       }
+    },
+    {
+      "name": "debug",
+      "displayName": "MSYS2 UCRT64 Debug (Ninja)",
+      "inherits": "default",
+      "binaryDir": "${sourceDir}/build/debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
     }
   ],
   "buildPresets": [
@@ -40,6 +49,11 @@
     {
       "name": "tests",
       "configurePreset": "tests",
+      "jobs": 8
+    },
+    {
+      "name": "debug",
+      "configurePreset": "debug",
       "jobs": 8
     }
   ],

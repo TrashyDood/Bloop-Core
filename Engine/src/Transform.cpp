@@ -32,15 +32,15 @@ Vector3f Engine::Transform::TransformPoint(const Vector3f &point, const bool inc
     return Engine::TransformPoint(GetTransformMatrix(includeScale), point);
 }
 
-void Engine::Transform::SetRotation(const Quaternionf &newRotation)
+void Engine::Transform::SetRotation(const Quaternion &newRotation)
 {
     rotation = glm::dot(newRotation, newRotation) > 0.0f ?
-        glm::normalize(newRotation) : Quaternionf{1.0f, 0.0f, 0.0f, 0.0f};
+        glm::normalize(newRotation) : Quaternion{1.0f, 0.0f, 0.0f, 0.0f};
 }
 
 void Engine::Transform::SetRotationEuler(const Vector3f &newRotationEuler)
 {
-    SetRotation(Quaternionf{newRotationEuler});
+    SetRotation(Quaternion{newRotationEuler});
 }
 
 void Engine::Transform::SetLookDirection(const Vector3f &direction, const Vector3f &up)
@@ -81,7 +81,7 @@ Matrix4f Engine::GetMatrix_Look(const Vector3f &position,
     return glm::lookAt(position, position + forward, up);
 }
 
-Matrix4f Engine::GetMatrix_Rotation(const Quaternionf &rotation)
+Matrix4f Engine::GetMatrix_Rotation(const Quaternion &rotation)
 {
     return glm::mat4_cast(rotation);
 }
