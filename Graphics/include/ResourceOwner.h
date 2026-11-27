@@ -25,10 +25,8 @@ namespace Graphics
         ResourceOwner(const ResourceOwner &) = delete;
         ResourceOwner &operator=(const ResourceOwner &) = delete;
 
-        virtual ~ResourceOwner() = default;
-
-        virtual bool IsInitialized() const = 0;
-        virtual void ReleaseResources() noexcept = 0;
+        virtual bool IsInitialized() const noexcept = 0;
+        virtual void ReleaseResources() noexcept {}
         virtual bool InitializeResources();
     };
 
@@ -59,8 +57,5 @@ namespace Graphics
 
     // Initialize multiple vectors of ResourceOwner-derived objects, returning the total number that failed.
     template <typename... TResourceTypes>
-    UInt32 InitializeResources(std::vector<TResourceTypes> &...owners)
-    {
-        return (InitializeResources(owners) + ...);
-    }
+    UInt32 InitializeResources(std::vector<TResourceTypes> &...owners) { return (InitializeResources(owners) + ...); }
 } // namespace Graphics

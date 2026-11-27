@@ -122,16 +122,16 @@ namespace // Local helpers
         return stem.extension().empty() ? "default" : stem.stem().string();
     }
 
-    Graphics::ShaderType GetShaderFileType(const std::filesystem::path &file)
+    Graphics::ShaderSourceType GetShaderFileType(const std::filesystem::path &file)
     {
         using namespace Graphics;
-        const ShaderType stageType =
-            ShaderTypeFromString(file.stem().extension().string());
+        const ShaderSourceType stageType =
+            ShaderSourceTypeFromString(file.stem().extension().string());
 
-        if (stageType != ShaderType::Unknown)
+        if (stageType != ShaderSourceType::Unknown)
             return stageType;
 
-        return ShaderTypeFromString(
+        return ShaderSourceTypeFromString(
             file.stem().string());
     }
 } // namespace
@@ -142,9 +142,9 @@ bool Graphics::LoadShaderResourceFile(ShaderSource &outShaderSource, std::string
 {
     LOG_SCOPE;
     const std::string fileString = file.absolutePath.string();
-    const ShaderType type = GetShaderFileType(file.absolutePath);
+    const ShaderSourceType type = GetShaderFileType(file.absolutePath);
 
-    if (type == ShaderType::Unknown)
+    if (type == ShaderSourceType::Unknown)
     {
         LOG_WARNING("Failed to load shader file with an unrecognized stage: '%s'.\n", fileString.c_str());
         return false;

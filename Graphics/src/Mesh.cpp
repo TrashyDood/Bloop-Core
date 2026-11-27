@@ -37,16 +37,6 @@ Graphics::Mesh &Graphics::Mesh::operator=(Mesh &&other) noexcept
     return *this;
 }
 
-Graphics::Mesh::~Mesh()
-{
-    ReleaseResources();
-}
-
-bool Graphics::Mesh::IsInitialized() const
-{
-    return vertexArray != 0 && vertexBuffer != 0 && (indices.empty() || indexBuffer != 0);
-}
-
 void Graphics::Mesh::ReleaseResources() noexcept
 {
     if (vertexArray != 0)

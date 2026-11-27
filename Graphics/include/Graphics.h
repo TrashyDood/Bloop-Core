@@ -43,7 +43,7 @@ namespace Graphics
         ClampToBorder =     GL_CLAMP_TO_BORDER
     };
 
-    enum class ShaderType : GLenum
+    enum class ShaderSourceType : GLenum
     {
         Unknown = 0,
         VertexShader = GL_VERTEX_SHADER,
@@ -62,7 +62,7 @@ namespace Graphics
     struct ShaderSource
     {
         std::string source;
-        ShaderType type;
+        ShaderSourceType type;
     };
     
     struct TextureData
@@ -75,40 +75,40 @@ namespace Graphics
         TextureFormat format =        TextureFormat::RGBA8;
     };
 
-    using MeshVertices =    std::vector<Vertex>;
-    using MeshIndices =     std::vector<UInt32>;
-    using ResourceHandle =  GLuint;
+    using MeshVertices      = std::vector<Vertex>;
+    using MeshIndices       = std::vector<UInt32>;
+    using ResourceHandle    = GLuint;
 
-    inline constexpr float DefaultAspectRatio =         16.0f / 9.0f;
-    inline constexpr std::size_t MaxMeshBufferSize =    static_cast<std::size_t>(std::numeric_limits<GLsizeiptr>::max());
+    inline constexpr float DefaultAspectRatio           = 16.0f / 9.0f;
+    inline constexpr std::size_t MaxMeshBufferSize      = static_cast<std::size_t>(std::numeric_limits<GLsizeiptr>::max());
 
-    inline constexpr const char *ShaderTypeToString(ShaderType type)
+    inline constexpr const char *ShaderSourceTypeToString(ShaderSourceType type)
     {
         switch (type)
         {
-            case ShaderType::VertexShader: return "vertex";
-            case ShaderType::FragmentShader: return "fragment";
-            case ShaderType::GeometryShader: return "geometry";
+            case ShaderSourceType::VertexShader: return "vertex";
+            case ShaderSourceType::FragmentShader: return "fragment";
+            case ShaderSourceType::GeometryShader: return "geometry";
             default: return "unknown";
         }
     }
 
-    inline constexpr ShaderType ShaderTypeFromString(std::string_view stage)
+    inline constexpr ShaderSourceType ShaderSourceTypeFromString(std::string_view stage)
     {
         if (stage == ".vert" || stage == ".vs" || stage == ".vertex" ||
             stage == "vertex" || stage == "vert" || stage == "vs")
-            return ShaderType::VertexShader;
+            return ShaderSourceType::VertexShader;
         if (stage == ".frag" || stage == ".fs" || stage == ".fragment" ||
             stage == "fragment" || stage == "frag" || stage == "fs")
-            return ShaderType::FragmentShader;
+            return ShaderSourceType::FragmentShader;
         if (stage == ".geom" || stage == ".gs" || stage == ".geometry" ||
             stage == "geometry" || stage == "geom" || stage == "gs")
-            return ShaderType::GeometryShader;
-        return ShaderType::Unknown;
+            return ShaderSourceType::GeometryShader;
+        return ShaderSourceType::Unknown;
     }
 
     bool CompileGLShader(ResourceHandle &outShader,
-        const ShaderType type, const char *source);
+        const ShaderSourceType type, const char *source);
     bool LinkGLShaders(ResourceHandle &outShaderProgram,
         const ResourceHandle *shaders, const std::size_t shadersCount);
     bool CreateGLShaderProgram(ResourceHandle &outShaderProgram,

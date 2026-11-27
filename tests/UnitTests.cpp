@@ -282,7 +282,7 @@ namespace
         TestResourceOwner(TestResourceOwner &&) noexcept = default;
         TestResourceOwner &operator=(TestResourceOwner &&) noexcept = default;
 
-        bool IsInitialized() const override { return initialized; }
+        bool IsInitialized() const noexcept override { return initialized; }
         void ReleaseResources() noexcept override
         {
             initialized = false;

@@ -9,7 +9,7 @@
 #include <vector>
 
 #pragma region Create GL Handles
-bool Graphics::CompileGLShader(ResourceHandle &outShader, const ShaderType type, const char *source)
+bool Graphics::CompileGLShader(ResourceHandle &outShader, const ShaderSourceType type, const char *source)
 {
     LOG_SCOPE;
 
@@ -133,7 +133,7 @@ bool Graphics::CreateGLShaderProgram(ResourceHandle &outShaderProgram, const Sha
         if (!CompileGLShader(shaders[i], sources[i].type, source->c_str()))
         {
             LOG_ERROR("Cannot create shader program: failed to compile at %s shader stage.\n",
-                ShaderTypeToString(static_cast<ShaderType>(sources[i].type)));
+                ShaderSourceTypeToString(static_cast<ShaderSourceType>(sources[i].type)));
             for (const ResourceHandle shader : shaders)
                 if (shader != 0)
                     glDeleteShader(shader);

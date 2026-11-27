@@ -9,45 +9,6 @@
 
 namespace // Local helpers
 {
-    bool GetUniforms(GLint &outModelMatrixUniform, GLint &outViewMatrixUniform, GLint &outProjectionMatrixUniform,
-        GLint &outTextureSamplerUniform, Graphics::Shader *shader)
-    {
-        if (shader == nullptr || !shader->IsInitialized())
-        {
-            // LOG_ERROR("Cannot get uniforms: no active shader is selected.\n");
-            return false;
-        }
-
-        static Graphics::Shader *cachedShader = nullptr;
-        static GLint modelMatrixUniform, viewMatrixUniform, projectionMatrixUniform, textureSamplerUniform;
-
-        if (cachedShader != shader)
-        {
-            GLint modelLocation, viewLocation, projectionLocation, textureSamplerLocation;
-            if (!shader->GetUniformLocation("modelMatrix", modelLocation) ||
-                !shader->GetUniformLocation("viewMatrix", viewLocation) ||
-                !shader->GetUniformLocation("projectionMatrix", projectionLocation) ||
-                !shader->GetUniformLocation("textureSampler", textureSamplerLocation))
-            {
-                // LOG_ERROR("Required transform, camera, or texture sampler uniforms are missing from the shader
-                // program.\n");
-                return false;
-            }
-
-            modelMatrixUniform = modelLocation;
-            viewMatrixUniform = viewLocation;
-            projectionMatrixUniform = projectionLocation;
-            textureSamplerUniform = textureSamplerLocation;
-            cachedShader = shader;
-        }
-
-        outModelMatrixUniform = modelMatrixUniform;
-        outViewMatrixUniform = viewMatrixUniform;
-        outProjectionMatrixUniform = projectionMatrixUniform;
-        outTextureSamplerUniform = textureSamplerUniform;
-        return true;
-    }
-
     bool DiscoverSceneFiles(const std::filesystem::path &rootDirectory, std::vector<IO::Path> &outPaths)
     {
         outPaths.clear();
@@ -177,16 +138,12 @@ Int32 DemoSceneLayer::OnStart()
             transform.SetLookAtPoint(Vectors::v3fZero);
         });
 
-    for (size_t i = 0; i < 3; i++)
-    {
-        SceneCamera::Create(sceneCameras,
-            [](Engine::Transform &transform, Camera &camera)
-            {
-                transform.SetPosition(Vector3f(5.f, 5.f, -5.f));
-                transform.SetLookAtPoint(Vectors::v3fZero);
-            });
-    }
-    
+    SceneCamera::Create(sceneCameras,
+        [](Engine::Transform &transform, Camera &camera)
+        {
+            transform.SetPosition(Vector3f(5.f, 5.f, -5.f));
+            transform.SetLookAtPoint(Vectors::v3fZero);
+        });
 
     if (!DiscoverSceneFiles(assetsRootDirectory, sceneFilePaths))
     {
@@ -279,34 +236,27 @@ Int32 DemoSceneLayer::DrawScene(const Application::Time &time)
 
     if (activeShader != nullptr && activeTexture != nullptr && mesh != nullptr)
     {
-        GLint modelMatrixUniform, viewMatrixUniform, projectionMatrixUniform, textureSamplerUniform;
-        if (GetUniforms(modelMatrixUniform, viewMatrixUniform, projectionMatrixUniform, textureSamplerUniform, activeShader))
-        {
-            activeShader->Use();
-            activeTexture->Bind(GL_TEXTURE0);
+        activeShader->Use();
+        activeTexture->Bind(GL_TEXTURE0);
+        activeShader->SetUniformValue("textureSampler", Int32{0});
 
-            const auto &cameras = sceneCameras.GetComponents<Camera>();
-            const auto &cameraTransforms = sceneCameras.GetComponents<Engine::Transform>();
-            const auto &objectTransforms = sceneObjects.GetComponents<Engine::Transform>();
+        const auto &cameras = sceneCameras.GetComponents<Camera>();
+        const auto &cameraTransforms = sceneCameras.GetComponents<Engine::Transform>();
+        const auto &objectTransforms = sceneObjects.GetComponents<Engine::Transform>();
 
-            windowHost.RenderViewports(static_cast<UInt32>(cameras.size()),
-                [&](const Graphics::Window::Viewport &viewport)
+        windowHost.RenderViewports(static_cast<UInt32>(cameras.size()),
+            [&](const Graphics::Window::Viewport &viewport)
+            {
+                activeShader->SetUniformValue(
+                    "projectionMatrix", cameras[viewport.index].ProjectionMatrix(viewport.aspectRatio));
+                activeShader->SetUniformValue("viewMatrix", cameraTransforms[viewport.index].GetLookMatrix());
+
+                for (const auto &transform : objectTransforms)
                 {
-                    const Matrix4f projectionMatrix = cameras[viewport.index].ProjectionMatrix(viewport.aspectRatio);
-                    const Matrix4f viewMatrix = cameraTransforms[viewport.index].GetLookMatrix();
-
-                    glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, glm::value_ptr(viewMatrix));
-                    glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
-                    glUniform1i(textureSamplerUniform, 0);
-
-                    for (const auto &transform : objectTransforms)
-                    {
-                        const Matrix4f modelMatrix = transform.GetTransformMatrix();
-                        glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, glm::value_ptr(modelMatrix));
-                        mesh->Draw();
-                    }
-                });
-        }
+                    activeShader->SetUniformValue("modelMatrix", transform.GetTransformMatrix());
+                    mesh->Draw();
+                }
+            });
     }
 
     DrawGUI(time);

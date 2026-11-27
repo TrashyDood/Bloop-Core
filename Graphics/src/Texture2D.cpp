@@ -27,16 +27,6 @@ Graphics::Texture2D &Graphics::Texture2D::operator=(Texture2D &&other) noexcept
     return *this;
 }
 
-Graphics::Texture2D::~Texture2D()
-{
-    ReleaseResources();
-}
-
-bool Graphics::Texture2D::IsInitialized() const
-{
-    return texture != 0;
-}
-
 void Graphics::Texture2D::ReleaseResources() noexcept
 {
     if (texture != 0)
