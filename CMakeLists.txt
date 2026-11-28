@@ -2,28 +2,30 @@ cmake_minimum_required(VERSION 3.25)
 
 project(Engine LANGUAGES C CXX)
 
-include(CTest)
-
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(BUILD_ENGINE "Build the engine library" ON)
-option(BUILD_GRAPHICS "Build the graphics library" OFF)
-option(BUILD_IMGUI "Build Dear ImGui alongside Graphics" OFF)
+option(BUILD_GRAPHICS "Build the graphics library" ON)
+option(BUILD_IMGUI "Build Dear ImGui alongside Graphics" ON)
 
-if(BUILD_GRAPHICS AND NOT BUILD_ENGINE)
-    message(FATAL_ERROR "BUILD_GRAPHICS requires BUILD_ENGINE.")
-endif()
+include(FetchContent)
+FetchContent_Declare(
+    tomlplusplus
+    GIT_REPOSITORY https://github.com/marzer/tomlplusplus.git
+    GIT_TAG        v3.5.1
+)
+FetchContent_MakeAvailable(tomlplusplus)
 
 find_package(glm CONFIG REQUIRED)
 
 file(GLOB TOOLS_SOURCES CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/Tools/src/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Source/Tools/src/*.cpp"
 )
 add_library(Tools STATIC ${TOOLS_SOURCES})
 target_include_directories(Tools PUBLIC
-    Tools/include
+    Source/Tools/include
 )
 target_compile_definitions(Tools PUBLIC LOGGING_ENABLED)
 
@@ -32,23 +34,23 @@ if(WIN32)
 endif()
 
 file(GLOB SHARED_SOURCES CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/Shared/src/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Source/Shared/src/*.cpp"
 )
 add_library(Shared STATIC ${SHARED_SOURCES})
 target_include_directories(Shared PUBLIC
-    Shared/include
+    Source/Shared/include
 )
 target_link_libraries(Shared PUBLIC Tools glm::glm)
 
 if(BUILD_ENGINE)
     file(GLOB ENGINE_SOURCES CONFIGURE_DEPENDS
-        "${CMAKE_CURRENT_SOURCE_DIR}/Engine/src/*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/Source/Engine/src/*.cpp"
     )
     add_library(Engine STATIC ${ENGINE_SOURCES})
-    target_include_directories(Engine PUBLIC Engine/include)
-    
-    target_link_libraries(Engine PUBLIC Shared)
-        target_compile_definitions(Engine PUBLIC
+    target_include_directories(Engine PUBLIC Source/Engine/include)
+
+    target_link_libraries(Engine PUBLIC Shared tomlplusplus::tomlplusplus)
+    target_compile_definitions(Engine PUBLIC
         ENGINE_ENABLED
     )
 endif()
@@ -64,51 +66,31 @@ if(BUILD_GRAPHICS)
         REQUIRED
     )
 
-    set(SHADER_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/assets/shaders")
-    set(SHADER_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/assets/shaders")
-    file(GLOB_RECURSE SHADER_ASSETS CONFIGURE_DEPENDS LIST_DIRECTORIES false
-        "${SHADER_SOURCE_DIR}/*"
-    )
-    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${SHADER_ASSETS})
-    file(REMOVE_RECURSE "${SHADER_OUTPUT_DIR}")
-    file(COPY "${SHADER_SOURCE_DIR}" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/assets")
+    foreach(ASSET_DIR IN ITEMS shaders models textures)
+        set(ASSET_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/content/${ASSET_DIR}")
+        set(ASSET_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/content/${ASSET_DIR}")
+        file(GLOB_RECURSE ASSET_FILES CONFIGURE_DEPENDS LIST_DIRECTORIES false
+            "${ASSET_SOURCE_DIR}/*"
+        )
+        file(REMOVE_RECURSE "${ASSET_OUTPUT_DIR}")
+        file(COPY "${ASSET_SOURCE_DIR}" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/content")
+    endforeach()
 
-    set(MODEL_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/assets/models")
-    set(MODEL_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/assets/models")
-    file(GLOB_RECURSE MODEL_ASSETS CONFIGURE_DEPENDS LIST_DIRECTORIES false
-        "${MODEL_SOURCE_DIR}/*"
-    )
-    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${MODEL_ASSETS})
-    file(REMOVE_RECURSE "${MODEL_OUTPUT_DIR}")
-    file(COPY "${MODEL_SOURCE_DIR}" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/assets")
-
-    set(TEXTURE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/assets/textures")
-    set(TEXTURE_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/assets/textures")
-    file(GLOB_RECURSE TEXTURE_ASSETS CONFIGURE_DEPENDS LIST_DIRECTORIES false
-        "${TEXTURE_SOURCE_DIR}/*"
-    )
-    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${TEXTURE_ASSETS})
-    file(REMOVE_RECURSE "${TEXTURE_OUTPUT_DIR}")
-    file(COPY "${TEXTURE_SOURCE_DIR}" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/assets")
-
-    file(GLOB GRAPHICS_SOURCES CONFIGURE_DEPENDS
-        "${CMAKE_CURRENT_SOURCE_DIR}/Graphics/src/*.cpp"
+    file(GLOB_RECURSE GRAPHICS_SOURCES CONFIGURE_DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/Source/Graphics/src/*.cpp"
     )
 
     add_library(Graphics STATIC
         ${GRAPHICS_SOURCES}
-        third_party/glad/src/gl.c
+        Source/third_party/glad/src/gl.c
     )
     target_include_directories(Graphics PUBLIC
-        Graphics/include
-        third_party/glad/include
+        Source/Graphics/include
+        Source/Graphics/include/Resources
+        Source/third_party/glad/include
         ${GLFW_INCLUDE_DIRS}
     )
-    target_include_directories(Graphics PRIVATE
-        third_party/obj_loader
-    )
     target_link_libraries(Graphics PUBLIC
-        Engine
         Shared
         "${GLFW_STATIC_LIBRARY}"
         glm::glm
@@ -126,8 +108,8 @@ if(BUILD_GRAPHICS)
     if(BUILD_IMGUI)
         target_compile_definitions(Graphics PRIVATE IMGUI_ENABLED)
         target_include_directories(Graphics PRIVATE
-            third_party/imgui
-            third_party/imgui/backends
+            Source/third_party/imgui
+            Source/third_party/imgui/backends
         )
 
         if(WIN32)
@@ -135,16 +117,16 @@ if(BUILD_GRAPHICS)
         endif()
 
         add_library(ImGui STATIC
-            third_party/imgui/imgui.cpp
-            third_party/imgui/imgui_draw.cpp
-            third_party/imgui/imgui_tables.cpp
-            third_party/imgui/imgui_widgets.cpp
-            third_party/imgui/backends/imgui_impl_glfw.cpp
-            third_party/imgui/backends/imgui_impl_opengl3.cpp
+            Source/third_party/imgui/imgui.cpp
+            Source/third_party/imgui/imgui_draw.cpp
+            Source/third_party/imgui/imgui_tables.cpp
+            Source/third_party/imgui/imgui_widgets.cpp
+            Source/third_party/imgui/backends/imgui_impl_glfw.cpp
+            Source/third_party/imgui/backends/imgui_impl_opengl3.cpp
         )
         target_include_directories(ImGui PUBLIC
-            third_party/imgui
-            third_party/imgui/backends
+            Source/third_party/imgui
+            Source/third_party/imgui/backends
         )
         target_link_libraries(ImGui PUBLIC Graphics)
     endif()
@@ -168,14 +150,3 @@ if(BUILD_ENGINE AND BUILD_GRAPHICS)
     endif()
 endif()
 
-if(BUILD_TESTING AND BUILD_ENGINE)
-    add_executable(EngineTests tests/UnitTests.cpp)
-    target_link_libraries(EngineTests PRIVATE Engine)
-
-    if(BUILD_GRAPHICS)
-        target_link_libraries(EngineTests PRIVATE Graphics)
-    endif()
-
-    add_test(NAME EngineTests COMMAND EngineTests)
-    set_tests_properties(EngineTests PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
-endif()

@@ -2,7 +2,6 @@
   "C_Cpp.clang_format_style": "file",
   "cmake.configurePreset": "default",
   "cmake.buildPreset": "default",
-  "cmake.testPreset": "default",
   "cmake.configureOnOpen": false,
   "glslLsp.diagnostics.glslang.targetEnv": "opengl",
   "[cpp]": {

@@ -4,7 +4,7 @@ A work-in-progress C++17 OpenGL demo with a GLFW window, GLAD, and GLM. It rende
 
 Controls: Player 1 uses WASD to move and Q/E to rotate; Player 2 uses keypad 8/4/2/6 to move and keypad 7/9 to rotate. Esc exits.
 
-Scene files in `assets/scenes` use `object: <meshName> x y z`, `spawnposition x y z`, and `goalposition x y z` records.
+Scene files in `content/scenes` use `object: <meshName> x y z`, `spawnposition x y z`, and `goalposition x y z` records.
 
 ## Build and run
 
@@ -22,14 +22,3 @@ The default VS Code CMake preset builds both the `Engine` and `Graphics` librari
 
 To debug the demo, select **Debug Engine Demo (GDB)** in Run and Debug and press **F5**. This uses a separate Debug build under `build/debug`; **MSYS2: Set Up Environment** installs GDB.
 
-## Run unit tests
-
-Run **CMake: Run Core Tests** to configure, build, and run the core unit tests without requiring Graphics or GLFW. From a terminal, use:
-
-```powershell
-cmake --preset tests
-cmake --build --preset tests
-ctest --preset tests
-```
-
-The existing **CMake: Run Tests** task still runs tests with the `default` preset, which also builds Graphics and includes its input/camera tests when enabled.

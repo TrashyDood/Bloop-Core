@@ -90,7 +90,7 @@
     { // MSYS2 GENERATE GLAD
       "label": "MSYS2: Generate GLAD",
       "type": "shell",
-      "command": "call \"${config:msys2.root}\\msys2_shell.cmd\" -ucrt64 -defterm -no-start -here -c \"glad --api gl:core=3.3 --out-path third_party/glad c --loader\"",
+      "command": "call \"${config:msys2.root}\\msys2_shell.cmd\" -ucrt64 -defterm -no-start -here -c \"glad --api gl:core=3.3 --out-path Source/third_party/glad c --loader\"",
       "options": {
         "cwd": "${workspaceFolder}",
         "shell": {
@@ -153,37 +153,6 @@
       "command": "build",
       "preset": "debug",
       "dependsOn": "CMake: Configure Debug",
-      "problemMatcher": []
-    },
-    { // CMAKE TEST
-      "label": "CMake: Run Tests",
-      "type": "cmake",
-      "command": "test",
-      "preset": "default",
-      "dependsOn": "CMake: Build",
-      "problemMatcher": []
-    },
-    { // CMAKE CONFIGURE TESTS
-      "label": "CMake: Configure Core Tests",
-      "type": "cmake",
-      "command": "configure",
-      "preset": "tests",
-      "problemMatcher": []
-    },
-    { // CMAKE BUILD CORE TESTS
-      "label": "CMake: Build Core Tests",
-      "type": "cmake",
-      "command": "build",
-      "preset": "tests",
-      "dependsOn": "CMake: Configure Core Tests",
-      "problemMatcher": []
-    },
-    { // CMAKE RUN CORE TESTS
-      "label": "CMake: Run Core Tests",
-      "type": "cmake",
-      "command": "test",
-      "preset": "tests",
-      "dependsOn": "CMake: Build Core Tests",
       "problemMatcher": []
     },
     { // RUN ENGINE

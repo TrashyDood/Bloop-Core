@@ -7,91 +7,9 @@
 #include "Graphics.h"
 #include "IOUtils.h"
 
-namespace // Local helpers
-{
-    bool DiscoverSceneFiles(const std::filesystem::path &rootDirectory, std::vector<IO::Path> &outPaths)
-    {
-        outPaths.clear();
-
-        for (const auto &scenePath : IO::FindMatchingFiles_Parallel(rootDirectory, std::regex(R"(.*\.scene)")))
-            outPaths.emplace_back(IO::Path::FromAbsolute(scenePath, rootDirectory));
-
-        return outPaths.size() > 0;
-    }
-
-    Int32 LoadSceneObjects(const std::filesystem::path &scenePath, std::vector<std::shared_ptr<SceneObject>> &outObjects,
-        std::vector<Vector3f> &outPlayerSpawnLocations, std::vector<Vector3f> &outGoalLocations)
-    {
-        LOG_SCOPE;
-
-        std::ifstream sceneFile(scenePath);
-        if (!sceneFile)
-        {
-            LOG_ERROR("Failed to open scene file '%s'.\n", scenePath.string().c_str());
-            return EXIT_FAILURE;
-        }
-
-        std::string line;
-        UInt32 lineNumber = 0;
-        while (std::getline(sceneFile, line))
-        {
-            ++lineNumber;
-
-            std::istringstream lineStream(line);
-            std::string recordType, meshName, extra;
-            Vector3f position;
-            if (!(lineStream >> recordType))
-                continue;
-
-            if (recordType == "object:")
-            {
-                if (!(lineStream >> meshName))
-                {
-                    LOG_ERROR("Invalid scene record at line %u in '%s'.\n",
-                        lineNumber, scenePath.string().c_str());
-                    return EXIT_FAILURE;
-                }
-            }
-            else if (recordType != "spawnposition" && recordType != "goalposition")
-            {
-                LOG_ERROR("Invalid scene record at line %u in '%s'.\n",
-                    lineNumber, scenePath.string().c_str());
-                return EXIT_FAILURE;
-            }
-
-            if (!(lineStream >> position.x >> position.y >> position.z) || (lineStream >> extra))
-            {
-                LOG_ERROR("Invalid scene record at line %u in '%s'.\n",
-                    lineNumber, scenePath.string().c_str());
-                return EXIT_FAILURE;
-            }
-
-            if (recordType == "object:")
-            {
-                auto sceneObject = std::make_shared<SceneObject>();
-                sceneObject->transform = Engine::Transform(position);
-                sceneObject->meshName = meshName;
-                outObjects.emplace_back(std::move(sceneObject));
-            }
-            else if (recordType == "spawnposition")
-                outPlayerSpawnLocations.emplace_back(position);
-            else
-                outGoalLocations.emplace_back(position);
-        }
-
-        if (sceneFile.bad())
-        {
-            LOG_ERROR("Failed while reading scene file '%s'.\n", scenePath.string().c_str());
-            return EXIT_FAILURE;
-        }
-
-        return EXIT_SUCCESS;
-    }
-} // namespace
-
 DemoSceneLayer::DemoSceneLayer(Application &app) :
     Application::Layer(app),
-    assetsRootDirectory(IO::WorkingDirectory() / "assets"),
+    contentRootDirectory(IO::WorkingDirectory() / "content"),
     windowHost(Graphics::Window()) { }
 
 Int32 DemoSceneLayer::OnStart()
@@ -100,13 +18,14 @@ Int32 DemoSceneLayer::OnStart()
 
     LOG_INFO("Starting demo scene layer...\n");
 
+    Graphics::Window::Config windowConfig{1920, 1080, "Bloop Core Engine", true};
     InputCallbacks inputCallbacks{
         [&](const Input::KeyCode key, const Input::KeyAction action)
         { inputHandler.OnKeyStateChanged(key, action); },
         [&](const Input::MouseKeyCode button, const Input::KeyAction action)
         { inputHandler.OnKeyStateChanged(button, action); }};
 
-    if (!windowHost.Initialize({1920, 1080, "Bloop Core Engine", true}, std::move(inputCallbacks)))
+    if (!windowHost.Initialize(std::move(windowConfig), std::move(inputCallbacks)))
     {
         LOG_ERROR("Failed to initialize window for demo scene.\n");
         return EXIT_FAILURE;
@@ -121,35 +40,15 @@ Int32 DemoSceneLayer::OnStart()
     BindInput();
     StartLoadingAssets();
 
-    SceneObject::Create(sceneObjects);
-    SceneObject::Create(sceneObjects);
-
-    SceneCamera::Create(sceneCameras,
-        [](Engine::Transform &transform, Camera &)
+    sceneObjects.Create();
+    sceneCameras.Create(
+        [](auto &manager, const auto entity)
         {
-            transform.SetPosition(Vector3f(-5.f, 5.f, 5.f));
-            transform.SetLookAtPoint(Vectors::v3fZero);
+            Transform *trans;
+            manager.template Get<Transform>(entity, trans);
+            trans->position = Vector3f(5, 0, -5);
+            trans->LookAt();
         });
-
-    SceneCamera::Create(sceneCameras,
-        [](Engine::Transform &transform, Camera &camera)
-        {
-            transform.SetPosition(Vector3f(5.f, 5.f, 5.f));
-            transform.SetLookAtPoint(Vectors::v3fZero);
-        });
-
-    SceneCamera::Create(sceneCameras,
-        [](Engine::Transform &transform, Camera &camera)
-        {
-            transform.SetPosition(Vector3f(5.f, 5.f, -5.f));
-            transform.SetLookAtPoint(Vectors::v3fZero);
-        });
-
-    if (!DiscoverSceneFiles(assetsRootDirectory, sceneFilePaths))
-    {
-        LOG_ERROR("No scene files found under '%s'.\n", assetsRootDirectory.string().c_str());
-        return EXIT_FAILURE;
-    }
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
@@ -203,22 +102,22 @@ void DemoSceneLayer::StartLoadingAssets()
     using namespace Graphics;
 
     LOG_SCOPE;
-    LOG_INFO("Loading assets from '%s'...\n", assetsRootDirectory.string().c_str());
+    LOG_INFO("Loading assets from '%s'...\n", contentRootDirectory.string().c_str());
 
-    assetManager.EnqueueAssetLoad<Shader>(IO::Path::FromRelative("shaders", assetsRootDirectory),
+    assetManager.EnqueueAssetLoad<Shader>(IO::Path::FromRelative("shaders", contentRootDirectory),
         [&]
         {
             LOG_SCOPE;
             LOG_INFO("Shaders finished loading.\n");
             activeShader = assetManager.GetResourceByIndex<Shader>(0);
         });
-    assetManager.EnqueueAssetLoad<Mesh>(IO::Path::FromRelative("models", assetsRootDirectory),
+    assetManager.EnqueueAssetLoad<Mesh>(IO::Path::FromRelative("models", contentRootDirectory),
         [&]
         {
             LOG_SCOPE;
             LOG_INFO("Models finished loading.\n");
         });
-    assetManager.EnqueueAssetLoad<Texture2D>(IO::Path::FromRelative("textures", assetsRootDirectory),
+    assetManager.EnqueueAssetLoad<Texture2D>(IO::Path::FromRelative("textures", contentRootDirectory),
         [&]
         {
             LOG_SCOPE;
@@ -240,9 +139,9 @@ Int32 DemoSceneLayer::DrawScene(const Application::Time &time)
         activeTexture->Bind(GL_TEXTURE0);
         activeShader->SetUniformValue("textureSampler", Int32{0});
 
-        const auto &cameras = sceneCameras.GetComponents<Camera>();
-        const auto &cameraTransforms = sceneCameras.GetComponents<Engine::Transform>();
-        const auto &objectTransforms = sceneObjects.GetComponents<Engine::Transform>();
+        const auto &cameras = sceneCameras.GetComponentList<Camera>();
+        const auto &cameraTransforms = sceneCameras.GetComponentList<Transform>();
+        const auto &objectTransforms = sceneObjects.GetComponentList<Transform>();
 
         windowHost.RenderViewports(static_cast<UInt32>(cameras.size()),
             [&](const Graphics::Window::Viewport &viewport)
@@ -273,8 +172,8 @@ Int32 DemoSceneLayer::DrawGUI(const Application::Time &time)
 {
     ImGuiUtils::Context::Start();
     logWindow.Draw();
-    sceneContextWindow.Draw(time.unscaledDeltaTime, time.unscaledElapsedTime, time.elapsedFrames,
-        currentSceneName, sceneFilePaths, [&](const std::string &sceneName) {  });
+    // sceneContextWindow.Draw(time.unscaledDeltaTime, time.unscaledElapsedTime, time.elapsedFrames,
+    //     currentSceneName, sceneFilePaths, [&](const std::string &sceneName) {  });
     ImGuiUtils::Context::End();
 
     return EXIT_SUCCESS;

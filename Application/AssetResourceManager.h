@@ -2,6 +2,7 @@
 
 #include "ResourceLoading.h"
 #include "ThreadPool.h"
+#include "IOUtils.h"
 
 #include <algorithm>
 #include <limits>
@@ -10,6 +11,11 @@
 #include <unordered_map>
 #include <vector>
 #include <functional>
+
+struct Asset
+{
+
+};
 
 class AssetResourceManager
 {

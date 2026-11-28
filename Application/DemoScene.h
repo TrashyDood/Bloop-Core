@@ -7,7 +7,6 @@
 // Engine
 #include "Application.h"
 #include "InputHandler.h"
-#include "Transform.h"
 #include "ECS.h"
 
 // Graphics
@@ -19,12 +18,6 @@
 #include "ImGuiUtils.h"
 
 #include "AssetResourceManager.h"
-
-struct SceneObject
-{
-    Engine::Transform transform;
-    std::string meshName;
-};
 
 struct Camera
 {
@@ -42,6 +35,29 @@ struct Camera
     }
 };
 
+struct Transform
+{
+    Vector3f position, scale;
+    Quaternion rotation;
+
+    Matrix4f GetTransformMatrix() const
+    {
+        return Matrices::GetMatrix_Transform(position, Matrices::GetMatrix_Rotation(rotation));
+    }
+
+    Matrix4f GetLookMatrix() const
+    {
+        const Matrix4f transform = GetTransformMatrix();
+        return Matrices::GetMatrix_Look(position,
+            Matrices::TransformVector(transform, Vectors::v3fForward),
+            Matrices::TransformVector(transform, Vectors::v3fUp));
+    }
+
+    void LookAt(const Vector3f &target = Vectors::v3fZero) { rotation = Quaternions::LookAt(target - position); }
+};
+
+struct TransformMatrix { Matrix4f value{1.f}; };
+
 class DemoSceneLayer : public Application::Layer
 {
 public:
@@ -54,9 +70,7 @@ public:
     ~DemoSceneLayer();
 
 private:
-    const std::filesystem::path assetsRootDirectory;
-    std::vector<IO::Path> sceneFilePaths;
-    std::string currentSceneName;
+    const std::filesystem::path contentRootDirectory;
 
     Graphics::Window windowHost;
     Engine::InputHandler inputHandler;
@@ -75,11 +89,23 @@ private:
 
     void BindInput();
     void StartLoadingAssets();
-    
-    ECS_ARCHETYPE(SceneObjectArchetype, SceneObject, Engine::Transform);
-    ECS_ARCHETYPE(SceneCameraArchetype, SceneCamera, Engine::Transform, Camera);
-    SceneObjectArchetype sceneObjects;
-    SceneCameraArchetype sceneCameras;
+
+    template <typename... TComps>
+    class SceneEntityArchetype : public Engine::ECSArchetypes::EntityArchetype<Transform, TransformMatrix, TComps...>
+    {
+        template <typename TArchetype>
+        void UpdateTransformMatrices(TArchetype &archetype)
+        {
+            auto &transforms = archetype.template GetComponents<Transform>();
+            auto &matrices = archetype.template GetComponents<TransformMatrix>();
+
+            for (std::size_t index = 0; index < archetype.Count(); ++index)
+                matrices[index].value = transforms[index].GetTransformMatrix();
+        }
+    };
+
+    SceneEntityArchetype<> sceneObjects;
+    SceneEntityArchetype<Camera> sceneCameras;
 
     Int32 DrawScene(const Application::Time &time);
     Int32 DrawGUI(const Application::Time &time);
